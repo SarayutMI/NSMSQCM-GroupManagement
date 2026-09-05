@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ระบบจองห้องกิจกรรม | Innovation Space · InspireLab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+</head>
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="3" y="3" width="7" height="7" rx="1.5" fill="#EAF1FB"/>
+          <rect x="14" y="3" width="7" height="7" rx="1.5" fill="#5B9BE0"/>
+          <rect x="3" y="14" width="7" height="7" rx="1.5" fill="#5B9BE0"/>
+          <rect x="14" y="14" width="7" height="7" rx="1.5" fill="#EAF1FB"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <div class="title">ระบบจองห้องกิจกรรม</div>
+        <div class="sub">Innovation Space · Inspire Lab · อื่นๆ</div>
+      </div>
+    </div>
+    <div class="nav-controls">
+      <button class="icon-btn" id="prevBtn">‹</button>
+      <button class="btn btn-sm" id="todayBtn">วันนี้</button>
+      <button class="icon-btn" id="nextBtn">›</button>
+    </div>
+    <div class="today-label" id="periodLabel">-</div>
+    <div class="view-switch">
+      <button data-view="month" class="active">เดือน</button>
+      <button data-view="week">สัปดาห์</button>
+      <button data-view="day">วัน</button>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn btn-ghost" id="refreshBtn" title="โหลดรายชื่อโรงเรียนอ้างอิงใหม่">⟳ ซิงก์ข้อมูลอ้างอิง</button>
+    <button class="btn btn-primary" id="addBtn">+ เพิ่มการจอง</button>
+  </header>
+
+  <div class="body-area">
+    <aside class="sidebar">
+      <div class="side-block" id="syncBlock">
+        <h3>ข้อมูลอ้างอิง (Sheet)</h3>
+        <div class="sync-banner" id="syncBanner">กำลังตรวจสอบ...</div>
+      </div>
+
+      <div class="side-block" id="visitSyncBlock">
+        <h3>ข้อมูลการจอง (Sheet)</h3>
+        <div class="sync-banner" id="visitSyncBanner">กำลังตรวจสอบ...</div>
+      </div>
+
+      <div class="side-block">
+        <h3>ค้นหา</h3>
+        <input class="search-box" id="searchInput" placeholder="ค้นหาชื่อโรงเรียน / กิจกรรม">
+      </div>
+
+      <div class="side-block">
+        <h3>ห้อง / กิจกรรม</h3>
+        <div id="roomFilters"></div>
+      </div>
+
+      <div class="side-block">
+        <h3>สถานะ</h3>
+        <div id="statusFilters"></div>
+      </div>
+
+      <div class="side-block">
+        <h3>รอยืนยัน (<span id="pendingCount">0</span>)</h3>
+        <div class="pending-list" id="pendingList"></div>
+      </div>
+    </aside>
+
+    <main class="calendar-area">
+      <div id="monthView"></div>
+      <div id="agendaView" style="display:none;"></div>
+    </main>
+  </div>
+</div>
+
+<!-- ============ Booking Form Modal ============ -->
+<div class="overlay" id="formOverlay">
+  <div class="modal wide">
+    <div class="modal-head">
+      <h2 id="formTitle">เพิ่มการจอง</h2>
+      <button class="close-x" data-close="formOverlay">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="conflict-warning" id="conflictWarning"></div>
+      <form id="bookingForm">
+        <input type="hidden" id="f_id">
+        <div class="form-grid">
+          <div class="field">
+            <label>ชื่อโรงเรียน *</label>
+            <input id="f_school" list="schoolRefList" required placeholder="พิมพ์หรือเลือกจากรายการอ้างอิง">
+            <datalist id="schoolRefList"></datalist>
+          </div>
+          <div class="field">
+            <label>ระดับชั้น/กลุ่ม (ถ้ามี)</label>
+            <input id="f_gradeLevel" placeholder="เช่น ป.1, ม.2/3">
+          </div>
+          <div class="field">
+            <label>แพ็กเกจ (ถ้ามี)</label>
+            <input id="f_packageLabel" placeholder="เช่น Basic, Advance">
+          </div>
+          <div class="field">
+            <label>ผู้ประสานงาน</label>
+            <input id="f_contactPerson" placeholder="ชื่อ-สกุลผู้ติดต่อ">
+          </div>
+          <div class="field">
+            <label>เบอร์ติดต่อ</label>
+            <input id="f_contactPhone" placeholder="08X-XXX-XXXX">
+          </div>
+          <div class="field">
+            <label>วันที่ *</label>
+            <input type="date" id="f_date" required>
+          </div>
+          <div class="field">
+            <label>จำนวนเด็ก</label>
+            <input type="number" min="0" id="f_childrenCount" value="0">
+          </div>
+          <div class="field">
+            <label>จำนวนผู้ใหญ่</label>
+            <input type="number" min="0" id="f_adultCount" value="0">
+          </div>
+          <div class="field full">
+            <div class="total-people">รวมผู้เข้าร่วมทั้งหมด: <b id="totalPeopleLabel">0</b> คน — <span style="color:var(--pending);font-weight:600;">คิดราคาจากจำนวนเด็กเท่านั้น: <b id="billableLabel">0</b> คน</span> (ไม่รวมผู้ใหญ่)</div>
+          </div>
+        </div>
+
+        <div class="activities-head">
+          <label>กิจกรรมที่จอง *</label>
+          <button type="button" class="btn btn-sm" id="addActivityBtn">+ เพิ่มกิจกรรม</button>
+        </div>
+        <div id="activityRows"></div>
+
+        <div class="form-grid" style="margin-top:14px;">
+          <div class="field full">
+            <label>หมายเหตุ / อุปกรณ์ที่ต้องใช้เพิ่มเติม</label>
+            <textarea id="f_notes" placeholder="เช่น ต้องการโปรเจกเตอร์เพิ่ม, แพ้อาหารบางชนิด ฯลฯ"></textarea>
+          </div>
+        </div>
+      </form>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close="formOverlay">ยกเลิก</button>
+      <button class="btn btn-primary" id="saveBookingBtn">บันทึกการจอง</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Detail Modal ============ -->
+<div class="overlay" id="detailOverlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>รายละเอียดการจอง</h2>
+      <button class="close-x" data-close="detailOverlay">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="detail-status-row">
+        <span style="font-size:12.8px;color:var(--ink-soft);font-weight:600;">สถานะ:</span>
+        <select class="status-select" id="detailStatusSelect">
+          <option value="pending">รอยืนยัน</option>
+          <option value="confirmed">ยืนยันแล้ว</option>
+          <option value="cancelled">ยกเลิก</option>
+        </select>
+      </div>
+      <table class="detail-table" id="detailTable"></table>
+
+      <h3 class="section-label">ค่าใช้จ่าย</h3>
+      <table class="cost-table" id="costTable"></table>
+
+      <h3 class="section-label">ออกเอกสาร</h3>
+      <div class="doc-export-grid">
+        <div class="doc-export-item">
+          <div class="doc-export-name">แบบตอบรับการจอง</div>
+          <div class="doc-export-btns">
+            <button class="btn btn-sm" id="printDocABtn">🖨 PDF</button>
+            <button class="btn btn-sm" id="downloadDocABtn">⬇ Word</button>
+          </div>
+        </div>
+        <div class="doc-export-item">
+          <div class="doc-export-name">ตารางกิจกรรม + ค่าใช้จ่าย</div>
+          <div class="doc-export-btns">
+            <button class="btn btn-sm" id="printDocBBtn">🖨 PDF</button>
+            <button class="btn btn-sm" id="downloadDocBBtn">⬇ Word</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot" style="justify-content:space-between;">
+      <button class="btn btn-danger" id="deleteBookingBtn">ลบรายการ</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn" id="editBookingBtn">แก้ไข</button>
+        <button class="btn" data-close="detailOverlay">ปิด</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Loading overlay ============ -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-box">
+    <div class="loading-spinner"></div>
+    <div class="loading-text" id="loadingText">กำลังโหลดข้อมูล...</div>
+  </div>
+</div>
+
+<!-- ============ Hidden print area ============ -->
+<div id="printArea"></div>
+
+<script src="script.js"></script>
+</body>
+</html>
