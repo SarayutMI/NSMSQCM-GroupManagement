@@ -9,7 +9,7 @@
      แล้วคัดลอกลิงก์มาใส่ที่ SCHOOLS_CSV_URL ด้านล่าง (คอลัมน์: school, contactPerson, contactPhone)
    ========================================================= */
 const CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycbyc0kCzjNJ15WZNuZH3_CgsAjPnwOeuZZYp7fYHHycmFnEvSGBdTvpDqK7BuL4HDA7SZw/exec',            // <-- ใส่ URL ของ Google Apps Script Web App (จาก Code.gs) ที่นี่ เพื่อเชื่อม Sheet จริง
+  API_URL: 'https://script.google.com/macros/s/AKfycbwMZD55K857pQ1XCi0q2jwsRmsj_4tOLE5H33DFyzynKh96vaJhsPK5A3n9vmM78k07uw/exec',            // <-- ใส่ URL ของ Google Apps Script Web App (จาก Code.gs) ที่นี่ เพื่อเชื่อม Sheet จริง
   SCHOOLS_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=0&single=true&output=csv'     // <-- ใส่ลิงก์ CSV รายชื่อโรงเรียนอ้างอิงจาก Google Sheet ที่นี่
 };
 
@@ -789,15 +789,14 @@ document.getElementById('saveBookingBtn').addEventListener('click', async ()=>{
 
   const saveBtn = document.getElementById('saveBookingBtn');
   const conflicts = findActivityConflicts(activities, date, state.editingId);
-  if(conflicts.length>0 && !saveBtn.dataset.forced){
-    const warn = document.getElementById('conflictWarning');
+  const warn = document.getElementById('conflictWarning');
+  if(conflicts.length>0){
     warn.style.display='block';
     warn.innerHTML = '⚠ เวลาทับซ้อนกับ: ' + conflicts.map(c=>`${escapeHtml(c.school)} - ${roomInfo(c.room).label} (${c.startTime}-${c.endTime})`).join(', ') +
-      '<br>กด "บันทึกการจอง" อีกครั้งเพื่อยืนยันว่าต้องการจองซ้อนจริง';
-    saveBtn.dataset.forced = '1';
-    return;
+      ' — บันทึกจองซ้อนได้ตามปกติ';
+  } else {
+    warn.style.display='none';
   }
-  saveBtn.dataset.forced = '';
 
   const data = {
     school,
