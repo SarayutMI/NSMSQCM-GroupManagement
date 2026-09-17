@@ -22,7 +22,7 @@ const SHEET_NAME = 'Bookings';
 const HEADERS = [
   'id','docNo','school','gradeLevel','packageLabel','contactPerson','contactPhone',
   'date','childrenCount','adultCount','totalPeople','status','notes',
-  'activitiesJson','createdAt','updatedAt'
+  'activitiesJson','createdAt','updatedAt','contactFacebook'
 ];
 
 /**
@@ -129,6 +129,7 @@ function buildRecord_(data, overrides) {
     packageLabel: data.packageLabel || '',
     contactPerson: data.contactPerson || '',
     contactPhone: data.contactPhone || '',
+    contactFacebook: data.contactFacebook || '',
     date: data.date || '',
     childrenCount: Number(data.childrenCount) || 0,
     adultCount: Number(data.adultCount) || 0,

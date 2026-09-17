@@ -16,6 +16,7 @@ const CONFIG = {
 /* ตั้งค่าข้อความ/ข้อมูลที่ใช้พิมพ์ในเอกสาร แก้ตรงนี้ได้ตามหน่วยงานจริง */
 const DOC_CONFIG = {
   venueName: 'จัตุรัสวิทยาศาสตร์ อพวช. เชียงใหม่',
+  facebookPage: 'NSM Science Square at Chiang Mai',
   contactEmail: 'Yuttana.s@nsm.or.th',
   contactPhone: '093-745-8550',
   paymentNote: 'การชำระเงินกรุณาชำระผ่านการโอนได้ที่เคาน์เตอร์ในวันที่มาร่วมกิจกรรมเท่านั้น (งดรับเงินสด)',
@@ -36,7 +37,7 @@ const DOC_CONFIG = {
 const ROOM_CATEGORIES = [
   {id:'innovation', label:'Innovation Space', color:'var(--yellow)', bg:'var(--yellow-dim)'},
   {id:'inspirelab', label:'Inspire Lab',       color:'var(--sky)',   bg:'var(--sky-dim)'},
-  {id:'other',      label:'อื่นๆ',              color:'var(--slate)', bg:'var(--slate-dim)'}
+  {id:'other',      label:'อื่นๆ',              color:'var(--purple)', bg:'var(--purple-dim)'}
 ];
 const ROOM_DEFAULT_PRICE = { innovation: 90, inspirelab: 90, other: 100 };
 
@@ -119,23 +120,53 @@ function thaiFullDateWithDay(dateStr){
   return `${WEEKDAYS_FULL_TH[d.getDay()]}ที่ ${d.getDate()} ${MONTHS_TH[d.getMonth()]} พ.ศ. ${d.getFullYear()+543}`;
 }
 function thTime(t){ return t ? t.replace(':','.') : t; }
-function expandGradeLevel(g){
-  if(!g) return '';
-  g = g.trim();
+function extractGradeTokens(str){
+  // ดึงคู่ (ป/ม/อ, เลขชั้น) จากข้อความได้ทุกที่ ไม่ต้องอยู่ต้นสตริง เผื่อช่อง "ระดับชั้น/กลุ่ม" เป็นชื่อกลุ่มที่พิมพ์เองแบบ "กลุ่ม 1 อ.3"
+  // บังคับต้องมีจุดหลังตัวย่อ (ป./ม./อ.) กันไปแมตช์ตัวอักษร ป/ม/อ ที่อยู่ในคำอื่น เช่น "กลุ่ม" ลงท้ายด้วย ม
+  const out = [];
+  const re = /(ป|ม)\.\s*(\d+)|อ(?:นุบาล)?\.\s*(\d+)/g;
   let m;
-  if(m = g.match(/^ป\.?\s*(\d+)/)) return `ชั้นประถมศึกษาปีที่ ${m[1]}`;
-  if(m = g.match(/^ม\.?\s*(\d+)/)) return `ชั้นมัธยมศึกษาปีที่ ${m[1]}`;
-  if(m = g.match(/^อ(?:นุบาล)?\.?\s*(\d+)/)) return `ชั้นอนุบาลปีที่ ${m[1]}`;
-  return g.startsWith('ชั้น') ? g : `ชั้น${g}`;
+  while((m = re.exec(str||''))){
+    if(m[1]) out.push({prefix:m[1], num:Number(m[2])});
+    else out.push({prefix:'อ', num:Number(m[3])});
+  }
+  return out;
 }
-function distinctGradesLabel(acts){
-  const grades = [...new Set(acts.map(a=>a.gradeLevel).filter(Boolean))];
-  return grades.map(expandGradeLevel).join(', ');
+function compactGradeSummary(acts){
+  // สรุประดับชั้นรวมแบบย่อ เช่น "ป.1-6 ม.2,5" — เลขต่อเนื่องรวมเป็นช่วง เลขไม่ต่อเนื่องคั่นด้วยจุลภาค
+  const byPrefix = new Map();
+  const prefixOrder = [];
+  acts.forEach(a=>{
+    extractGradeTokens(a.gradeLevel).forEach(({prefix,num})=>{
+      if(!byPrefix.has(prefix)){ byPrefix.set(prefix, new Set()); prefixOrder.push(prefix); }
+      byPrefix.get(prefix).add(num);
+    });
+  });
+  const prefixRank = {'อ':0,'ป':1,'ม':2};
+  const sortedPrefixes = prefixOrder.slice().sort((a,b)=> (prefixRank[a]??9)-(prefixRank[b]??9));
+  const parts = sortedPrefixes.map(prefix=>{
+    const nums = [...byPrefix.get(prefix)].sort((a,b)=>a-b);
+    const ranges = [];
+    let start = nums[0], prev = nums[0];
+    for(let i=1;i<=nums.length;i++){
+      const n = nums[i];
+      if(n === prev+1){ prev = n; continue; }
+      ranges.push(start===prev ? String(start) : `${start}-${prev}`);
+      start = prev = n;
+    }
+    return `${prefix}.${ranges.join(',')}`;
+  });
+  if(parts.length) return parts.join(' ');
+  // ไม่เจอเลขชั้นในข้อความเลย (พิมพ์เป็นชื่อกลุ่มอิสระ) — โชว์ข้อความดิบที่ไม่ซ้ำแทน
+  return [...new Set(acts.map(a=>String(a.gradeLevel||'').trim()).filter(Boolean))].join(', ');
 }
 
 /* ---------------- Visit / activity helpers ---------------- */
 function visitTotalPeople(v){ return (Number(v.childrenCount)||0) + (Number(v.adultCount)||0); }
-function billableCount(v){ return (v.activities||[]).reduce((sum,a)=> sum + (Number(a.childrenCount)||0), 0); } // ราคาคิดจากจำนวนเด็กของแต่ละกิจกรรมรวมกัน ไม่รวมผู้ใหญ่
+function billableCount(v){
+  // นับหัวเด็กครั้งเดียวต่อกลุ่ม (กลุ่มเดียวกันอาจเข้าหลายกิจกรรม/หลายรอบเวลา ไม่นับซ้ำ) ไม่รวมผู้ใหญ่
+  return groupActivitiesByGroup(v.activities).reduce((sum,g)=> sum + (Number(g[0].childrenCount)||0), 0);
+}
 function activitySubtotal(a){ return (Number(a.pricePerPerson)||0) * (Number(a.childrenCount)||0); }
 function visitGrandTotal(v){
   return v.activities.reduce((sum,a)=> sum + activitySubtotal(a), 0);
@@ -164,6 +195,15 @@ function timeSlotLabel(slot){
 }
 function sameSlot(a, slot){
   return a.startTime===slot.startTime && (a.endTime||'')===(slot.endTime||'');
+}
+function groupActivitiesByGroup(acts){
+  const map = new Map();
+  (acts||[]).forEach(a=>{
+    const gid = a.groupId || a.id;
+    if(!map.has(gid)) map.set(gid, []);
+    map.get(gid).push(a);
+  });
+  return [...map.values()];
 }
 function flattenOccurrences(){
   const list = [];
@@ -228,8 +268,10 @@ document.getElementById('f_school').addEventListener('change', (e)=>{
   if(match){
     const cp = document.getElementById('f_contactPerson');
     const ct = document.getElementById('f_contactPhone');
+    const fb = document.getElementById('f_contactFacebook');
     if(!cp.value) cp.value = match.contactPerson||'';
     if(!ct.value) ct.value = match.contactPhone||'';
+    if(!fb.value) fb.value = match.contactFacebook||'';
   }
 });
 
@@ -463,7 +505,7 @@ function renderAgenda(){
       <div class="agenda-events">
         ${dayItems.length===0 ? '<div class="agenda-empty">ไม่มีการจอง</div>' : dayItems.map(o=>{
           const r = roomInfo(o.room), s = statusInfo(o.status);
-          return `<div class="agenda-card" data-visit-id="${o.visitId}" style="border-left-color:${r.color}">
+          return `<div class="agenda-card" data-visit-id="${o.visitId}" style="border-left-color:${r.color};background:${r.bg}">
             <div class="time">${o.startTime}${o.endTime!=='23:59'?('–'+o.endTime):' เป็นต้นไป'}</div>
             <div class="name">${escapeHtml(o.topic)||r.label}</div>
             <div class="school">${escapeHtml(o.school)} · ${r.label}</div>
@@ -519,21 +561,17 @@ function stepPeriod(dir){
 }
 document.getElementById('searchInput').addEventListener('input', e=>{ state.search = e.target.value; renderAll(); });
 
-/* ---------------- Booking form: activity rows ---------------- */
-function activityRowHtml(a){
+/* ---------------- Booking form: activity groups (1 กลุ่มนักเรียน อาจมีหลายรอบเวลา/กิจกรรม) ---------------- */
+function activitySlotHtml(a){
   const id = a.id || uid();
-  return `<div class="activity-row" data-activity-id="${id}">
-    <button type="button" class="activity-remove-btn" title="ลบกิจกรรมนี้">✕</button>
-    <div class="activity-row-grid">
+  return `<div class="activity-slot" data-activity-id="${id}">
+    <button type="button" class="activity-remove-btn" title="ลบรอบนี้">✕</button>
+    <div class="activity-slot-grid">
       <div class="field">
         <label>ห้อง/กิจกรรม</label>
         <select class="act-room">
           ${ROOM_CATEGORIES.map(r=>`<option value="${r.id}" ${a.room===r.id?'selected':''}>${r.label}</option>`).join('')}
         </select>
-      </div>
-      <div class="field">
-        <label>ระดับชั้น/กลุ่ม</label>
-        <input class="act-grade" value="${escapeHtml(a.gradeLevel||'')}" placeholder="เช่น ป.1, ม.2/3">
       </div>
       <div class="field">
         <label>เรื่อง/หัวข้อ</label>
@@ -548,10 +586,6 @@ function activityRowHtml(a){
         <input type="time" class="act-end" value="${a.endTime||''}">
       </div>
       <div class="field">
-        <label>จำนวนเด็ก (รอบนี้)</label>
-        <input type="number" min="0" class="act-children" value="${a.childrenCount||0}">
-      </div>
-      <div class="field">
         <label>ราคา/คน (บาท)</label>
         <input type="number" min="0" class="act-price" value="${a.pricePerPerson ?? ''}">
       </div>
@@ -561,7 +595,27 @@ function activityRowHtml(a){
       <button type="button" data-s="11:00" data-e="12:00">11:00–12:00</button>
       <button type="button" data-s="13:00" data-e="">13:00 เป็นต้นไป</button>
     </div>
-    <div class="activity-subtotal">รวม: <b class="act-subtotal-value">0</b> บาท</div>
+  </div>`;
+}
+function activityGroupHtml(groupId, groupActs){
+  const first = groupActs[0];
+  return `<div class="activity-group" data-group-id="${groupId}">
+    <button type="button" class="group-remove-btn" title="ลบกลุ่มนี้ทั้งหมด">✕ ลบกลุ่ม</button>
+    <div class="activity-group-head">
+      <div class="field">
+        <label>ระดับชั้น/กลุ่ม</label>
+        <input class="grp-grade" value="${escapeHtml(first.gradeLevel||'')}" placeholder="เช่น ป.1, ม.2/3 หรือ กลุ่ม 1 อ.3 (ใช้เป็นชื่อกลุ่มในตารางเอกสารโดยตรง)">
+      </div>
+      <div class="field">
+        <label>จำนวนเด็กในกลุ่มนี้</label>
+        <input type="number" min="0" class="grp-children" value="${first.childrenCount||0}">
+      </div>
+    </div>
+    <div class="activity-slots">
+      ${groupActs.map(activitySlotHtml).join('')}
+    </div>
+    <button type="button" class="btn btn-sm add-slot-btn">+ เพิ่มรอบเวลา/กิจกรรมในกลุ่มนี้</button>
+    <div class="activity-subtotal">รวมค่าใช้จ่ายกลุ่มนี้: <b class="grp-subtotal-value">0</b> บาท</div>
   </div>`;
 }
 function getFormTotalPeople(){
@@ -570,49 +624,61 @@ function getFormTotalPeople(){
   return c+a;
 }
 function getFormChildrenCount(){
-  return [...document.querySelectorAll('#activityRows .act-children')].reduce((sum,el)=> sum+(Number(el.value)||0), 0);
+  return [...document.querySelectorAll('#activityRows .grp-children')].reduce((sum,el)=> sum+(Number(el.value)||0), 0);
 }
-function recomputeRowSubtotal(rowEl){
-  const children = Number(rowEl.querySelector('.act-children').value)||0;
-  const price = Number(rowEl.querySelector('.act-price').value)||0;
-  const subtotal = price*children;
-  rowEl.querySelector('.act-subtotal-value').textContent = money(subtotal);
+function recomputeGroupSubtotal(groupEl){
+  const children = Number(groupEl.querySelector('.grp-children').value)||0;
+  let total = 0;
+  groupEl.querySelectorAll('.activity-slot .act-price').forEach(el=>{ total += (Number(el.value)||0)*children; });
+  groupEl.querySelector('.grp-subtotal-value').textContent = money(total);
 }
-function recomputeAllSubtotals(){
-  document.querySelectorAll('#activityRows .activity-row').forEach(recomputeRowSubtotal);
+function recomputeAllGroupSubtotals(){
+  document.querySelectorAll('#activityRows .activity-group').forEach(recomputeGroupSubtotal);
 }
-function addActivityRow(prefill){
-  const defaults = {room: ROOM_CATEGORIES[0].id, childrenCount:0, pricePerPerson: ROOM_DEFAULT_PRICE[ROOM_CATEGORIES[0].id]};
-  document.getElementById('activityRows').insertAdjacentHTML('beforeend', activityRowHtml({...defaults, ...(prefill||{})}));
-  const rows = document.querySelectorAll('#activityRows .activity-row');
-  recomputeRowSubtotal(rows[rows.length-1]);
+function addActivityGroup(prefillActs){
+  const gid = uid();
+  const defaults = {room: ROOM_CATEGORIES[0].id, pricePerPerson: ROOM_DEFAULT_PRICE[ROOM_CATEGORIES[0].id]};
+  const acts = (prefillActs && prefillActs.length) ? prefillActs : [defaults];
+  document.getElementById('activityRows').insertAdjacentHTML('beforeend', activityGroupHtml(gid, acts));
+  const groups = document.querySelectorAll('#activityRows .activity-group');
+  recomputeGroupSubtotal(groups[groups.length-1]);
   updateTotalPeople();
 }
-document.getElementById('addActivityBtn').addEventListener('click', ()=> addActivityRow());
+document.getElementById('addActivityBtn').addEventListener('click', ()=> addActivityGroup());
 document.getElementById('activityRows').addEventListener('click', (e)=>{
-  if(e.target.classList.contains('activity-remove-btn')){
-    e.target.closest('.activity-row').remove();
+  if(e.target.classList.contains('add-slot-btn')){
+    const group = e.target.closest('.activity-group');
+    const defaults = {room: ROOM_CATEGORIES[0].id, pricePerPerson: ROOM_DEFAULT_PRICE[ROOM_CATEGORIES[0].id]};
+    group.querySelector('.activity-slots').insertAdjacentHTML('beforeend', activitySlotHtml(defaults));
+    recomputeGroupSubtotal(group);
+  } else if(e.target.classList.contains('group-remove-btn')){
+    e.target.closest('.activity-group').remove();
+    updateTotalPeople();
+  } else if(e.target.classList.contains('activity-remove-btn')){
+    const group = e.target.closest('.activity-group');
+    const slot = e.target.closest('.activity-slot');
+    if(group.querySelectorAll('.activity-slot').length<=1){ group.remove(); } else { slot.remove(); }
     updateTotalPeople();
   } else if(e.target.matches('.round-presets button')){
-    const row = e.target.closest('.activity-row');
-    row.querySelector('.act-start').value = e.target.dataset.s || '';
-    row.querySelector('.act-end').value = e.target.dataset.e || '';
+    const slot = e.target.closest('.activity-slot');
+    slot.querySelector('.act-start').value = e.target.dataset.s || '';
+    slot.querySelector('.act-end').value = e.target.dataset.e || '';
   }
 });
 document.getElementById('activityRows').addEventListener('input', (e)=>{
-  if(e.target.classList.contains('act-children') || e.target.classList.contains('act-price')){
-    recomputeRowSubtotal(e.target.closest('.activity-row'));
+  if(e.target.classList.contains('act-price') || e.target.classList.contains('grp-children')){
+    recomputeGroupSubtotal(e.target.closest('.activity-group'));
   }
-  if(e.target.classList.contains('act-children')){
+  if(e.target.classList.contains('grp-children')){
     updateTotalPeople();
   }
 });
 document.getElementById('activityRows').addEventListener('change', (e)=>{
   if(e.target.classList.contains('act-room')){
-    const row = e.target.closest('.activity-row');
-    const priceInput = row.querySelector('.act-price');
+    const slot = e.target.closest('.activity-slot');
+    const priceInput = slot.querySelector('.act-price');
     if(!priceInput.value){ priceInput.value = ROOM_DEFAULT_PRICE[e.target.value] ?? ''; }
-    recomputeRowSubtotal(row);
+    recomputeGroupSubtotal(e.target.closest('.activity-group'));
   }
 });
 document.getElementById('f_adultCount').addEventListener('input', updateTotalPeople);
@@ -640,7 +706,7 @@ function openAddForm(prefillDate){
   document.getElementById('f_adultCount').value = 0;
   document.getElementById('conflictWarning').style.display = 'none';
   document.getElementById('activityRows').innerHTML = '';
-  addActivityRow();
+  addActivityGroup();
   updateTotalPeople();
   openOverlay('formOverlay');
 }
@@ -652,12 +718,14 @@ function openEditForm(v){
   document.getElementById('f_packageLabel').value = v.packageLabel||'';
   document.getElementById('f_contactPerson').value = v.contactPerson||'';
   document.getElementById('f_contactPhone').value = v.contactPhone||'';
+  document.getElementById('f_contactFacebook').value = v.contactFacebook||'';
   document.getElementById('f_date').value = v.date;
   document.getElementById('f_adultCount').value = v.adultCount||0;
   document.getElementById('f_notes').value = v.notes||'';
-  document.getElementById('activityRows').innerHTML = v.activities.map(activityRowHtml).join('');
+  const groups = groupActivitiesByGroup(v.activities);
+  document.getElementById('activityRows').innerHTML = groups.map(g=> activityGroupHtml(g[0].groupId || g[0].id, g)).join('');
   document.getElementById('conflictWarning').style.display = 'none';
-  recomputeAllSubtotals();
+  recomputeAllGroupSubtotals();
   updateTotalPeople();
   closeOverlay('detailOverlay');
   openOverlay('formOverlay');
@@ -665,16 +733,26 @@ function openEditForm(v){
 document.getElementById('addBtn').addEventListener('click', ()=> openAddForm(fmtDate(state.cursorDate)));
 
 function readActivitiesFromForm(){
-  return [...document.querySelectorAll('#activityRows .activity-row')].map(row=>({
-    id: row.dataset.activityId,
-    room: row.querySelector('.act-room').value,
-    gradeLevel: row.querySelector('.act-grade').value.trim(),
-    topic: row.querySelector('.act-topic').value.trim(),
-    startTime: row.querySelector('.act-start').value,
-    endTime: row.querySelector('.act-end').value,
-    childrenCount: Number(row.querySelector('.act-children').value)||0,
-    pricePerPerson: Number(row.querySelector('.act-price').value)||0
-  }));
+  const activities = [];
+  document.querySelectorAll('#activityRows .activity-group').forEach(groupEl=>{
+    const groupId = groupEl.dataset.groupId;
+    const gradeLevel = groupEl.querySelector('.grp-grade').value.trim();
+    const childrenCount = Number(groupEl.querySelector('.grp-children').value)||0;
+    groupEl.querySelectorAll('.activity-slot').forEach(slotEl=>{
+      activities.push({
+        id: slotEl.dataset.activityId,
+        groupId,
+        room: slotEl.querySelector('.act-room').value,
+        gradeLevel,
+        topic: slotEl.querySelector('.act-topic').value.trim(),
+        startTime: slotEl.querySelector('.act-start').value,
+        endTime: slotEl.querySelector('.act-end').value,
+        childrenCount,
+        pricePerPerson: Number(slotEl.querySelector('.act-price').value)||0
+      });
+    });
+  });
+  return activities;
 }
 function findActivityConflicts(activities, date, excludeVisitId){
   const conflicts = [];
@@ -726,8 +804,9 @@ document.getElementById('saveBookingBtn').addEventListener('click', async ()=>{
     packageLabel: document.getElementById('f_packageLabel').value.trim(),
     contactPerson: document.getElementById('f_contactPerson').value.trim(),
     contactPhone: document.getElementById('f_contactPhone').value.trim(),
+    contactFacebook: document.getElementById('f_contactFacebook').value.trim(),
     date,
-    childrenCount: activities.reduce((sum,a)=> sum+(Number(a.childrenCount)||0), 0),
+    childrenCount: groupActivitiesByGroup(activities).reduce((sum,g)=> sum+(Number(g[0].childrenCount)||0), 0),
     adultCount: Number(document.getElementById('f_adultCount').value)||0,
     notes: document.getElementById('f_notes').value.trim(),
     activities
@@ -786,7 +865,7 @@ function openDetail(id){
   document.getElementById('detailTable').innerHTML = `
     <tr><td class="k">เลขที่เอกสาร</td><td>${v.docNo||'-'}</td></tr>
     <tr><td class="k">โรงเรียน</td><td>${escapeHtml(v.school)}</td></tr>
-    <tr><td class="k">ผู้ประสานงาน</td><td>${escapeHtml(v.contactPerson)||'-'} ${v.contactPhone?('· '+escapeHtml(v.contactPhone)):''}</td></tr>
+    <tr><td class="k">ผู้ประสานงาน</td><td>${escapeHtml(v.contactPerson)||'-'} ${v.contactPhone?('· '+escapeHtml(v.contactPhone)):''} ${v.contactFacebook?('· FB: '+escapeHtml(v.contactFacebook)):''}</td></tr>
     <tr><td class="k">วันที่</td><td>${v.date} (${thaiFullDate(v.date)})</td></tr>
     <tr><td class="k">จำนวนคน</td><td>เด็ก ${v.childrenCount||0} · ผู้ใหญ่ ${v.adultCount||0} · รวม ${totalPeople} คน</td></tr>
     <tr><td class="k">หมายเหตุ</td><td>${escapeHtml(v.notes)||'-'}</td></tr>
@@ -857,11 +936,26 @@ document.getElementById('deleteBookingBtn').addEventListener('click', async ()=>
 });
 
 /* ---------------- Document A: แบบตอบรับการจองเข้าร่วมกิจกรรม ---------------- */
+function roomTopicLines(acts){
+  // 1 บรรทัดต่อห้อง/กิจกรรม (เรียงตาม ROOM_CATEGORIES เสมอ) — เรื่องซ้ำไม่พิมพ์ซ้ำ เรื่องต่างกันต่อด้วยจุลภาคในบรรทัดเดียว
+  const map = new Map();
+  acts.forEach(a=>{
+    const topic = String(a.topic||'').trim();
+    if(!topic) return;
+    if(!map.has(a.room)) map.set(a.room, []);
+    const topics = map.get(a.room);
+    if(!topics.includes(topic)) topics.push(topic);
+  });
+  return ROOM_CATEGORIES.map(r=>r.id).filter(room=>map.has(room)).map(room=> ({room, topics: map.get(room)}));
+}
 function buildDocA_Html(v){
   const acts = v.activities;
-  const roomLine = (id, label)=>{
-    const a = acts.find(x=>x.room===id);
-    return `<div class="doc-checkbox-line">${a?'☒':'☐'} กิจกรรม ${label} รวม จำนวน ${a?(a.childrenCount||0):0} คน</div>`;
+  const roomLine = (id, label, showTopics)=>{
+    const matched = acts.filter(x=>x.room===id);
+    const total = matched.reduce((sum,a)=> sum+(Number(a.childrenCount)||0), 0);
+    const topics = [...new Set(matched.map(a=>String(a.topic||'').trim()).filter(Boolean))];
+    const topicPart = (showTopics && topics.length) ? ` (${topics.map(escapeHtml).join(', ')})` : '';
+    return `<div class="doc-checkbox-line">☐ กิจกรรม ${label}${topicPart} รวม จำนวน ${total} คน</div>`;
   };
   return `
   <div class="doc-page">
@@ -872,12 +966,12 @@ function buildDocA_Html(v){
     <div class="doc-line">2. เข้าร่วมกิจกรรมในวันที่ ${thaiFullDate(v.date)} ณ ${escapeHtml(DOC_CONFIG.venueName)}</div>
     ${roomLine('innovation','Innovation Space')}
     ${roomLine('inspirelab','Inspire Lab')}
-    ${roomLine('other', roomInfo('other').label)}
+    ${roomLine('other', roomInfo('other').label, true)}
     <div class="doc-section-title">3. รายละเอียดการเข้าร่วมกิจกรรม</div>
-    ${acts.filter(a=>a.topic).map(a=>`<div class="doc-line">${roomInfo(a.room).label} เรื่อง ${escapeHtml(a.topic)}</div>`).join('') || '<div class="doc-line">-</div>'}
+    ${roomTopicLines(acts).map(r=>`<div class="doc-line">${roomInfo(r.room).label} เรื่อง ${r.topics.map(escapeHtml).join(', ')}</div>`).join('') || '<div class="doc-line">-</div>'}
     <div class="doc-section-title">4. ผู้ประสานงาน</div>
-    <div class="doc-line">ชื่อ-สกุล ${escapeHtml(v.contactPerson)||'..........................................'}</div>
-    <div class="doc-line">โทรศัพท์ ${escapeHtml(v.contactPhone)||'..........................................'}</div>
+    <div class="doc-line doc-fill-line"><span>ชื่อ-สกุล</span><span class="fill-dots"></span></div>
+    <div class="doc-line doc-fill-line"><span>โทรศัพท์</span><span class="fill-dots"></span></div>
     <div class="doc-notes-title">หมายเหตุ</div>
     <ul class="doc-notes-list">
       <li>${escapeHtml(DOC_CONFIG.policyNotes[0])}</li>
@@ -895,24 +989,38 @@ function buildDocA_Html(v){
       <div class="line-fill">ตำแหน่ง ........................................</div>
     </div>
     <div class="doc-footer">
-      รบกวนส่งแบบตอบรับมาที่ Email : ${escapeHtml(DOC_CONFIG.contactEmail)}<br>
+      รบกวนส่งแบบตอบรับมาที่ Facebook Page : ${escapeHtml(DOC_CONFIG.facebookPage)} หรือ Email : ${escapeHtml(DOC_CONFIG.contactEmail)}<br>
       สอบถามรายละเอียดเพิ่มเติม โทร. ${escapeHtml(DOC_CONFIG.contactPhone)}
     </div>
   </div>`;
 }
 
 /* ---------------- Document B: ตารางการเข้าร่วมกิจกรรม + ค่าใช้จ่าย ---------------- */
-function activityDetailPhrase(a){
-  const topicPart = a.topic ? ` เรื่อง ${escapeHtml(a.topic)}` : '';
-  const gradePart = a.gradeLevel ? ` (${escapeHtml(a.gradeLevel)})` : '';
-  return `กิจกรรม ${roomInfo(a.room).label}${topicPart}${gradePart} รวม ${a.childrenCount||0} คน`;
+function roomCostSummary(acts){
+  // รวมยอดคน+เงินตามห้อง/กิจกรรม 1 บรรทัดต่อห้อง ไม่แยกย่อยตามกลุ่ม/รอบเวลา
+  const map = new Map();
+  acts.forEach(a=>{
+    if(!map.has(a.room)) map.set(a.room, {children:0, cost:0, topics:[]});
+    const e = map.get(a.room);
+    e.children += Number(a.childrenCount)||0;
+    e.cost += activitySubtotal(a);
+    const topic = String(a.topic||'').trim();
+    if(topic && !e.topics.includes(topic)) e.topics.push(topic);
+  });
+  return ROOM_CATEGORIES.map(r=>r.id).filter(id=>map.has(id)).map(id=> ({room:id, ...map.get(id)}));
+}
+function roomDetailLine(r){
+  // 1 บรรทัดต่อหมวดกิจกรรม รวมเรื่อง+จำนวนคนทุกกลุ่ม/รอบเข้าด้วยกัน ไม่บอกกลุ่ม/ระดับชั้น
+  const topicPart = r.topics.length ? ` เรื่อง ${r.topics.map(escapeHtml).join(', ')}` : '';
+  return `กิจกรรม ${roomInfo(r.room).label}${topicPart} รวม ${r.children} คน`;
 }
 function buildDocB_Html(v){
   const billable = billableCount(v);
   const acts = visitActivitiesSorted(v);
   const grand = visitGrandTotal(v);
-  const gradesLabel = distinctGradesLabel(acts);
-  const introText = `${thaiFullDateWithDay(v.date)} ผู้เข้าร่วมกิจกรรม${escapeHtml(gradesLabel)} จำนวน ${billable} คน`;
+  const gradesLabel = compactGradeSummary(acts);
+  const gradesPart = gradesLabel ? `ระดับชั้น ${escapeHtml(gradesLabel)} ` : '';
+  const introText = `${thaiFullDateWithDay(v.date)} ผู้เข้าร่วมกิจกรรม${gradesPart}จำนวน ${billable} คน`;
   const slots = buildTimeSlots(acts);
   return `
   <div class="doc-page">
@@ -924,19 +1032,22 @@ function buildDocB_Html(v){
         <th style="width:22%;">จำนวนนักเรียน</th>
         ${slots.map(s=>`<th>${timeSlotLabel(s)}</th>`).join('')}
       </tr>
-      ${acts.map((a,i)=>`<tr>
-        <td><b><u>กลุ่ม ${i+1}</u></b><br>${a.gradeLevel?escapeHtml(a.gradeLevel)+'<br>':''}(${a.childrenCount||0} คน)</td>
-        ${slots.map(s=> sameSlot(a,s) ? `<td><div class="room">${roomInfo(a.room).label}</div>${a.topic?`<div class="topic">${escapeHtml(a.topic)}</div>`:''}</td>` : '<td></td>').join('')}
-      </tr>`).join('')}
+      ${groupActivitiesByGroup(acts).map((g,i)=>{
+        const label = g[0].gradeLevel ? escapeHtml(g[0].gradeLevel) : ('กลุ่ม '+(i+1));
+        return `<tr>
+        <td><b><u>${label}</u></b><br>(${g[0].childrenCount||0} คน)</td>
+        ${slots.map(s=>{ const a = g.find(x=>sameSlot(x,s)); return a ? `<td><div class="room">${roomInfo(a.room).label}</div>${a.topic?`<div class="topic">${escapeHtml(a.topic)}</div>`:''}</td>` : '<td></td>'; }).join('')}
+      </tr>`;
+      }).join('')}
     </table>
     <div class="doc-section-title">รายละเอียดการเข้าร่วมกิจกรรม</div>
+    <div class="doc-line"><b>${introText}</b></div>
     <ul class="doc-notes-list">
-      <li><b>${introText}</b></li>
-      ${acts.map(a=>`<li>${activityDetailPhrase(a)}</li>`).join('')}
+      ${roomCostSummary(acts).map(r=>`<li>${roomDetailLine(r)}</li>`).join('')}
     </ul>
     <div class="doc-section-title">สรุปค่าใช้จ่ายในการทำกิจกรรม</div>
     <ul class="doc-notes-list">
-      ${acts.map(a=>`<li>กิจกรรม ${roomInfo(a.room).label} ผู้เข้าร่วม รวม ${a.childrenCount||0} คน รวมเป็นเงิน ${money(activitySubtotal(a))} บาท</li>`).join('')}
+      ${roomCostSummary(acts).map(r=>{ const topicPart = (r.room==='other' && r.topics.length) ? ` (${r.topics.map(escapeHtml).join(', ')})` : ''; return `<li>กิจกรรม ${roomInfo(r.room).label}${topicPart} ผู้เข้าร่วม รวม ${r.children} คน รวมเป็นเงิน ${money(r.cost)} บาท</li>`; }).join('')}
     </ul>
     <div class="doc-line doc-cost-blue">รวมค่าใช้จ่ายในการเข้าร่วมกิจกรรม ${money(grand)} บาท${v.packageLabel?(' ('+escapeHtml(v.packageLabel)+')'):''}</div>
     <div class="doc-payment-note" style="margin-left:0;">${escapeHtml(DOC_CONFIG.paymentNote)}</div>
@@ -988,6 +1099,13 @@ function dParaMulti(runs, opts={}){
     children: runs.map(r=> dRun(r.text, {size: opts.size, bold: opts.bold, ...r}))
   });
 }
+function dSignLine(label, opts={}){
+  return new docx.Paragraph({
+    tabStops: [{type: docx.TabStopType.RIGHT, position: 9350, leader: docx.LeaderType.DOT}],
+    spacing: {after: opts.after??20, before: opts.before||0},
+    children: [ dRun(label+'\t', opts) ]
+  });
+}
 function dCheckboxPara(checked, text, opts={}){
   return new docx.Paragraph({
     spacing: {after:30}, indent: {left:360},
@@ -1004,14 +1122,17 @@ function dCell(paras, opts={}){
 
 function buildDocA_DocxChildren(v){
   const acts = v.activities;
-  const roomLinePara = (id,label)=>{
-    const a = acts.find(x=>x.room===id);
-    return dCheckboxPara(!!a, `กิจกรรม ${label} รวม จำนวน ${a?(a.childrenCount||0):0} คน`);
+  const roomLinePara = (id,label,showTopics)=>{
+    const matched = acts.filter(x=>x.room===id);
+    const total = matched.reduce((sum,a)=> sum+(Number(a.childrenCount)||0), 0);
+    const topics = [...new Set(matched.map(a=>String(a.topic||'').trim()).filter(Boolean))];
+    const topicPart = (showTopics && topics.length) ? ` (${topics.join(', ')})` : '';
+    return dCheckboxPara(false, `กิจกรรม ${label}${topicPart} รวม จำนวน ${total} คน`);
   };
-  const topicParas = acts.filter(a=>a.topic).map(a=> dPara(`${roomInfo(a.room).label} เรื่อง ${a.topic}`, {after:30}));
+  const topicParas = roomTopicLines(acts).map(r=> dPara(`${roomInfo(r.room).label} เรื่อง ${r.topics.join(', ')}`, {after:30}));
   const priceParas = DOC_CONFIG.priceLines.map(p=> dParaMulti([
     {text:'- '},
-    {text:p.label+' :', color:'0563C1', underline:true},
+    {text:p.label+' :'},
     {text:` ราคา คนละ ${p.price} บาท ต่อรอบกิจกรรม (จากปกติคนละ ${p.normalPrice} บาท ต่อรอบกิจกรรม)`}
   ], {after:20}));
   const noteParas = DOC_CONFIG.policyNotes.map(n=> dPara(n, {after:20, bullet:true}));
@@ -1023,12 +1144,12 @@ function buildDocA_DocxChildren(v){
     dPara('2. เข้าร่วมกิจกรรมในวันที่ '+thaiFullDate(v.date)+' ณ '+DOC_CONFIG.venueName, {after:30}),
     roomLinePara('innovation','Innovation Space'),
     roomLinePara('inspirelab','Inspire Lab'),
-    roomLinePara('other', roomInfo('other').label),
+    roomLinePara('other', roomInfo('other').label, true),
     dPara('3. รายละเอียดการเข้าร่วมกิจกรรม', {bold:true, after:20, before:30}),
     ...(topicParas.length?topicParas:[dPara('-', {after:30})]),
     dPara('4. ผู้ประสานงาน', {bold:true, after:20}),
-    dPara('ชื่อ-สกุล '+(v.contactPerson||'..........................................'), {after:20}),
-    dPara('โทรศัพท์ '+(v.contactPhone||'..........................................'), {after:60}),
+    dSignLine('ชื่อ-สกุล', {after:20}),
+    dSignLine('โทรศัพท์', {after:60}),
     dPara('หมายเหตุ', {bold:true, after:20}),
     noteParas[0],
     ...priceParas,
@@ -1036,13 +1157,18 @@ function buildDocA_DocxChildren(v){
     dPara(DOC_CONFIG.paymentNote, {bold:true, color:'B00000', indent:360, after:140}),
     dPara('ลงชื่อ ........................................', {align:'right', after:6}),
     dPara('(........................................)', {align:'right', after:6}),
-    dPara('ตำแหน่ง ........................................', {align:'right', after:120}),
-    dPara('รบกวนส่งแบบตอบรับมาที่ Email : '+DOC_CONFIG.contactEmail, {size:24, after:20}),
+    dPara('ตำแหน่ง ........................................', {align:'right', after:120})
+  ];
+}
+function docAFooterParas(){
+  // ปักไว้มุมล่างซ้ายของทุกหน้าด้วย docx footer จริง (ไม่ไหลตามเนื้อหาข้างบน)
+  return [
+    dPara('รบกวนส่งแบบตอบรับมาที่ Facebook Page : '+DOC_CONFIG.facebookPage+' หรือ Email : '+DOC_CONFIG.contactEmail, {size:24, after:20}),
     dPara('สอบถามรายละเอียดเพิ่มเติม โทร. '+DOC_CONFIG.contactPhone, {size:24})
   ];
 }
 function buildDocA_Docx(v){
-  return new docx.Document({ sections:[{ children: buildDocA_DocxChildren(v) }] });
+  return new docx.Document({ sections:[{ children: buildDocA_DocxChildren(v), footers:{ default: new docx.Footer({ children: docAFooterParas() }) } }] });
 }
 
 function buildDocB_DocxChildren(v, opts={}){
@@ -1055,27 +1181,32 @@ function buildDocB_DocxChildren(v, opts={}){
     dCell(dPara('จำนวนนักเรียน', {align:'center', bold:true, size:27, after:0}), {width:22, fill:'BDD7EE'}),
     ...slots.map(s=> dCell(dPara(timeSlotLabel(s), {align:'center', bold:true, size:27, after:0}), {fill:'BDD7EE'}))
   ];
-  const rows = acts.map((a,i)=> new docx.TableRow({children:[
+  const rows = groupActivitiesByGroup(acts).map((g,i)=> new docx.TableRow({children:[
     dCell([
-      dPara('กลุ่ม '+(i+1), {align:'center', bold:true, underline:true, size:27, after:10}),
-      ...(a.gradeLevel ? [dPara(a.gradeLevel, {align:'center', size:24, after:10})] : []),
-      dPara(`(${a.childrenCount||0} คน)`, {align:'center', size:24, after:0})
+      dPara(g[0].gradeLevel || ('กลุ่ม '+(i+1)), {align:'center', bold:true, underline:true, size:27, after:10}),
+      dPara(`(${g[0].childrenCount||0} คน)`, {align:'center', size:24, after:0})
     ]),
-    ...slots.map(s=> dCell(
-      sameSlot(a,s) ? [
+    ...slots.map(s=>{
+      const a = g.find(x=>sameSlot(x,s));
+      return dCell(a ? [
         dPara(roomInfo(a.room).label, {align:'center', bold:true, size:27, after:10}),
         dPara(a.topic||'-', {align:'center', size:24, after:0})
-      ] : [dPara('', {after:0})]
-    ))
+      ] : [dPara('', {after:0})]);
+    })
   ]}));
   const table = new docx.Table({
     width: {size:100, type:docx.WidthType.PERCENTAGE},
     rows: [ new docx.TableRow({children:headerCells}), ...rows ]
   });
 
-  const detailBullets = acts.map(a=> dPara(activityDetailPhraseDocx(a), {after:20, bullet:true}));
-  const introText = `${thaiFullDateWithDay(v.date)} ผู้เข้าร่วมกิจกรรม${distinctGradesLabel(acts)} จำนวน ${billable} คน`;
-  const costBullets = acts.map(a=> dPara(`กิจกรรม ${roomInfo(a.room).label} ผู้เข้าร่วม รวม ${a.childrenCount||0} คน รวมเป็นเงิน ${money(activitySubtotal(a))} บาท`, {after:20, bullet:true}));
+  const detailBullets = roomCostSummary(acts).map(r=> dPara(roomDetailLineDocx(r), {after:20, bullet:true}));
+  const gradesLabelDocx = compactGradeSummary(acts);
+  const gradesPartDocx = gradesLabelDocx ? `ระดับชั้น ${gradesLabelDocx} ` : '';
+  const introText = `${thaiFullDateWithDay(v.date)} ผู้เข้าร่วมกิจกรรม${gradesPartDocx}จำนวน ${billable} คน`;
+  const costBullets = roomCostSummary(acts).map(r=>{
+    const topicPart = (r.room==='other' && r.topics.length) ? ` (${r.topics.join(', ')})` : '';
+    return dPara(`กิจกรรม ${roomInfo(r.room).label}${topicPart} ผู้เข้าร่วม รวม ${r.children} คน รวมเป็นเงิน ${money(r.cost)} บาท`, {after:20, bullet:true});
+  });
 
   return [
     dPara('ตารางการเข้าร่วมกิจกรรม ณ '+DOC_CONFIG.venueName, {align:'center', bold:true, size:27, after:15, pageBreakBefore: !!opts.pageBreakBefore}),
@@ -1083,7 +1214,7 @@ function buildDocB_DocxChildren(v, opts={}){
     table,
     dPara('', {after:60}),
     dPara('รายละเอียดการเข้าร่วมกิจกรรม', {bold:true, after:20}),
-    dPara(introText, {bold:true, after:20, bullet:true}),
+    dPara(introText, {bold:true, after:20}),
     ...detailBullets,
     dPara('สรุปค่าใช้จ่ายในการทำกิจกรรม', {bold:true, after:20, before:20}),
     ...costBullets,
@@ -1099,12 +1230,11 @@ function buildCombined_Docx(v){
     ...buildDocA_DocxChildren(v),
     ...buildDocB_DocxChildren(v, {pageBreakBefore:true})
   ];
-  return new docx.Document({ sections:[{ children }] });
+  return new docx.Document({ sections:[{ children, footers:{ default: new docx.Footer({ children: docAFooterParas() }) } }] });
 }
-function activityDetailPhraseDocx(a){
-  const topicPart = a.topic ? ` เรื่อง ${a.topic}` : '';
-  const gradePart = a.gradeLevel ? ` (${a.gradeLevel})` : '';
-  return `กิจกรรม ${roomInfo(a.room).label}${topicPart}${gradePart} รวม ${a.childrenCount||0} คน`;
+function roomDetailLineDocx(r){
+  const topicPart = r.topics.length ? ` เรื่อง ${r.topics.join(', ')}` : '';
+  return `กิจกรรม ${roomInfo(r.room).label}${topicPart} รวม ${r.children} คน`;
 }
 
 function triggerDocxDownload(doc, filename){
