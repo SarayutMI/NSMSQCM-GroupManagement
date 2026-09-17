@@ -351,7 +351,7 @@
     #printArea{display:block;position:absolute;top:0;left:0;width:100%;background:#fff !important;}
     #printArea .doc-page{background:#fff !important;}
     #printArea .doc-page + .doc-page{page-break-before:always;}
-    @page{ size:A4; margin:25mm 20mm 15mm 30mm; }
+    @page{ size:A4; margin:25mm 20mm 15mm 25mm; }
   }
 
   @media (max-width:860px){

@@ -1150,7 +1150,7 @@ const DOCX_FONT = 'TH SarabunPSK';
 const DOCX_MARGIN_TOP = docx.convertMillimetersToTwip(25);
 const DOCX_MARGIN_RIGHT = docx.convertMillimetersToTwip(20);
 const DOCX_MARGIN_BOTTOM = docx.convertMillimetersToTwip(15);
-const DOCX_MARGIN_LEFT = docx.convertMillimetersToTwip(30);
+const DOCX_MARGIN_LEFT = docx.convertMillimetersToTwip(25);
 const DOCX_PAGE_WIDTH = docx.convertMillimetersToTwip(210); // A4
 const DOCX_PAGE_PROPERTIES = { page: {
   size: { width: DOCX_PAGE_WIDTH, height: docx.convertMillimetersToTwip(297) },
