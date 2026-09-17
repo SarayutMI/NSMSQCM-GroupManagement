@@ -316,7 +316,7 @@
     padding:10px 24px;color:#111;
     font-family:'TH SarabunPSK','TH Sarabun New','Sarabun',sans-serif;
     font-size:14.5pt; line-height:1.18;
-    position:relative; box-sizing:border-box; min-height:275mm;
+    position:relative; box-sizing:border-box; min-height:257mm;
   }
   .doc-title{text-align:center;font-size:16pt;font-weight:700;margin:0 0 2px;}
   .doc-title.sub{font-size:16pt;font-weight:700;margin-bottom:5px;}
@@ -351,7 +351,7 @@
     #printArea{display:block;position:absolute;top:0;left:0;width:100%;background:#fff !important;}
     #printArea .doc-page{background:#fff !important;}
     #printArea .doc-page + .doc-page{page-break-before:always;}
-    @page{ size:A4; margin:11mm; }
+    @page{ size:A4; margin:25mm 20mm 15mm 30mm; }
   }
 
   @media (max-width:860px){

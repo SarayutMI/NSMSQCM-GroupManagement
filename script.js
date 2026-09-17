@@ -1147,6 +1147,16 @@ document.getElementById('printDocBBtn').addEventListener('click', ()=>{
 
 /* ---------------- Word (.docx) export using docx.js, font: TH Sarabun PSK ---------------- */
 const DOCX_FONT = 'TH SarabunPSK';
+const DOCX_MARGIN_TOP = docx.convertMillimetersToTwip(25);
+const DOCX_MARGIN_RIGHT = docx.convertMillimetersToTwip(20);
+const DOCX_MARGIN_BOTTOM = docx.convertMillimetersToTwip(15);
+const DOCX_MARGIN_LEFT = docx.convertMillimetersToTwip(30);
+const DOCX_PAGE_WIDTH = docx.convertMillimetersToTwip(210); // A4
+const DOCX_PAGE_PROPERTIES = { page: {
+  size: { width: DOCX_PAGE_WIDTH, height: docx.convertMillimetersToTwip(297) },
+  margin: { top: DOCX_MARGIN_TOP, right: DOCX_MARGIN_RIGHT, bottom: DOCX_MARGIN_BOTTOM, left: DOCX_MARGIN_LEFT }
+} };
+const DOCX_CONTENT_WIDTH = DOCX_PAGE_WIDTH - DOCX_MARGIN_LEFT - DOCX_MARGIN_RIGHT;
 function dRun(text, opts={}){
   return new docx.TextRun({ text: String(text), font: DOCX_FONT, size: opts.size||29, bold: !!opts.bold, color: opts.color||undefined, underline: opts.underline ? {type: docx.UnderlineType.SINGLE} : undefined });
 }
@@ -1173,7 +1183,7 @@ function dParaMulti(runs, opts={}){
 }
 function dSignLine(label, opts={}){
   return new docx.Paragraph({
-    tabStops: [{type: docx.TabStopType.RIGHT, position: 9350, leader: docx.LeaderType.DOT}],
+    tabStops: [{type: docx.TabStopType.RIGHT, position: DOCX_CONTENT_WIDTH, leader: docx.LeaderType.DOT}],
     spacing: {after: opts.after??20, before: opts.before||0},
     children: [ dRun(label+'\t', opts) ]
   });
@@ -1240,7 +1250,7 @@ function docAFooterParas(){
   ];
 }
 function buildDocA_Docx(v){
-  return new docx.Document({ sections:[{ children: buildDocA_DocxChildren(v), footers:{ default: new docx.Footer({ children: docAFooterParas() }) } }] });
+  return new docx.Document({ sections:[{ properties: DOCX_PAGE_PROPERTIES, children: buildDocA_DocxChildren(v), footers:{ default: new docx.Footer({ children: docAFooterParas() }) } }] });
 }
 
 function buildDocB_DocxChildren(v, opts={}){
@@ -1295,14 +1305,14 @@ function buildDocB_DocxChildren(v, opts={}){
   ];
 }
 function buildDocB_Docx(v){
-  return new docx.Document({ sections:[{ children: buildDocB_DocxChildren(v) }] });
+  return new docx.Document({ sections:[{ properties: DOCX_PAGE_PROPERTIES, children: buildDocB_DocxChildren(v) }] });
 }
 function buildCombined_Docx(v){
   const children = [
     ...buildDocA_DocxChildren(v),
     ...buildDocB_DocxChildren(v, {pageBreakBefore:true})
   ];
-  return new docx.Document({ sections:[{ children, footers:{ default: new docx.Footer({ children: docAFooterParas() }) } }] });
+  return new docx.Document({ sections:[{ properties: DOCX_PAGE_PROPERTIES, children, footers:{ default: new docx.Footer({ children: docAFooterParas() }) } }] });
 }
 function roomDetailLineDocx(r){
   const topicPart = r.topics.length ? ` เรื่อง ${r.topics.join(', ')}` : '';
