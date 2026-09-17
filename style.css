@@ -15,6 +15,8 @@
     --blue-dim:#E7EFFB;
     --sky:#3E93C9;
     --sky-dim:#E7F2F8;
+    --yellow:#A67C00;
+    --yellow-dim:#FFF3CC;
     --slate:#5B6B85;
     --slate-dim:#EAEDF3;
 
@@ -246,7 +248,7 @@
     border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:10px;background:var(--surface-2);
     position:relative;
   }
-  .activity-row-grid{display:grid;grid-template-columns:1.3fr 1.6fr 1fr 1fr 0.8fr 0.9fr;gap:10px;}
+  .activity-row-grid{display:grid;grid-template-columns:1.2fr 1fr 1.4fr 0.9fr 0.9fr 0.8fr 0.9fr;gap:10px;}
   .activity-row-grid .field label{font-size:11px;margin-bottom:4px;}
   .activity-row-grid .field input,.activity-row-grid .field select{background:var(--surface);padding:7px 9px;}
   .activity-remove-btn{
@@ -281,39 +283,45 @@
   .doc-export-name{font-size:12.8px;font-weight:600;color:var(--ink);}
   .doc-export-btns{display:flex;gap:6px;}
 
-  /* ---------- Print / export documents (TH Sarabun PSK) ---------- */
+  /* ---------- Print / export documents (TH SarabunPSK — compact, 1 doc = 1 page) ---------- */
   #printArea{display:none;}
   .doc-page{
-    padding:14px 26px;color:#111;
-    font-family:'TH Sarabun PSK','Sarabun',sans-serif;
-    font-size:14pt; line-height:1.2;
+    padding:10px 24px;color:#111;
+    font-family:'TH SarabunPSK','TH Sarabun New','Sarabun',sans-serif;
+    font-size:14.5pt; line-height:1.18;
   }
-  .doc-title{text-align:center;font-size:18pt;font-weight:700;margin:0 0 2px;}
-  .doc-title.sub{font-size:15pt;font-weight:600;margin-bottom:4px;}
-  .doc-docno{text-align:right;font-size:12pt;color:#555;margin-bottom:4px;}
-  .doc-rule{border:none;border-top:1.5px solid #333;margin:3px 0 10px;}
-  .doc-line{margin:3px 0;}
+  .doc-title{text-align:center;font-size:16pt;font-weight:700;margin:0 0 2px;}
+  .doc-title.sub{font-size:16pt;font-weight:700;margin-bottom:5px;}
+  .doc-title.small{font-size:14.5pt;}
+  .doc-docno{text-align:right;font-size:12pt;color:#555;margin-bottom:3px;}
+  .doc-rule{border:none;border-top:1.5px solid #333;margin:3px 0 7px;}
+  .doc-line{margin:2.5px 0;}
   .doc-checkbox-line{margin:2px 0 2px 18px;}
-  .doc-section-title{font-weight:700;margin:8px 0 2px;}
-  .doc-notes-title{font-weight:700;text-decoration:underline;margin:9px 0 3px;}
-  .doc-notes-list{margin:0 0 4px;padding-left:20px;}
+  .doc-section-title{font-weight:700;margin:6px 0 2px;}
+  .doc-notes-title{font-weight:700;text-decoration:underline;margin:6px 0 2px;}
+  .doc-notes-list{margin:0 0 3px;padding-left:20px;}
   .doc-notes-list li{margin-bottom:1px;}
-  .doc-payment-note{color:#B00000;font-weight:700;margin:5px 0 0 20px;}
-  .doc-sign{margin-top:14px;text-align:right;}
+  .doc-price-lines{margin:0 0 3px 20px;}
+  .doc-highlight{color:#0563C1;text-decoration:underline;font-weight:600;}
+  .doc-payment-note{color:#B00000;font-weight:700;margin:3px 0 0 20px;}
+  .doc-sign{margin-top:8px;text-align:right;}
   .doc-sign .line-fill{margin-bottom:1px;}
-  .doc-footer{margin-top:8px;font-size:11.5pt;color:#333;}
-  .doc-table{width:100%;border-collapse:collapse;margin:9px 0 12px;}
-  .doc-table th,.doc-table td{border:1px solid #666;padding:6px 8px;font-size:12.5pt;text-align:center;vertical-align:middle;}
-  .doc-table th{background:#F1F4F8;font-weight:700;}
+  .doc-footer{margin-top:5px;font-size:12pt;color:#333;}
+  .doc-table{width:100%;border-collapse:collapse;margin:6px 0 8px;}
+  .doc-table th,.doc-table td{border:1px solid #666;padding:4px 7px;font-size:13.5pt;text-align:center;vertical-align:middle;}
+  .doc-table th{background:#BDD7EE;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact;}
   .doc-table td.room{font-weight:700;}
-  .doc-table td.topic{font-size:11pt;color:#333;}
+  .doc-table td.topic{font-size:12pt;color:#333;}
   .doc-cost-blue{color:#1F4E96;font-weight:700;}
 
   @media print{
+    html,body{background:#fff !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact;}
     body *{visibility:hidden;}
-    #printArea, #printArea *{visibility:visible;}
-    #printArea{display:block;position:absolute;top:0;left:0;width:100%;}
-    @page{ size:A4; margin:14mm; }
+    #printArea, #printArea *{visibility:visible;-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact;}
+    #printArea{display:block;position:absolute;top:0;left:0;width:100%;background:#fff !important;}
+    #printArea .doc-page{background:#fff !important;}
+    #printArea .doc-page + .doc-page{page-break-before:always;}
+    @page{ size:A4; margin:11mm; }
   }
 
   @media (max-width:860px){

@@ -102,10 +102,6 @@
             <datalist id="schoolRefList"></datalist>
           </div>
           <div class="field">
-            <label>ระดับชั้น/กลุ่ม (ถ้ามี)</label>
-            <input id="f_gradeLevel" placeholder="เช่น ป.1, ม.2/3">
-          </div>
-          <div class="field">
             <label>แพ็กเกจ (ถ้ามี)</label>
             <input id="f_packageLabel" placeholder="เช่น Basic, Advance">
           </div>
@@ -122,8 +118,8 @@
             <input type="date" id="f_date" required>
           </div>
           <div class="field">
-            <label>จำนวนเด็ก</label>
-            <input type="number" min="0" id="f_childrenCount" value="0">
+            <label>จำนวนเด็ก (รวมจากกิจกรรมที่จอง)</label>
+            <input type="number" min="0" id="f_childrenCount" value="0" readonly title="คำนวณอัตโนมัติจากจำนวนเด็กของแต่ละกิจกรรมด้านล่าง">
           </div>
           <div class="field">
             <label>จำนวนผู้ใหญ่</label>
@@ -178,6 +174,13 @@
 
       <h3 class="section-label">ออกเอกสาร</h3>
       <div class="doc-export-grid">
+        <div class="doc-export-item">
+          <div class="doc-export-name">เอกสารรวม (แบบตอบรับ + ตารางกิจกรรม) — ไฟล์เดียว</div>
+          <div class="doc-export-btns">
+            <button class="btn btn-sm btn-primary" id="printDocAllBtn">🖨 PDF</button>
+            <button class="btn btn-sm btn-primary" id="downloadDocAllBtn">⬇ Word</button>
+          </div>
+        </div>
         <div class="doc-export-item">
           <div class="doc-export-name">แบบตอบรับการจอง</div>
           <div class="doc-export-btns">

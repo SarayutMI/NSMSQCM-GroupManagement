@@ -108,12 +108,24 @@ function generateDocNo_(date) {
   return 'BK-' + dateStr + '-' + String(count + 1).padStart(3, '0');
 }
 
+function summarizeGradeLevels_(activities) {
+  // ระดับชั้น/กลุ่ม ย้ายไปเก็บต่อกิจกรรมย่อยแล้ว (activities[].gradeLevel) —
+  // คอลัมน์นี้เก็บสรุปรวม (ไม่ซ้ำ) ไว้ให้ดูง่ายตอนเปิดชีตตรงๆ เท่านั้น ไม่ใช่ค่าที่ใช้งานจริง
+  const seen = {};
+  const out = [];
+  (activities || []).forEach(a => {
+    const g = String((a && a.gradeLevel) || '').trim();
+    if (g && !seen[g]) { seen[g] = true; out.push(g); }
+  });
+  return out.join(', ');
+}
+
 function buildRecord_(data, overrides) {
   const activities = data.activities || [];
   const total = (Number(data.childrenCount) || 0) + (Number(data.adultCount) || 0);
   return Object.assign({
     school: data.school || '',
-    gradeLevel: data.gradeLevel || '',
+    gradeLevel: summarizeGradeLevels_(activities),
     packageLabel: data.packageLabel || '',
     contactPerson: data.contactPerson || '',
     contactPhone: data.contactPhone || '',

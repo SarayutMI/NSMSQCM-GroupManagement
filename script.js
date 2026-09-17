@@ -19,8 +19,12 @@ const DOC_CONFIG = {
   contactEmail: 'Yuttana.s@nsm.or.th',
   contactPhone: '093-745-8550',
   paymentNote: 'การชำระเงินกรุณาชำระผ่านการโอนได้ที่เคาน์เตอร์ในวันที่มาร่วมกิจกรรมเท่านั้น (งดรับเงินสด)',
+  priceLines: [
+    {label:'Basic', price:90, normalPrice:100},
+    {label:'Advance', price:180, normalPrice:200}
+  ],
   policyNotes: [
-    'ค่าธรรมเนียมเข้าร่วมกิจกรรมกรณีเป็นหมู่คณะ 10 คนขึ้นไป ราคา คนละ 90 บาท ต่อรอบกิจกรรม (จากปกติคนละ 100 บาท ต่อรอบกิจกรรม) Advance : หมู่คณะ ราคา คนละ 180 บาท (จากปกติคนละ 200 บาท ต่อรอบกิจกรรม)',
+    'ค่าธรรมเนียมเข้าร่วมกิจกรรมกรณีเป็นหมู่คณะ 10 คนขึ้นไปต่อรอบ',
     'หากจองเข้าร่วมเป็นหมู่คณะ 15 คนขึ้นไปต่อรอบ สามารถเลือกเรื่องกิจกรรมที่ต้องการเข้าร่วมได้ (ตามตารางกิจกรรม)',
     'กรณีที่ผู้เข้าร่วมกิจกรรมมาไม่ครบตามจำนวนที่แจ้ง ขอเก็บค่าธรรมเนียมขั้นต่ำที่ 15 คนต่อรอบ หากมามากกว่าที่แจ้งไว้ คิดค่าธรรมเนียมตามจำนวนที่มาจริง',
     'หากมีผู้เข้าร่วมกิจกรรมน้อยกว่า 20 คนต่อรอบ ทาง จัตุรัสวิทยาศาสตร์ มีสิทธิ์รับผู้เข้าร่วมกิจกรรมภายนอกเพิ่มเติม',
@@ -30,7 +34,7 @@ const DOC_CONFIG = {
 };
 
 const ROOM_CATEGORIES = [
-  {id:'innovation', label:'Innovation Space', color:'var(--navy)',  bg:'var(--blue-dim)'},
+  {id:'innovation', label:'Innovation Space', color:'var(--yellow)', bg:'var(--yellow-dim)'},
   {id:'inspirelab', label:'Inspire Lab',       color:'var(--sky)',   bg:'var(--sky-dim)'},
   {id:'other',      label:'อื่นๆ',              color:'var(--slate)', bg:'var(--slate-dim)'}
 ];
@@ -124,14 +128,17 @@ function expandGradeLevel(g){
   if(m = g.match(/^อ(?:นุบาล)?\.?\s*(\d+)/)) return `ชั้นอนุบาลปีที่ ${m[1]}`;
   return g.startsWith('ชั้น') ? g : `ชั้น${g}`;
 }
+function distinctGradesLabel(acts){
+  const grades = [...new Set(acts.map(a=>a.gradeLevel).filter(Boolean))];
+  return grades.map(expandGradeLevel).join(', ');
+}
 
 /* ---------------- Visit / activity helpers ---------------- */
 function visitTotalPeople(v){ return (Number(v.childrenCount)||0) + (Number(v.adultCount)||0); }
-function billableCount(v){ return Number(v.childrenCount)||0; } // ราคาคิดจากจำนวนเด็กเท่านั้น ไม่รวมผู้ใหญ่
-function activitySubtotal(a, count){ return (Number(a.rounds)||1) * (Number(a.pricePerPerson)||0) * count; }
+function billableCount(v){ return (v.activities||[]).reduce((sum,a)=> sum + (Number(a.childrenCount)||0), 0); } // ราคาคิดจากจำนวนเด็กของแต่ละกิจกรรมรวมกัน ไม่รวมผู้ใหญ่
+function activitySubtotal(a){ return (Number(a.pricePerPerson)||0) * (Number(a.childrenCount)||0); }
 function visitGrandTotal(v){
-  const bc = billableCount(v);
-  return v.activities.reduce((sum,a)=> sum + activitySubtotal(a, bc), 0);
+  return v.activities.reduce((sum,a)=> sum + activitySubtotal(a), 0);
 }
 function visitActivitiesSorted(v){
   return [...v.activities].sort((a,b)=> (a.startTime||'').localeCompare(b.startTime||''));
@@ -143,6 +150,20 @@ function visitTimeRange(v){
 }
 function visitRoomLabels(v){
   return [...new Set(v.activities.map(a=>roomInfo(a.room).label))];
+}
+function buildTimeSlots(acts){
+  const seen = new Map();
+  acts.forEach(a=>{
+    const key = a.startTime+'|'+(a.endTime||'');
+    if(!seen.has(key)) seen.set(key, {startTime:a.startTime, endTime:a.endTime});
+  });
+  return [...seen.values()].sort((x,y)=> (x.startTime||'').localeCompare(y.startTime||''));
+}
+function timeSlotLabel(slot){
+  return thTime(slot.startTime)+(slot.endTime?(' – '+thTime(slot.endTime)):' เป็นต้นไป');
+}
+function sameSlot(a, slot){
+  return a.startTime===slot.startTime && (a.endTime||'')===(slot.endTime||'');
 }
 function flattenOccurrences(){
   const list = [];
@@ -273,40 +294,40 @@ function buildSampleVisits(){
   return [
     {
       id: uid(), docNo:'BK-DEMO-001', school:'โรงเรียนสันป่าตอง สุวรรณราษฎร์วิทยาคาร',
-      gradeLevel:'ป.1', packageLabel:'Basic', contactPerson:'ครูนภา', contactPhone:'081-999-0000',
-      date: d(1), childrenCount:27, adultCount:2, status:'confirmed',
+      packageLabel:'Basic', contactPerson:'ครูนภา', contactPhone:'081-999-0000',
+      date: d(1), childrenCount:81, adultCount:2, status:'confirmed',
       notes:'',
       activities:[
-        {id:uid(), room:'inspirelab', topic:'หิมะจำลองและผองเพื่อน', startTime:'09:30', endTime:'10:30', rounds:1, pricePerPerson:90},
-        {id:uid(), room:'innovation', topic:'D.I.Y. My Zodiac', startTime:'11:00', endTime:'12:00', rounds:1, pricePerPerson:90},
-        {id:uid(), room:'other', topic:'', startTime:'13:00', endTime:'', rounds:1, pricePerPerson:100}
+        {id:uid(), room:'inspirelab', gradeLevel:'ป.1', topic:'หิมะจำลองและผองเพื่อน', startTime:'09:30', endTime:'10:30', childrenCount:27, pricePerPerson:90},
+        {id:uid(), room:'innovation', gradeLevel:'ป.1', topic:'D.I.Y. My Zodiac', startTime:'11:00', endTime:'12:00', childrenCount:27, pricePerPerson:90},
+        {id:uid(), room:'other', gradeLevel:'ป.2', topic:'', startTime:'13:00', endTime:'', childrenCount:27, pricePerPerson:100}
       ],
       createdAt: now, updatedAt: now
     },
     {
       id: uid(), docNo:'BK-DEMO-002', school:'โรงเรียนอัสสัมชัญ',
-      gradeLevel:'ม.2', contactPerson:'ครูวิภา', contactPhone:'062-333-4444',
+      contactPerson:'ครูวิภา', contactPhone:'062-333-4444',
       date: d(2), childrenCount:18, adultCount:3, status:'pending', notes:'',
       activities:[
-        {id:uid(), room:'inspirelab', topic:'ค่ายไอเดียสร้างสรรค์', startTime:'13:00', endTime:'16:00', rounds:1, pricePerPerson:90}
+        {id:uid(), room:'inspirelab', gradeLevel:'ม.2', topic:'ค่ายไอเดียสร้างสรรค์', startTime:'13:00', endTime:'16:00', childrenCount:18, pricePerPerson:90}
       ],
       createdAt: now, updatedAt: now
     },
     {
       id: uid(), docNo:'BK-DEMO-003', school:'โรงเรียนเซนต์คาเบรียล',
-      gradeLevel:'', contactPerson:'ครูปิยะ', contactPhone:'095-555-6666',
+      contactPerson:'ครูปิยะ', contactPhone:'095-555-6666',
       date: d(4), childrenCount:30, adultCount:4, status:'pending', notes:'มีเด็กแพ้ถั่ว 1 คน',
       activities:[
-        {id:uid(), room:'other', topic:'ทัศนศึกษาแลกเปลี่ยน', startTime:'10:00', endTime:'11:30', rounds:1, pricePerPerson:100}
+        {id:uid(), room:'other', gradeLevel:'', topic:'ทัศนศึกษาแลกเปลี่ยน', startTime:'10:00', endTime:'11:30', childrenCount:30, pricePerPerson:100}
       ],
       createdAt: now, updatedAt: now
     },
     {
       id: uid(), docNo:'BK-DEMO-004', school:'โรงเรียนกรุงเทพคริสเตียนวิทยาลัย',
-      gradeLevel:'ม.1', contactPerson:'ครูสมชาย', contactPhone:'089-111-2222',
+      contactPerson:'ครูสมชาย', contactPhone:'089-111-2222',
       date: d(-1), childrenCount:20, adultCount:2, status:'confirmed', notes:'',
       activities:[
-        {id:uid(), room:'innovation', topic:'อบรมการเขียนโค้ดพื้นฐาน', startTime:'09:00', endTime:'12:00', rounds:1, pricePerPerson:90}
+        {id:uid(), room:'innovation', gradeLevel:'ม.1', topic:'อบรมการเขียนโค้ดพื้นฐาน', startTime:'09:00', endTime:'12:00', childrenCount:20, pricePerPerson:90}
       ],
       createdAt: now, updatedAt: now
     }
@@ -511,6 +532,10 @@ function activityRowHtml(a){
         </select>
       </div>
       <div class="field">
+        <label>ระดับชั้น/กลุ่ม</label>
+        <input class="act-grade" value="${escapeHtml(a.gradeLevel||'')}" placeholder="เช่น ป.1, ม.2/3">
+      </div>
+      <div class="field">
         <label>เรื่อง/หัวข้อ</label>
         <input class="act-topic" value="${escapeHtml(a.topic||'')}" placeholder="เช่น D.I.Y. My Zodiac">
       </div>
@@ -523,11 +548,11 @@ function activityRowHtml(a){
         <input type="time" class="act-end" value="${a.endTime||''}">
       </div>
       <div class="field">
-        <label>จำนวนรอบ</label>
-        <input type="number" min="1" class="act-rounds" value="${a.rounds||1}">
+        <label>จำนวนเด็ก (รอบนี้)</label>
+        <input type="number" min="0" class="act-children" value="${a.childrenCount||0}">
       </div>
       <div class="field">
-        <label>ราคา/คน/รอบ (บาท)</label>
+        <label>ราคา/คน (บาท)</label>
         <input type="number" min="0" class="act-price" value="${a.pricePerPerson ?? ''}">
       </div>
     </div>
@@ -540,33 +565,34 @@ function activityRowHtml(a){
   </div>`;
 }
 function getFormTotalPeople(){
-  const c = Number(document.getElementById('f_childrenCount').value)||0;
+  const c = getFormChildrenCount();
   const a = Number(document.getElementById('f_adultCount').value)||0;
   return c+a;
 }
 function getFormChildrenCount(){
-  return Number(document.getElementById('f_childrenCount').value)||0;
+  return [...document.querySelectorAll('#activityRows .act-children')].reduce((sum,el)=> sum+(Number(el.value)||0), 0);
 }
 function recomputeRowSubtotal(rowEl){
-  const billable = getFormChildrenCount(); // คิดราคาจากจำนวนเด็กเท่านั้น
-  const rounds = Number(rowEl.querySelector('.act-rounds').value)||0;
+  const children = Number(rowEl.querySelector('.act-children').value)||0;
   const price = Number(rowEl.querySelector('.act-price').value)||0;
-  const subtotal = rounds*price*billable;
+  const subtotal = price*children;
   rowEl.querySelector('.act-subtotal-value').textContent = money(subtotal);
 }
 function recomputeAllSubtotals(){
   document.querySelectorAll('#activityRows .activity-row').forEach(recomputeRowSubtotal);
 }
 function addActivityRow(prefill){
-  const defaults = {room: ROOM_CATEGORIES[0].id, rounds:1, pricePerPerson: ROOM_DEFAULT_PRICE[ROOM_CATEGORIES[0].id]};
+  const defaults = {room: ROOM_CATEGORIES[0].id, childrenCount:0, pricePerPerson: ROOM_DEFAULT_PRICE[ROOM_CATEGORIES[0].id]};
   document.getElementById('activityRows').insertAdjacentHTML('beforeend', activityRowHtml({...defaults, ...(prefill||{})}));
   const rows = document.querySelectorAll('#activityRows .activity-row');
   recomputeRowSubtotal(rows[rows.length-1]);
+  updateTotalPeople();
 }
 document.getElementById('addActivityBtn').addEventListener('click', ()=> addActivityRow());
 document.getElementById('activityRows').addEventListener('click', (e)=>{
   if(e.target.classList.contains('activity-remove-btn')){
     e.target.closest('.activity-row').remove();
+    updateTotalPeople();
   } else if(e.target.matches('.round-presets button')){
     const row = e.target.closest('.activity-row');
     row.querySelector('.act-start').value = e.target.dataset.s || '';
@@ -574,8 +600,11 @@ document.getElementById('activityRows').addEventListener('click', (e)=>{
   }
 });
 document.getElementById('activityRows').addEventListener('input', (e)=>{
-  if(e.target.classList.contains('act-rounds') || e.target.classList.contains('act-price')){
+  if(e.target.classList.contains('act-children') || e.target.classList.contains('act-price')){
     recomputeRowSubtotal(e.target.closest('.activity-row'));
+  }
+  if(e.target.classList.contains('act-children')){
+    updateTotalPeople();
   }
 });
 document.getElementById('activityRows').addEventListener('change', (e)=>{
@@ -586,10 +615,9 @@ document.getElementById('activityRows').addEventListener('change', (e)=>{
     recomputeRowSubtotal(row);
   }
 });
-['f_childrenCount','f_adultCount'].forEach(id=>{
-  document.getElementById(id).addEventListener('input', ()=>{ updateTotalPeople(); recomputeAllSubtotals(); });
-});
+document.getElementById('f_adultCount').addEventListener('input', updateTotalPeople);
 function updateTotalPeople(){
+  document.getElementById('f_childrenCount').value = getFormChildrenCount();
   document.getElementById('totalPeopleLabel').textContent = getFormTotalPeople();
   const billableEl = document.getElementById('billableLabel');
   if(billableEl) billableEl.textContent = getFormChildrenCount();
@@ -621,12 +649,10 @@ function openEditForm(v){
   document.getElementById('formTitle').textContent = 'แก้ไขการจอง';
   document.getElementById('f_id').value = v.id;
   document.getElementById('f_school').value = v.school;
-  document.getElementById('f_gradeLevel').value = v.gradeLevel||'';
   document.getElementById('f_packageLabel').value = v.packageLabel||'';
   document.getElementById('f_contactPerson').value = v.contactPerson||'';
   document.getElementById('f_contactPhone').value = v.contactPhone||'';
   document.getElementById('f_date').value = v.date;
-  document.getElementById('f_childrenCount').value = v.childrenCount||0;
   document.getElementById('f_adultCount').value = v.adultCount||0;
   document.getElementById('f_notes').value = v.notes||'';
   document.getElementById('activityRows').innerHTML = v.activities.map(activityRowHtml).join('');
@@ -642,10 +668,11 @@ function readActivitiesFromForm(){
   return [...document.querySelectorAll('#activityRows .activity-row')].map(row=>({
     id: row.dataset.activityId,
     room: row.querySelector('.act-room').value,
+    gradeLevel: row.querySelector('.act-grade').value.trim(),
     topic: row.querySelector('.act-topic').value.trim(),
     startTime: row.querySelector('.act-start').value,
     endTime: row.querySelector('.act-end').value,
-    rounds: Number(row.querySelector('.act-rounds').value)||1,
+    childrenCount: Number(row.querySelector('.act-children').value)||0,
     pricePerPerson: Number(row.querySelector('.act-price').value)||0
   }));
 }
@@ -696,12 +723,11 @@ document.getElementById('saveBookingBtn').addEventListener('click', async ()=>{
 
   const data = {
     school,
-    gradeLevel: document.getElementById('f_gradeLevel').value.trim(),
     packageLabel: document.getElementById('f_packageLabel').value.trim(),
     contactPerson: document.getElementById('f_contactPerson').value.trim(),
     contactPhone: document.getElementById('f_contactPhone').value.trim(),
     date,
-    childrenCount: Number(document.getElementById('f_childrenCount').value)||0,
+    childrenCount: activities.reduce((sum,a)=> sum+(Number(a.childrenCount)||0), 0),
     adultCount: Number(document.getElementById('f_adultCount').value)||0,
     notes: document.getElementById('f_notes').value.trim(),
     activities
@@ -760,7 +786,6 @@ function openDetail(id){
   document.getElementById('detailTable').innerHTML = `
     <tr><td class="k">เลขที่เอกสาร</td><td>${v.docNo||'-'}</td></tr>
     <tr><td class="k">โรงเรียน</td><td>${escapeHtml(v.school)}</td></tr>
-    <tr><td class="k">ระดับชั้น/กลุ่ม</td><td>${escapeHtml(v.gradeLevel)||'-'}</td></tr>
     <tr><td class="k">ผู้ประสานงาน</td><td>${escapeHtml(v.contactPerson)||'-'} ${v.contactPhone?('· '+escapeHtml(v.contactPhone)):''}</td></tr>
     <tr><td class="k">วันที่</td><td>${v.date} (${thaiFullDate(v.date)})</td></tr>
     <tr><td class="k">จำนวนคน</td><td>เด็ก ${v.childrenCount||0} · ผู้ใหญ่ ${v.adultCount||0} · รวม ${totalPeople} คน</td></tr>
@@ -770,15 +795,16 @@ function openDetail(id){
   const grand = visitGrandTotal(v);
   const billable = billableCount(v);
   document.getElementById('costTable').innerHTML = `
-    <tr><th>กิจกรรม</th><th>เวลา</th><th>รอบ</th><th>ราคา/คน</th><th>รวม (บาท)</th></tr>
+    <tr><th>กิจกรรม</th><th>ระดับชั้น/กลุ่ม</th><th>เวลา</th><th>จำนวนเด็ก</th><th>ราคา/คน</th><th>รวม (บาท)</th></tr>
     ${acts.map(a=>`<tr>
       <td>${roomInfo(a.room).label}${a.topic?('<br><span style="color:var(--ink-faint);font-size:11.5px;">'+escapeHtml(a.topic)+'</span>'):''}</td>
+      <td>${escapeHtml(a.gradeLevel)||'-'}</td>
       <td>${a.startTime}${a.endTime?('–'+a.endTime):' เป็นต้นไป'}</td>
-      <td>${a.rounds||1}</td>
+      <td>${a.childrenCount||0}</td>
       <td>${money(a.pricePerPerson)}</td>
-      <td>${money(activitySubtotal(a,billable))}</td>
+      <td>${money(activitySubtotal(a))}</td>
     </tr>`).join('')}
-    <tr class="total-row"><td colspan="4">รวมค่าใช้จ่ายทั้งหมด (คิดจากเด็ก ${billable} คน)</td><td>${money(grand)} บาท</td></tr>
+    <tr class="total-row"><td colspan="5">รวมค่าใช้จ่ายทั้งหมด (คิดจากเด็ก ${billable} คน)</td><td>${money(grand)} บาท</td></tr>
   `;
   openOverlay('detailOverlay');
 }
@@ -832,12 +858,10 @@ document.getElementById('deleteBookingBtn').addEventListener('click', async ()=>
 
 /* ---------------- Document A: แบบตอบรับการจองเข้าร่วมกิจกรรม ---------------- */
 function buildDocA_Html(v){
-  const billable = billableCount(v);
   const acts = v.activities;
-  const roomLine = (id, label, showRounds=true)=>{
+  const roomLine = (id, label)=>{
     const a = acts.find(x=>x.room===id);
-    const roundsTxt = (showRounds && a) ? `จำนวน ${a.rounds||1} รอบ ` : '';
-    return `<div class="doc-checkbox-line">${a?'☒':'☐'} กิจกรรม ${label} ${roundsTxt}รวม จำนวน ${billable} คน</div>`;
+    return `<div class="doc-checkbox-line">${a?'☒':'☐'} กิจกรรม ${label} รวม จำนวน ${a?(a.childrenCount||0):0} คน</div>`;
   };
   return `
   <div class="doc-page">
@@ -848,7 +872,7 @@ function buildDocA_Html(v){
     <div class="doc-line">2. เข้าร่วมกิจกรรมในวันที่ ${thaiFullDate(v.date)} ณ ${escapeHtml(DOC_CONFIG.venueName)}</div>
     ${roomLine('innovation','Innovation Space')}
     ${roomLine('inspirelab','Inspire Lab')}
-    ${roomLine('other', roomInfo('other').label, false)}
+    ${roomLine('other', roomInfo('other').label)}
     <div class="doc-section-title">3. รายละเอียดการเข้าร่วมกิจกรรม</div>
     ${acts.filter(a=>a.topic).map(a=>`<div class="doc-line">${roomInfo(a.room).label} เรื่อง ${escapeHtml(a.topic)}</div>`).join('') || '<div class="doc-line">-</div>'}
     <div class="doc-section-title">4. ผู้ประสานงาน</div>
@@ -856,7 +880,13 @@ function buildDocA_Html(v){
     <div class="doc-line">โทรศัพท์ ${escapeHtml(v.contactPhone)||'..........................................'}</div>
     <div class="doc-notes-title">หมายเหตุ</div>
     <ul class="doc-notes-list">
-      ${DOC_CONFIG.policyNotes.map(n=>`<li>${escapeHtml(n)}</li>`).join('')}
+      <li>${escapeHtml(DOC_CONFIG.policyNotes[0])}</li>
+    </ul>
+    <div class="doc-price-lines">
+      ${DOC_CONFIG.priceLines.map(p=>`<div class="doc-line">- <span class="doc-highlight">${escapeHtml(p.label)} :</span> ราคา คนละ ${p.price} บาท ต่อรอบกิจกรรม (จากปกติคนละ ${p.normalPrice} บาท ต่อรอบกิจกรรม)</div>`).join('')}
+    </div>
+    <ul class="doc-notes-list">
+      ${DOC_CONFIG.policyNotes.slice(1).map(n=>`<li>${escapeHtml(n)}</li>`).join('')}
     </ul>
     <div class="doc-payment-note">- ${escapeHtml(DOC_CONFIG.paymentNote)}</div>
     <div class="doc-sign">
@@ -872,46 +902,53 @@ function buildDocA_Html(v){
 }
 
 /* ---------------- Document B: ตารางการเข้าร่วมกิจกรรม + ค่าใช้จ่าย ---------------- */
-function activityDetailPhrase(a, billable){
+function activityDetailPhrase(a){
   const topicPart = a.topic ? ` เรื่อง ${escapeHtml(a.topic)}` : '';
-  const roundsPart = a.room!=='other' ? ` จำนวน ${a.rounds||1} รอบ` : '';
-  return `กิจกรรม ${roomInfo(a.room).label}${topicPart}${roundsPart} รวม ${billable} คน`;
+  const gradePart = a.gradeLevel ? ` (${escapeHtml(a.gradeLevel)})` : '';
+  return `กิจกรรม ${roomInfo(a.room).label}${topicPart}${gradePart} รวม ${a.childrenCount||0} คน`;
 }
 function buildDocB_Html(v){
   const billable = billableCount(v);
   const acts = visitActivitiesSorted(v);
   const grand = visitGrandTotal(v);
-  const gradeCell = v.gradeLevel ? `<b>${escapeHtml(v.gradeLevel)}</b><br>(${billable} คน)` : `<b>ผู้เข้าร่วม</b><br>(${billable} คน)`;
-  const introText = `${thaiFullDateWithDay(v.date)} ผู้เข้าร่วมกิจกรรม${escapeHtml(expandGradeLevel(v.gradeLevel))} จำนวน ${billable} คน`;
+  const gradesLabel = distinctGradesLabel(acts);
+  const introText = `${thaiFullDateWithDay(v.date)} ผู้เข้าร่วมกิจกรรม${escapeHtml(gradesLabel)} จำนวน ${billable} คน`;
+  const slots = buildTimeSlots(acts);
   return `
   <div class="doc-page">
-    <div class="doc-title">ตารางการเข้าร่วมกิจกรรม ณ ${escapeHtml(DOC_CONFIG.venueName)}</div>
-    <div class="doc-title sub">${escapeHtml(v.school)}</div>
+    <div class="doc-title small">ตารางการเข้าร่วมกิจกรรม ณ ${escapeHtml(DOC_CONFIG.venueName)}</div>
+    <div class="doc-title sub small">${escapeHtml(v.school)}</div>
     <hr class="doc-rule">
     <table class="doc-table">
       <tr>
-        <th style="width:18%;">จำนวนนักเรียน</th>
-        ${acts.map(a=>`<th>${thTime(a.startTime)}${a.endTime?(' – '+thTime(a.endTime)):' เป็นต้นไป'}</th>`).join('')}
+        <th style="width:22%;">จำนวนนักเรียน</th>
+        ${slots.map(s=>`<th>${timeSlotLabel(s)}</th>`).join('')}
       </tr>
-      <tr>
-        <td>${gradeCell}</td>
-        ${acts.map(a=>`<td><div class="room">${roomInfo(a.room).label}</div>${a.topic?`<div class="topic">${escapeHtml(a.topic)}</div>`:''}</td>`).join('')}
-      </tr>
+      ${acts.map((a,i)=>`<tr>
+        <td><b><u>กลุ่ม ${i+1}</u></b><br>${a.gradeLevel?escapeHtml(a.gradeLevel)+'<br>':''}(${a.childrenCount||0} คน)</td>
+        ${slots.map(s=> sameSlot(a,s) ? `<td><div class="room">${roomInfo(a.room).label}</div>${a.topic?`<div class="topic">${escapeHtml(a.topic)}</div>`:''}</td>` : '<td></td>').join('')}
+      </tr>`).join('')}
     </table>
     <div class="doc-section-title">รายละเอียดการเข้าร่วมกิจกรรม</div>
     <ul class="doc-notes-list">
       <li><b>${introText}</b></li>
-      ${acts.map(a=>`<li>${activityDetailPhrase(a,billable)}</li>`).join('')}
+      ${acts.map(a=>`<li>${activityDetailPhrase(a)}</li>`).join('')}
     </ul>
     <div class="doc-section-title">สรุปค่าใช้จ่ายในการทำกิจกรรม</div>
     <ul class="doc-notes-list">
-      ${acts.map(a=>`<li>กิจกรรม ${roomInfo(a.room).label} รวมทั้งสิ้น ${a.rounds||1} รอบ ผู้เข้าชม รวม ${billable} คน รวมเป็นเงิน ${money(activitySubtotal(a,billable))} บาท</li>`).join('')}
+      ${acts.map(a=>`<li>กิจกรรม ${roomInfo(a.room).label} ผู้เข้าร่วม รวม ${a.childrenCount||0} คน รวมเป็นเงิน ${money(activitySubtotal(a))} บาท</li>`).join('')}
     </ul>
     <div class="doc-line doc-cost-blue">รวมค่าใช้จ่ายในการเข้าร่วมกิจกรรม ${money(grand)} บาท${v.packageLabel?(' ('+escapeHtml(v.packageLabel)+')'):''}</div>
     <div class="doc-payment-note" style="margin-left:0;">${escapeHtml(DOC_CONFIG.paymentNote)}</div>
   </div>`;
 }
 
+document.getElementById('printDocAllBtn').addEventListener('click', ()=>{
+  const v = state.visits.find(x=>x.id===state.currentDetailId);
+  if(!v) return;
+  document.getElementById('printArea').innerHTML = buildDocA_Html(v) + buildDocB_Html(v);
+  window.print();
+});
 document.getElementById('printDocABtn').addEventListener('click', ()=>{
   const v = state.visits.find(x=>x.id===state.currentDetailId);
   if(!v) return;
@@ -926,116 +963,148 @@ document.getElementById('printDocBBtn').addEventListener('click', ()=>{
 });
 
 /* ---------------- Word (.docx) export using docx.js, font: TH Sarabun PSK ---------------- */
-const DOCX_FONT = 'TH Sarabun PSK';
+const DOCX_FONT = 'TH SarabunPSK';
 function dRun(text, opts={}){
-  return new docx.TextRun({ text: String(text), font: DOCX_FONT, size: opts.size||32, bold: !!opts.bold, color: opts.color||undefined });
+  return new docx.TextRun({ text: String(text), font: DOCX_FONT, size: opts.size||29, bold: !!opts.bold, color: opts.color||undefined, underline: opts.underline ? {type: docx.UnderlineType.SINGLE} : undefined });
 }
 function dPara(text, opts={}){
   const alignMap = {left:docx.AlignmentType.LEFT, center:docx.AlignmentType.CENTER, right:docx.AlignmentType.RIGHT};
   return new docx.Paragraph({
     alignment: alignMap[opts.align||'left'],
-    spacing: {after: opts.after??120, before: opts.before||0},
+    spacing: {after: opts.after??70, before: opts.before||0},
     indent: opts.indent ? {left: opts.indent} : undefined,
     border: opts.borderBottom ? {bottom:{color:'999999', space:4, style:docx.BorderStyle.SINGLE, size:6}} : undefined,
+    pageBreakBefore: !!opts.pageBreakBefore,
+    bullet: opts.bullet ? {level:0} : undefined,
     children: [dRun(text, opts)]
+  });
+}
+function dParaMulti(runs, opts={}){
+  const alignMap = {left:docx.AlignmentType.LEFT, center:docx.AlignmentType.CENTER, right:docx.AlignmentType.RIGHT};
+  return new docx.Paragraph({
+    alignment: alignMap[opts.align||'left'],
+    spacing: {after: opts.after??120, before: opts.before||0},
+    indent: opts.indent ? {left: opts.indent} : undefined,
+    children: runs.map(r=> dRun(r.text, {size: opts.size, bold: opts.bold, ...r}))
   });
 }
 function dCheckboxPara(checked, text, opts={}){
   return new docx.Paragraph({
-    spacing: {after:80}, indent: {left:360},
+    spacing: {after:30}, indent: {left:360},
     children: [ dRun(checked?'☒ ':'☐ ', opts), dRun(text, opts) ]
   });
 }
 function dCell(paras, opts={}){
   return new docx.TableCell({
     width: opts.width ? {size:opts.width, type:docx.WidthType.PERCENTAGE} : undefined,
+    shading: opts.fill ? {fill: opts.fill} : undefined,
     children: Array.isArray(paras) ? paras : [paras]
   });
 }
 
-function buildDocA_Docx(v){
-  const billable = billableCount(v);
+function buildDocA_DocxChildren(v){
   const acts = v.activities;
-  const roomLinePara = (id,label,showRounds=true)=>{
+  const roomLinePara = (id,label)=>{
     const a = acts.find(x=>x.room===id);
-    const roundsTxt = (showRounds && a) ? `จำนวน ${a.rounds||1} รอบ ` : '';
-    return dCheckboxPara(!!a, `กิจกรรม ${label} ${roundsTxt}รวม จำนวน ${billable} คน`);
+    return dCheckboxPara(!!a, `กิจกรรม ${label} รวม จำนวน ${a?(a.childrenCount||0):0} คน`);
   };
-  const topicParas = acts.filter(a=>a.topic).map(a=> dPara(`${roomInfo(a.room).label} เรื่อง ${a.topic}`, {after:60}));
-  const noteParas = DOC_CONFIG.policyNotes.map(n=> dPara('- '+n, {size:26, after:50}));
+  const topicParas = acts.filter(a=>a.topic).map(a=> dPara(`${roomInfo(a.room).label} เรื่อง ${a.topic}`, {after:30}));
+  const priceParas = DOC_CONFIG.priceLines.map(p=> dParaMulti([
+    {text:'- '},
+    {text:p.label+' :', color:'0563C1', underline:true},
+    {text:` ราคา คนละ ${p.price} บาท ต่อรอบกิจกรรม (จากปกติคนละ ${p.normalPrice} บาท ต่อรอบกิจกรรม)`}
+  ], {after:20}));
+  const noteParas = DOC_CONFIG.policyNotes.map(n=> dPara(n, {after:20, bullet:true}));
 
-  const children = [
-    dPara('แบบตอบรับการจองเข้าร่วมกิจกรรม', {align:'center', bold:true, size:40, after:30}),
-    dPara('ณ '+DOC_CONFIG.venueName, {align:'center', bold:true, size:34, after:80, borderBottom:true}),
-    dPara('1. ชื่อหน่วยงาน/โรงเรียน  '+v.school, {bold:true, after:80}),
-    dPara('2. เข้าร่วมกิจกรรมในวันที่ '+thaiFullDate(v.date)+' ณ '+DOC_CONFIG.venueName, {after:60}),
+  return [
+    dPara('แบบตอบรับการจองเข้าร่วมกิจกรรม', {align:'center', bold:true, size:32, after:20}),
+    dPara('ณ '+DOC_CONFIG.venueName, {align:'center', bold:true, size:32, after:60, borderBottom:true}),
+    dPara('1. ชื่อหน่วยงาน/โรงเรียน  '+v.school, {after:40}),
+    dPara('2. เข้าร่วมกิจกรรมในวันที่ '+thaiFullDate(v.date)+' ณ '+DOC_CONFIG.venueName, {after:30}),
     roomLinePara('innovation','Innovation Space'),
     roomLinePara('inspirelab','Inspire Lab'),
-    roomLinePara('other', roomInfo('other').label, false),
-    dPara('3. รายละเอียดการเข้าร่วมกิจกรรม', {bold:true, after:50, before:60}),
-    ...(topicParas.length?topicParas:[dPara('-', {after:60})]),
-    dPara('4. ผู้ประสานงาน', {bold:true, after:50}),
-    dPara('ชื่อ-สกุล '+(v.contactPerson||'..........................................'), {after:40}),
-    dPara('โทรศัพท์ '+(v.contactPhone||'..........................................'), {after:120}),
-    dPara('หมายเหตุ', {bold:true, after:50}),
-    ...noteParas,
-    dPara(DOC_CONFIG.paymentNote, {bold:true, color:'B00000', size:26, indent:360, after:260}),
-    dPara('ลงชื่อ ........................................', {align:'right', after:10}),
-    dPara('(........................................)', {align:'right', after:10}),
-    dPara('ตำแหน่ง ........................................', {align:'right', after:220}),
-    dPara('รบกวนส่งแบบตอบรับมาที่ Email : '+DOC_CONFIG.contactEmail, {size:24, after:40}),
+    roomLinePara('other', roomInfo('other').label),
+    dPara('3. รายละเอียดการเข้าร่วมกิจกรรม', {bold:true, after:20, before:30}),
+    ...(topicParas.length?topicParas:[dPara('-', {after:30})]),
+    dPara('4. ผู้ประสานงาน', {bold:true, after:20}),
+    dPara('ชื่อ-สกุล '+(v.contactPerson||'..........................................'), {after:20}),
+    dPara('โทรศัพท์ '+(v.contactPhone||'..........................................'), {after:60}),
+    dPara('หมายเหตุ', {bold:true, after:20}),
+    noteParas[0],
+    ...priceParas,
+    ...noteParas.slice(1),
+    dPara(DOC_CONFIG.paymentNote, {bold:true, color:'B00000', indent:360, after:140}),
+    dPara('ลงชื่อ ........................................', {align:'right', after:6}),
+    dPara('(........................................)', {align:'right', after:6}),
+    dPara('ตำแหน่ง ........................................', {align:'right', after:120}),
+    dPara('รบกวนส่งแบบตอบรับมาที่ Email : '+DOC_CONFIG.contactEmail, {size:24, after:20}),
     dPara('สอบถามรายละเอียดเพิ่มเติม โทร. '+DOC_CONFIG.contactPhone, {size:24})
   ];
-  return new docx.Document({ sections:[{ children }] });
+}
+function buildDocA_Docx(v){
+  return new docx.Document({ sections:[{ children: buildDocA_DocxChildren(v) }] });
 }
 
-function buildDocB_Docx(v){
+function buildDocB_DocxChildren(v, opts={}){
   const billable = billableCount(v);
   const acts = visitActivitiesSorted(v);
   const grand = visitGrandTotal(v);
 
+  const slots = buildTimeSlots(acts);
   const headerCells = [
-    dCell(dPara('จำนวนนักเรียน', {align:'center', bold:true, size:28, after:0}), {width:20}),
-    ...acts.map(a=> dCell(dPara(thTime(a.startTime)+(a.endTime?(' – '+thTime(a.endTime)):' เป็นต้นไป'), {align:'center', bold:true, size:28, after:0})))
+    dCell(dPara('จำนวนนักเรียน', {align:'center', bold:true, size:27, after:0}), {width:22, fill:'BDD7EE'}),
+    ...slots.map(s=> dCell(dPara(timeSlotLabel(s), {align:'center', bold:true, size:27, after:0}), {fill:'BDD7EE'}))
   ];
-  const dataCells = [
+  const rows = acts.map((a,i)=> new docx.TableRow({children:[
     dCell([
-      dPara(v.gradeLevel||'ผู้เข้าร่วม', {align:'center', bold:true, size:28, after:20}),
-      dPara(`(${billable} คน)`, {align:'center', size:26, after:0})
+      dPara('กลุ่ม '+(i+1), {align:'center', bold:true, underline:true, size:27, after:10}),
+      ...(a.gradeLevel ? [dPara(a.gradeLevel, {align:'center', size:24, after:10})] : []),
+      dPara(`(${a.childrenCount||0} คน)`, {align:'center', size:24, after:0})
     ]),
-    ...acts.map(a=> dCell([
-      dPara(roomInfo(a.room).label, {align:'center', bold:true, size:28, after:20}),
-      dPara(a.topic||'-', {align:'center', size:24, after:0})
-    ]))
-  ];
+    ...slots.map(s=> dCell(
+      sameSlot(a,s) ? [
+        dPara(roomInfo(a.room).label, {align:'center', bold:true, size:27, after:10}),
+        dPara(a.topic||'-', {align:'center', size:24, after:0})
+      ] : [dPara('', {after:0})]
+    ))
+  ]}));
   const table = new docx.Table({
     width: {size:100, type:docx.WidthType.PERCENTAGE},
-    rows: [ new docx.TableRow({children:headerCells}), new docx.TableRow({children:dataCells}) ]
+    rows: [ new docx.TableRow({children:headerCells}), ...rows ]
   });
 
-  const detailBullets = acts.map(a=> dPara('- '+activityDetailPhraseDocx(a,billable), {after:50}));
-  const introText = `- ${thaiFullDateWithDay(v.date)} ผู้เข้าร่วมกิจกรรม${expandGradeLevel(v.gradeLevel)} จำนวน ${billable} คน`;
-  const costBullets = acts.map(a=> dPara(`- กิจกรรม ${roomInfo(a.room).label} รวมทั้งสิ้น ${a.rounds||1} รอบ ผู้เข้าชม รวม ${billable} คน รวมเป็นเงิน ${money(activitySubtotal(a,billable))} บาท`, {after:50}));
+  const detailBullets = acts.map(a=> dPara(activityDetailPhraseDocx(a), {after:20, bullet:true}));
+  const introText = `${thaiFullDateWithDay(v.date)} ผู้เข้าร่วมกิจกรรม${distinctGradesLabel(acts)} จำนวน ${billable} คน`;
+  const costBullets = acts.map(a=> dPara(`กิจกรรม ${roomInfo(a.room).label} ผู้เข้าร่วม รวม ${a.childrenCount||0} คน รวมเป็นเงิน ${money(activitySubtotal(a))} บาท`, {after:20, bullet:true}));
 
-  const children = [
-    dPara('ตารางการเข้าร่วมกิจกรรม ณ '+DOC_CONFIG.venueName, {align:'center', bold:true, size:36, after:30}),
-    dPara(v.school, {align:'center', bold:true, size:32, after:120, borderBottom:true}),
+  return [
+    dPara('ตารางการเข้าร่วมกิจกรรม ณ '+DOC_CONFIG.venueName, {align:'center', bold:true, size:27, after:15, pageBreakBefore: !!opts.pageBreakBefore}),
+    dPara(v.school, {align:'center', bold:true, size:27, after:60, borderBottom:true}),
     table,
-    dPara('', {after:160}),
-    dPara('รายละเอียดการเข้าร่วมกิจกรรม', {bold:true, after:60}),
-    dPara(introText, {bold:true, after:60}),
+    dPara('', {after:60}),
+    dPara('รายละเอียดการเข้าร่วมกิจกรรม', {bold:true, after:20}),
+    dPara(introText, {bold:true, after:20, bullet:true}),
     ...detailBullets,
-    dPara('สรุปค่าใช้จ่ายในการทำกิจกรรม', {bold:true, after:60, before:60}),
+    dPara('สรุปค่าใช้จ่ายในการทำกิจกรรม', {bold:true, after:20, before:20}),
     ...costBullets,
-    dPara(`รวมค่าใช้จ่ายในการเข้าร่วมกิจกรรม ${money(grand)} บาท${v.packageLabel?(' ('+v.packageLabel+')'):''}`, {bold:true, color:'1F4E96', after:100}),
+    dPara(`รวมค่าใช้จ่ายในการเข้าร่วมกิจกรรม ${money(grand)} บาท${v.packageLabel?(' ('+v.packageLabel+')'):''}`, {bold:true, color:'1F4E96', after:40}),
     dPara(DOC_CONFIG.paymentNote, {bold:true, color:'B00000'})
+  ];
+}
+function buildDocB_Docx(v){
+  return new docx.Document({ sections:[{ children: buildDocB_DocxChildren(v) }] });
+}
+function buildCombined_Docx(v){
+  const children = [
+    ...buildDocA_DocxChildren(v),
+    ...buildDocB_DocxChildren(v, {pageBreakBefore:true})
   ];
   return new docx.Document({ sections:[{ children }] });
 }
-function activityDetailPhraseDocx(a, billable){
+function activityDetailPhraseDocx(a){
   const topicPart = a.topic ? ` เรื่อง ${a.topic}` : '';
-  const roundsPart = a.room!=='other' ? ` จำนวน ${a.rounds||1} รอบ` : '';
-  return `กิจกรรม ${roomInfo(a.room).label}${topicPart}${roundsPart} รวม ${billable} คน`;
+  const gradePart = a.gradeLevel ? ` (${a.gradeLevel})` : '';
+  return `กิจกรรม ${roomInfo(a.room).label}${topicPart}${gradePart} รวม ${a.childrenCount||0} คน`;
 }
 
 function triggerDocxDownload(doc, filename){
@@ -1047,6 +1116,11 @@ function triggerDocxDownload(doc, filename){
     URL.revokeObjectURL(url);
   }).catch(err=> alert('สร้างไฟล์ Word ไม่สำเร็จ: '+err.message));
 }
+document.getElementById('downloadDocAllBtn').addEventListener('click', ()=>{
+  const v = state.visits.find(x=>x.id===state.currentDetailId);
+  if(!v) return;
+  triggerDocxDownload(buildCombined_Docx(v), `เอกสารกิจกรรม_${v.docNo||v.id}.docx`);
+});
 document.getElementById('downloadDocABtn').addEventListener('click', ()=>{
   const v = state.visits.find(x=>x.id===state.currentDetailId);
   if(!v) return;
