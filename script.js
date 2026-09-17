@@ -101,6 +101,65 @@ function normalizeDateStr(s){
   return bkk.getUTCFullYear()+'-'+pad(bkk.getUTCMonth()+1)+'-'+pad(bkk.getUTCDate());
 }
 function roomInfo(id){ return ROOM_CATEGORIES.find(r=>r.id===id) || ROOM_CATEGORIES[2]; }
+/* ---------------- Agenda (week/day) time grid ---------------- */
+const AGENDA_GRID_START = 8*60;  // 08:00
+const AGENDA_GRID_END = 17*60;   // 17:00
+const AGENDA_SLOT_MIN = 30;
+const AGENDA_SLOT_PX = 34;
+function timeToMinutes(t){
+  if(!t) return null;
+  const [h,m] = t.split(':').map(Number);
+  return h*60+(m||0);
+}
+function layoutAgendaItems(dayItems){
+  // จัดตำแหน่ง block ตามเวลาจริง + แบ่งคอลัมน์ย่อยถ้าเวลาทับซ้อนกันในวันเดียวกัน
+  const withMin = dayItems.map(o=>{
+    const startMin = timeToMinutes(o.startTime) ?? AGENDA_GRID_START;
+    const rawEndMin = (o.endTime==='23:59'||!o.endTime) ? AGENDA_GRID_END : (timeToMinutes(o.endTime) ?? AGENDA_GRID_END);
+    const endMin = Math.max(rawEndMin, startMin+AGENDA_SLOT_MIN);
+    return {...o, startMin, endMin};
+  }).sort((a,b)=> a.startMin-b.startMin || a.endMin-b.endMin);
+
+  const clusters = [];
+  let current = [], currentEnd = -Infinity;
+  withMin.forEach(ev=>{
+    if(current.length && ev.startMin >= currentEnd){ clusters.push(current); current=[]; currentEnd=-Infinity; }
+    current.push(ev);
+    currentEnd = Math.max(currentEnd, ev.endMin);
+  });
+  if(current.length) clusters.push(current);
+
+  const placed = [];
+  clusters.forEach(cluster=>{
+    const colEnds = [];
+    cluster.forEach(ev=>{
+      let col = colEnds.findIndex(end=> end<=ev.startMin);
+      if(col===-1){ col = colEnds.length; colEnds.push(ev.endMin); }
+      else colEnds[col] = ev.endMin;
+      ev.col = col;
+    });
+    const colCount = colEnds.length;
+    cluster.forEach(ev=> placed.push({...ev, colCount}));
+  });
+  return placed;
+}
+function agendaGridHeightPx(){ return (AGENDA_GRID_END-AGENDA_GRID_START)/AGENDA_SLOT_MIN*AGENDA_SLOT_PX; }
+function agendaAxisHtml(){
+  let out = '';
+  for(let m=AGENDA_GRID_START; m<=AGENDA_GRID_END; m+=60){
+    const top = (m-AGENDA_GRID_START)/AGENDA_SLOT_MIN*AGENDA_SLOT_PX;
+    out += `<div class="axis-label" style="top:${top}px">${pad(Math.floor(m/60))}:00</div>`;
+  }
+  return out;
+}
+function agendaGridLinesHtml(){
+  let out = '';
+  for(let m=AGENDA_GRID_START; m<=AGENDA_GRID_END; m+=AGENDA_SLOT_MIN){
+    const top = (m-AGENDA_GRID_START)/AGENDA_SLOT_MIN*AGENDA_SLOT_PX;
+    out += `<div class="agenda-gridline ${m%60===0?'hour':''}" style="top:${top}px"></div>`;
+  }
+  return out;
+}
 function statusInfo(id){ return STATUS_CONFIG[id] || STATUS_CONFIG.pending; }
 function timeOverlap(s1,e1,s2,e2){ return s1 < e2 && s2 < e1; }
 function escapeHtml(str){
@@ -496,16 +555,30 @@ function renderAgenda(){
   } else {
     days = [state.cursorDate];
   }
-  container.innerHTML = `<div class="agenda-columns">${days.map(d=>{
+  const gridHeight = agendaGridHeightPx();
+  container.innerHTML = `<div class="agenda-columns">
+    <div class="agenda-timeaxis">
+      <div class="ahead">&nbsp;</div>
+      <div class="axis-body" style="height:${gridHeight}px">${agendaAxisHtml()}</div>
+    </div>
+    ${days.map(d=>{
     const ds = fmtDate(d);
-    const dayItems = items.filter(o=>o.date===ds).sort((a,b)=>a.startTime.localeCompare(b.startTime));
+    const dayItems = items.filter(o=>o.date===ds);
     const isToday = ds===todayStr();
+    const laidOut = layoutAgendaItems(dayItems);
     return `<div class="agenda-day ${isToday?'today':''}">
       <div class="ahead">${WEEKDAYS_TH[d.getDay()]} <span class="num">${d.getDate()}</span></div>
-      <div class="agenda-events">
-        ${dayItems.length===0 ? '<div class="agenda-empty">ไม่มีการจอง</div>' : dayItems.map(o=>{
+      <div class="agenda-events" style="height:${gridHeight}px">
+        ${agendaGridLinesHtml()}
+        ${dayItems.length===0 ? '<div class="agenda-empty">ไม่มีการจอง</div>' : ''}
+        ${laidOut.map(o=>{
           const r = roomInfo(o.room), s = statusInfo(o.status);
-          return `<div class="agenda-card" data-visit-id="${o.visitId}" style="border-left-color:${r.color};background:${r.bg}">
+          const top = (Math.max(o.startMin,AGENDA_GRID_START)-AGENDA_GRID_START)/AGENDA_SLOT_MIN*AGENDA_SLOT_PX;
+          const bottom = (Math.min(o.endMin,AGENDA_GRID_END)-AGENDA_GRID_START)/AGENDA_SLOT_MIN*AGENDA_SLOT_PX;
+          const height = Math.max(bottom-top, AGENDA_SLOT_PX*0.7);
+          const widthPct = 100/o.colCount;
+          const leftPct = o.col*widthPct;
+          return `<div class="agenda-card" data-visit-id="${o.visitId}" style="border-left-color:${r.color};background:${r.bg};top:${top}px;height:${height}px;left:${leftPct}%;width:calc(${widthPct}% - 4px)">
             <div class="time">${o.startTime}${o.endTime!=='23:59'?('–'+o.endTime):' เป็นต้นไป'}</div>
             <div class="name">${escapeHtml(o.topic)||r.label}</div>
             <div class="school">${escapeHtml(o.school)} · ${r.label}</div>
