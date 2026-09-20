@@ -22,8 +22,9 @@ const SHEET_NAME = 'Bookings';
 const HEADERS = [
   'id','docNo','school','gradeLevel','packageLabel','contactPerson','contactPhone',
   'date','childrenCount','adultCount','totalPeople','status','notes',
-  'activitiesJson','createdAt','updatedAt','contactFacebook','location'
-  // 'location' ต่อท้ายสุดเสมอ — ห้ามแทรกกลาง เพราะจะทำให้คอลัมน์ของแถวเก่าในชีตเลื่อนตำแหน่งผิด
+  'activitiesJson','createdAt','updatedAt','contactFacebook','location','recorder','editor'
+  // คอลัมน์ใหม่ต่อท้ายสุดเสมอ — ห้ามแทรกกลาง เพราะจะทำให้คอลัมน์ของแถวเก่าในชีตเลื่อนตำแหน่งผิด
+  // recorder = ผู้บันทึก (ใส่ครั้งเดียวตอนสร้าง) | editor = ผู้แก้ไขล่าสุด (แทนที่ทุกครั้งที่แก้ไข)
 ];
 
 /**
@@ -144,6 +145,8 @@ function buildRecord_(data, overrides) {
     contactPerson: data.contactPerson || '',
     contactPhone: data.contactPhone || '',
     contactFacebook: data.contactFacebook || '',
+    recorder: data.recorder || '',
+    editor: data.editor || '',
     date: data.date || '',
     childrenCount: Number(data.childrenCount) || 0,
     adultCount: Number(data.adultCount) || 0,
@@ -155,6 +158,7 @@ function buildRecord_(data, overrides) {
 }
 
 function createBooking_(data) {
+  if (!String(data.recorder || '').trim()) return { error: 'กรุณาระบุผู้บันทึก' };
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
@@ -174,6 +178,8 @@ function createBooking_(data) {
 }
 
 function updateBooking_(data) {
+  // ผู้แก้ไขต้องระบุทุกครั้งที่แก้ไข (ค่าเดิมถูกแทนที่)
+  if (!String(data.editor || '').trim()) return { error: 'กรุณาระบุผู้แก้ไข' };
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
@@ -184,7 +190,7 @@ function updateBooking_(data) {
     const existingRow = sheet.getRange(rowIndex, 1, 1, HEADERS.length).getValues()[0];
     const existing = rowToObject_(HEADERS, existingRow);
     // ฟอร์มแก้ไขไม่ส่ง status มา — คงสถานะเดิมของแถวไว้ (ไม่รีเซ็ตกลับเป็น pending)
-    const record = buildRecord_(data, { id: existing.id, docNo: existing.docNo, status: data.status || existing.status || 'pending', createdAt: existing.createdAt, updatedAt: now });
+    const record = buildRecord_(data, { id: existing.id, docNo: existing.docNo, status: data.status || existing.status || 'pending', recorder: existing.recorder || data.recorder || '', createdAt: existing.createdAt, updatedAt: now });
     const dateCol = HEADERS.indexOf('date') + 1;
     sheet.getRange(rowIndex, dateCol).setNumberFormat('@'); // กันชีตแปลงวันที่เป็น Date object ตอนแก้ไขด้วย
     sheet.getRange(rowIndex, 1, 1, HEADERS.length).setValues([HEADERS.map(h => record[h])]);
