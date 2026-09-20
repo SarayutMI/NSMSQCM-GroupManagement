@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=20260921i">
 <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
 </head>
 <body>
@@ -28,36 +28,28 @@
         <div class="sub">Innovation Space · Inspire Lab · อื่นๆ</div>
       </div>
     </div>
+    <button class="btn today-btn" id="todayBtn">วันนี้</button>
     <div class="nav-controls">
-      <button class="icon-btn" id="prevBtn">‹</button>
-      <button class="btn btn-sm" id="todayBtn">วันนี้</button>
-      <button class="icon-btn" id="nextBtn">›</button>
+      <button class="icon-btn" id="prevBtn" aria-label="ก่อนหน้า">‹</button>
+      <button class="icon-btn" id="nextBtn" aria-label="ถัดไป">›</button>
     </div>
     <div class="today-label" id="periodLabel">-</div>
+    <div class="spacer"></div>
+    <button class="btn btn-ghost" id="refreshBtn" title="โหลดรายชื่อโรงเรียนอ้างอิงใหม่">⟳ ซิงก์ข้อมูลอ้างอิง</button>
     <div class="view-switch">
       <button data-view="month" class="active">เดือน</button>
       <button data-view="week">สัปดาห์</button>
       <button data-view="day">วัน</button>
     </div>
-    <div class="spacer"></div>
-    <button class="btn btn-ghost" id="refreshBtn" title="โหลดรายชื่อโรงเรียนอ้างอิงใหม่">⟳ ซิงก์ข้อมูลอ้างอิง</button>
-    <button class="btn btn-primary" id="addBtn">+ เพิ่มการจอง</button>
   </header>
 
   <div class="body-area">
     <aside class="sidebar">
-      <div class="side-block" id="syncBlock">
-        <h3>ข้อมูลอ้างอิง (Sheet)</h3>
-        <div class="sync-banner" id="syncBanner">กำลังตรวจสอบ...</div>
-      </div>
+      <button class="create-btn" id="addBtn"><span class="plus">+</span> เพิ่มการจอง</button>
 
-      <div class="side-block" id="visitSyncBlock">
-        <h3>ข้อมูลการจอง (Sheet)</h3>
-        <div class="sync-banner" id="visitSyncBanner">กำลังตรวจสอบ...</div>
-      </div>
+      <div class="mini-cal" id="miniCal"></div>
 
       <div class="side-block">
-        <h3>ค้นหา</h3>
         <input class="search-box" id="searchInput" placeholder="ค้นหาชื่อโรงเรียน / กิจกรรม">
       </div>
 
@@ -74,6 +66,16 @@
       <div class="side-block">
         <h3>รอยืนยัน (<span id="pendingCount">0</span>)</h3>
         <div class="pending-list" id="pendingList"></div>
+      </div>
+
+      <div class="side-block" id="syncBlock">
+        <h3>ข้อมูลอ้างอิง (Sheet)</h3>
+        <div class="sync-banner" id="syncBanner">กำลังตรวจสอบ...</div>
+      </div>
+
+      <div class="side-block" id="visitSyncBlock">
+        <h3>ข้อมูลการจอง (Sheet)</h3>
+        <div class="sync-banner" id="visitSyncBanner">กำลังตรวจสอบ...</div>
       </div>
     </aside>
 
@@ -181,22 +183,40 @@
         <div class="doc-export-item">
           <div class="doc-export-name">เอกสารรวม (แบบตอบรับ + ตารางกิจกรรม) — ไฟล์เดียว</div>
           <div class="doc-export-btns">
-            <button class="btn btn-sm btn-primary" id="printDocAllBtn">🖨 PDF</button>
-            <button class="btn btn-sm btn-primary" id="downloadDocAllBtn">⬇ Word</button>
+            <div class="btn-group">
+              <button class="btn btn-sm btn-primary" data-doc="all" data-act="print" data-lang="th">🖨 PDF · ไทย</button>
+              <button class="btn btn-sm btn-primary" data-doc="all" data-act="print" data-lang="en">🖨 PDF · EN</button>
+            </div>
+            <div class="btn-group">
+              <button class="btn btn-sm btn-primary" data-doc="all" data-act="word" data-lang="th">⬇ Word · ไทย</button>
+              <button class="btn btn-sm btn-primary" data-doc="all" data-act="word" data-lang="en">⬇ Word · EN</button>
+            </div>
           </div>
         </div>
         <div class="doc-export-item">
           <div class="doc-export-name">แบบตอบรับการจอง</div>
           <div class="doc-export-btns">
-            <button class="btn btn-sm" id="printDocABtn">🖨 PDF</button>
-            <button class="btn btn-sm" id="downloadDocABtn">⬇ Word</button>
+            <div class="btn-group">
+              <button class="btn btn-sm " data-doc="A" data-act="print" data-lang="th">🖨 PDF · ไทย</button>
+              <button class="btn btn-sm " data-doc="A" data-act="print" data-lang="en">🖨 PDF · EN</button>
+            </div>
+            <div class="btn-group">
+              <button class="btn btn-sm " data-doc="A" data-act="word" data-lang="th">⬇ Word · ไทย</button>
+              <button class="btn btn-sm " data-doc="A" data-act="word" data-lang="en">⬇ Word · EN</button>
+            </div>
           </div>
         </div>
         <div class="doc-export-item">
           <div class="doc-export-name">ตารางกิจกรรม + ค่าใช้จ่าย</div>
           <div class="doc-export-btns">
-            <button class="btn btn-sm" id="printDocBBtn">🖨 PDF</button>
-            <button class="btn btn-sm" id="downloadDocBBtn">⬇ Word</button>
+            <div class="btn-group">
+              <button class="btn btn-sm " data-doc="B" data-act="print" data-lang="th">🖨 PDF · ไทย</button>
+              <button class="btn btn-sm " data-doc="B" data-act="print" data-lang="en">🖨 PDF · EN</button>
+            </div>
+            <div class="btn-group">
+              <button class="btn btn-sm " data-doc="B" data-act="word" data-lang="th">⬇ Word · ไทย</button>
+              <button class="btn btn-sm " data-doc="B" data-act="word" data-lang="en">⬇ Word · EN</button>
+            </div>
           </div>
         </div>
       </div>
@@ -222,6 +242,6 @@
 <!-- ============ Hidden print area ============ -->
 <div id="printArea"></div>
 
-<script src="script.js"></script>
+<script src="script.js?v=20260921i"></script>
 </body>
 </html>

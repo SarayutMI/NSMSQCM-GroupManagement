@@ -9,8 +9,14 @@
      แล้วคัดลอกลิงก์มาใส่ที่ SCHOOLS_CSV_URL ด้านล่าง (คอลัมน์: school, contactPerson, contactPhone)
    ========================================================= */
 const CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycbwMZD55K857pQ1XCi0q2jwsRmsj_4tOLE5H33DFyzynKh96vaJhsPK5A3n9vmM78k07uw/exec',            // <-- ใส่ URL ของ Google Apps Script Web App (จาก Code.gs) ที่นี่ เพื่อเชื่อม Sheet จริง
-  SCHOOLS_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=0&single=true&output=csv'     // <-- ใส่ลิงก์ CSV รายชื่อโรงเรียนอ้างอิงจาก Google Sheet ที่นี่
+  API_URL: 'https://script.google.com/macros/s/AKfycbyBd_8LfXcvB7dmioapMrdCQukL_EvERvN5nQX-HwZNz87izueM-Gbh4euUDZv16E0L9A/exec',            // <-- ใส่ URL ของ Google Apps Script Web App (จาก Code.gs) ที่นี่ เพื่อเชื่อม Sheet จริง
+  SCHOOLS_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=0&single=true&output=csv',     // <-- ใส่ลิงก์ CSV รายชื่อโรงเรียนอ้างอิงจาก Google Sheet ที่นี่
+  // รายการ "เรื่อง/หัวข้อ" ของแต่ละห้อง/กิจกรรม (ชีตเดียวกับรายชื่อโรงเรียน คนละแท็บ, คอลัมน์เดียว: แถวแรกเป็นหัวตาราง)
+  ACTIVITY_CSV_URLS: {
+    innovation: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=1326757397&single=true&output=csv',
+    inspirelab: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=1497609226&single=true&output=csv',
+    other:      'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=867048367&single=true&output=csv'
+  }
 };
 
 /* ตั้งค่าข้อความ/ข้อมูลที่ใช้พิมพ์ในเอกสาร แก้ตรงนี้ได้ตามหน่วยงานจริง */
@@ -20,26 +26,124 @@ const DOC_CONFIG = {
   contactEmail: 'Yuttana.s@nsm.or.th',
   contactPhone: '093-745-8550',
   paymentNote: 'การชำระเงินกรุณาชำระผ่านการโอนได้ที่เคาน์เตอร์ในวันที่มาร่วมกิจกรรมเท่านั้น (งดรับเงินสด)',
-  priceLines: [
-    {label:'Basic', price:90, normalPrice:100},
-    {label:'Advance', price:180, normalPrice:200}
+  // ราคาแยกเป็นหัวข้อหลัก: มี lines = หัวข้อ + รายการย่อย, ไม่มี lines = บรรทัดหลักที่มีราคาในตัวเอง (ใช้ประโยคเดียวกันทุกบรรทัด)
+  priceGroups: [
+    {title:'Inspire Lab และ Innovation Space', lines:[
+      {label:'Basic', price:90, normalPrice:100},
+      {label:'Advance', price:180, normalPrice:200}
+    ]},
+    {title:'Walk Rally', price:45, normalPrice:50},
+    {title:"Don't Miss", price:90, normalPrice:100},
+    {title:'Mini Make and Play', price:45, normalPrice:50}
   ],
+  policyNoteBold: '',   // ท่อนที่จะพิมพ์ตัวหนาในหมายเหตุข้อแรก (เว้นว่าง = ไม่หนา) เช่น 'หมู่คณะ 10 คนขึ้นไปต่อรอบ'
   policyNotes: [
     'ค่าธรรมเนียมเข้าร่วมกิจกรรมกรณีเป็นหมู่คณะ 10 คนขึ้นไปต่อรอบ',
     'หากจองเข้าร่วมเป็นหมู่คณะ 15 คนขึ้นไปต่อรอบ สามารถเลือกเรื่องกิจกรรมที่ต้องการเข้าร่วมได้ (ตามตารางกิจกรรม)',
     'กรณีที่ผู้เข้าร่วมกิจกรรมมาไม่ครบตามจำนวนที่แจ้ง ขอเก็บค่าธรรมเนียมขั้นต่ำที่ 15 คนต่อรอบ หากมามากกว่าที่แจ้งไว้ คิดค่าธรรมเนียมตามจำนวนที่มาจริง',
-    'หากมีผู้เข้าร่วมกิจกรรมน้อยกว่า 20 คนต่อรอบ ทาง จัตุรัสวิทยาศาสตร์ มีสิทธิ์รับผู้เข้าร่วมกิจกรรมภายนอกเพิ่มเติม',
+    'หากมีผู้เข้าร่วมกิจกรรมน้อยกว่า 20 คนต่อรอบ ทางจัตุรัสวิทยาศาสตร์มีสิทธิ์รับผู้เข้าร่วมกิจกรรมภายนอกเพิ่มเติม',
     'แจ้งยืนยันการเข้าร่วมกิจกรรมล่วงหน้าก่อน 7 วัน',
     'กรณีต้องการเปลี่ยนแปลงหรือยกเลิกการจองเข้าร่วมกิจกรรมกรุณาแจ้งก่อนวันที่เข้าร่วมอย่างน้อย 3 วันทำการ'
   ]
 };
 
+/* ภาษาของเอกสาร export: th = ไทย (ใช้ค่าจาก DOC_CONFIG ด้านบน), en = อังกฤษ
+   ข้อความอังกฤษทั้งหมดแก้ตรงนี้ได้ (แปลจากต้นฉบับภาษาไทย ควรให้เจ้าของงานตรวจอีกครั้ง) */
+const MONTHS_EN = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const WEEKDAYS_FULL_EN = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const DOC_LANG = {
+  th: {
+    venueName: DOC_CONFIG.venueName,
+    paymentNote: DOC_CONFIG.paymentNote,
+    policyNotes: DOC_CONFIG.policyNotes,
+    policyNoteBold: DOC_CONFIG.policyNoteBold,
+    policyNoteFit: 3,   // หมายเหตุข้อที่ต้องอยู่บรรทัดเดียว (index เริ่ม 0) — ย่อขนาดตัวอักษรลงเล็กน้อย
+    priceGroups: DOC_CONFIG.priceGroups,
+    filePrefix: {all:'เอกสารกิจกรรม', A:'แบบตอบรับ', B:'ตารางกิจกรรม'},
+    date: d=> thaiFullDate(d),
+    dateWithDay: d=> thaiFullDateWithDay(d),
+    room: id=> roomInfo(id).label,
+    time: t=> thTime(t),
+    onwards: 'เป็นต้นไป',
+    grades: g=> g,
+    s: {
+      titleA:'แบบตอบรับการจองเข้าร่วมกิจกรรม', at:'ณ', school:'1. ชื่อหน่วยงาน/โรงเรียน',
+      visitDate:(date,venue)=>`2. เข้าร่วมกิจกรรมในวันที่ ${date} ณ ${venue}`,
+      roomSets:(label,topic,n)=>`กิจกรรม ${label}${topic} รวมจำนวนชุดกิจกรรม ${n} ชุด`,
+      details:'3. รายละเอียดการเข้าร่วมกิจกรรม',
+      roomTopic:(room,topics)=>`${room} เรื่อง ${topics}`,
+      contact:'4. ผู้ประสานงาน', fullName:'ชื่อ-สกุล', phone:'โทรศัพท์', notes:'หมายเหตุ',
+      priceLine:(p,n)=>`ราคา คนละ ${p} บาท ต่อรอบกิจกรรม (จากปกติคนละ ${n} บาท ต่อรอบกิจกรรม)`,
+      sign:'ลงชื่อ', position:'ตำแหน่ง',
+      footer1:(fb,email)=>`รบกวนส่งแบบตอบรับมาที่ Facebook Page : ${fb} หรือ Email : ${email}`,
+      footer2:tel=>`สอบถามรายละเอียดเพิ่มเติม โทร. ${tel}`,
+      titleB:venue=>`ตารางการเข้าร่วมกิจกรรม ณ ${venue}`,
+      studentsCol:'จำนวนนักเรียน', group:n=>`กลุ่ม ${n}`, people:n=>`(${n} คน)`,
+      detailsB:'รายละเอียดการเข้าร่วมกิจกรรม',
+      intro:(dateWD,grades,n)=>`${dateWD} ผู้เข้าร่วมกิจกรรม${grades?`ระดับชั้น ${grades} `:''}จำนวน ${n} คน`,
+      costTitle:'สรุปค่าใช้จ่ายในการทำกิจกรรม',
+      costLine:(label,topic,n,amount)=>`กิจกรรม ${label}${topic} รวมจำนวนชุดกิจกรรม ${n} ชุด เป็นเงิน ${amount} บาท`,
+      total:(amount,pkg)=>`รวมค่าใช้จ่ายในการเข้าร่วมกิจกรรม ${amount} บาท${pkg?` (${pkg})`:''}`
+    }
+  },
+  en: {
+    venueName: 'NSM Science Square at Chiang Mai',
+    paymentNote: 'Payment by bank transfer at the counter on the day of the activity only (no cash).',
+    policyNotes: [
+      'Fee for groups of 10 or more participants per round',
+      'Groups of 15 or more per round may choose their activities.',
+      'If fewer people attend than registered, a minimum fee for 15 people per round applies; if more attend, the fee is based on actual attendance.',
+      'If a round has fewer than 20 participants, Science Square may admit additional outside participants.',
+      'Please confirm attendance at least 7 days in advance.',
+      'To change or cancel, please notify us at least 3 working days before the visit.'
+    ],
+    policyNoteBold: '',   // เว้นว่าง = ไม่หนา
+    policyNoteFit: -1,
+    priceGroups: [
+      {title:'Inspire Lab and Innovation Space', lines:[
+        {label:'Basic', price:90, normalPrice:100},
+        {label:'Advance', price:180, normalPrice:200}
+      ]},
+      {title:'Walk Rally', price:45, normalPrice:50},
+      {title:"Don't Miss", price:90, normalPrice:100},
+      {title:'Mini Make and Play', price:45, normalPrice:50}
+    ],
+    filePrefix: {all:'ActivityDocuments', A:'BookingConfirmation', B:'ActivitySchedule'},
+    date: d=>{ const x = parseDate(d); return `${x.getDate()} ${MONTHS_EN[x.getMonth()]} ${x.getFullYear()}`; },
+    dateWithDay: d=>{ const x = parseDate(d); return `${WEEKDAYS_FULL_EN[x.getDay()]}, ${x.getDate()} ${MONTHS_EN[x.getMonth()]} ${x.getFullYear()}`; },
+    room: id=> id==='other' ? 'Others' : roomInfo(id).label,
+    time: t=> t,
+    onwards: 'onwards',
+    grades: g=> g.replace(/ป\./g,'P.').replace(/ม\./g,'M.').replace(/อ\./g,'K.'),   // ป=ประถม(P) ม=มัธยม(M) อ=อนุบาล(K)
+    s: {
+      titleA:'Activity Booking Confirmation Form', at:'', school:'1. Organization / School:',
+      visitDate:(date,venue)=>`2. Date of visit: ${date}, ${venue}`,
+      roomSets:(label,topic,n)=>`Activity: ${label}${topic} — total ${n} activity sets`,
+      details:'3. Activity Details',
+      roomTopic:(room,topics)=>`${room} — Topic: ${topics}`,
+      contact:'4. Contact Person', fullName:'Full name', phone:'Phone', notes:'Notes',
+      priceLine:(p,n)=>`Price ${p} baht per person per round (regular price ${n} baht)`,
+      sign:'Signature', position:'Position',
+      footer1:(fb,email)=>`Please send the completed form to our Facebook Page: ${fb} or Email: ${email}`,
+      footer2:tel=>`For more information, please call ${tel}`,
+      titleB:venue=>`Activity Schedule: ${venue}`,
+      studentsCol:'Number of students', group:n=>`Group ${n}`, people:n=>`(${n} students)`,
+      detailsB:'Activity Details',
+      intro:(dateWD,grades,n)=>`${dateWD}: ${n} participants${grades?` (Grade ${grades})`:''}`,
+      costTitle:'Cost Summary',
+      costLine:(label,topic,n,amount)=>`Activity: ${label}${topic} — ${n} activity sets, total ${amount} baht`,
+      total:(amount,pkg)=>`Total activity fee: ${amount} baht${pkg?` (${pkg})`:''}`
+    }
+  }
+};
+
 const ROOM_CATEGORIES = [
-  {id:'innovation', label:'Innovation Space', color:'var(--yellow)', bg:'var(--yellow-dim)'},
-  {id:'inspirelab', label:'Inspire Lab',       color:'var(--sky)',   bg:'var(--sky-dim)'},
-  {id:'other',      label:'อื่นๆ',              color:'var(--purple)', bg:'var(--purple-dim)'}
+  {id:'innovation', label:'Innovation Space', color:'var(--yellow)', bg:'var(--yellow-dim)', tint:'var(--yellow-tint)'},
+  {id:'inspirelab', label:'Inspire Lab',       color:'var(--sky)',   bg:'var(--sky-dim)',    tint:'var(--sky-tint)'},
+  {id:'other',      label:'อื่นๆ',              color:'var(--purple)', bg:'var(--purple-dim)', tint:'var(--purple-tint)'}
 ];
 const ROOM_DEFAULT_PRICE = { innovation: 90, inspirelab: 90, other: 100 };
+const LOCATION_OPTIONS = ['LAB Room', 'INNO Room', 'ADA Space', 'Andromeda', 'WorkingSpace'];
 
 const STATUS_CONFIG = {
   pending:   {label:'รอยืนยัน',   color:'var(--pending)',   bg:'var(--pending-bg)'},
@@ -60,11 +164,14 @@ const SAMPLE_SCHOOLS = [
 ];
 
 let refSchools = [];
+let refActivities = {innovation:[], inspirelab:[], other:[]};
 
 let state = {
   visits: [],
   view: 'month',
   cursorDate: new Date(),
+  miniMonth: new Date(new Date().getFullYear(), new Date().getMonth(), 1),  // เดือนที่ปฏิทินย่อยด้านซ้ายกำลังแสดง
+  miniSyncedKey: '',
   activeRoomFilters: new Set(ROOM_CATEGORIES.map(r=>r.id)),
   activeStatusFilters: new Set(Object.keys(STATUS_CONFIG)),
   search: '',
@@ -90,6 +197,10 @@ function pad(n){ return String(n).padStart(2,'0'); }
 function fmtDate(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
 function parseDate(s){ const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); }
 function todayStr(){ return fmtDate(new Date()); }
+function isDayOff(dateOrStr){
+  const d = (typeof dateOrStr==='string') ? parseDate(dateOrStr) : dateOrStr;
+  return d.getDay()===1; // วันจันทร์ = วันหยุดของสถานที่
+}
 function normalizeDateStr(s){
   // แถวเก่าในชีต (ก่อนแก้บั๊กฝั่ง Apps Script) อาจส่ง date กลับมาเป็น ISO datetime
   // เช่น "2026-09-15T17:00:00.000Z" แทนที่จะเป็น "2026-09-16" ทำให้ parseDate() พังและ
@@ -111,37 +222,62 @@ function timeToMinutes(t){
   const [h,m] = t.split(':').map(Number);
   return h*60+(m||0);
 }
+const AGENDA_COLUMN_ORDER = ['inspirelab','innovation','other'];
 function layoutAgendaItems(dayItems){
-  // จัดตำแหน่ง block ตามเวลาจริง + แบ่งคอลัมน์ย่อยถ้าเวลาทับซ้อนกันในวันเดียวกัน
+  // คอลัมน์แบ่งตามหมวดห้องคงที่ทั้งวัน: Inspire Lab ซ้ายสุด, Innovation ถัดไป, อื่นๆ ขยายไปทางขวาเรื่อยๆ
+  // ภายในหมวดเดียวกันถ้าเวลาทับซ้อนกันจะแตกเป็นคอลัมน์ย่อยเพิ่มด้วย greedy packing
   const withMin = dayItems.map(o=>{
     const startMin = timeToMinutes(o.startTime) ?? AGENDA_GRID_START;
     const rawEndMin = (o.endTime==='23:59'||!o.endTime) ? AGENDA_GRID_END : (timeToMinutes(o.endTime) ?? AGENDA_GRID_END);
     const endMin = Math.max(rawEndMin, startMin+AGENDA_SLOT_MIN);
     return {...o, startMin, endMin};
-  }).sort((a,b)=> a.startMin-b.startMin || a.endMin-b.endMin);
-
-  const clusters = [];
-  let current = [], currentEnd = -Infinity;
-  withMin.forEach(ev=>{
-    if(current.length && ev.startMin >= currentEnd){ clusters.push(current); current=[]; currentEnd=-Infinity; }
-    current.push(ev);
-    currentEnd = Math.max(currentEnd, ev.endMin);
   });
-  if(current.length) clusters.push(current);
 
   const placed = [];
-  clusters.forEach(cluster=>{
-    const colEnds = [];
-    cluster.forEach(ev=>{
-      let col = colEnds.findIndex(end=> end<=ev.startMin);
-      if(col===-1){ col = colEnds.length; colEnds.push(ev.endMin); }
-      else colEnds[col] = ev.endMin;
-      ev.col = col;
+  const groups = [];
+  let colOffset = 0;
+  AGENDA_COLUMN_ORDER.forEach(catId=>{
+    const catItems = withMin.filter(o=>o.room===catId).sort((a,b)=> a.startMin-b.startMin || a.endMin-b.endMin);
+    if(!catItems.length) return;
+
+    // แตก cluster เฉพาะช่วงที่เวลาทับซ้อนกันจริงๆ ในหมวดนี้ ถ้าช่วงไหนมีอันเดียวจะเต็มแถว
+    const clusters = [];
+    let current = [], currentEnd = -Infinity;
+    catItems.forEach(ev=>{
+      if(current.length && ev.startMin >= currentEnd){ clusters.push(current); current=[]; currentEnd=-Infinity; }
+      current.push(ev);
+      currentEnd = Math.max(currentEnd, ev.endMin);
     });
-    const colCount = colEnds.length;
-    cluster.forEach(ev=> placed.push({...ev, colCount}));
+    if(current.length) clusters.push(current);
+
+    let colSpan = 1;
+    clusters.forEach(cluster=>{
+      const colEnds = [];
+      cluster.forEach(ev=>{
+        let col = colEnds.findIndex(end=> end<=ev.startMin);
+        if(col===-1){ col = colEnds.length; colEnds.push(ev.endMin); }
+        else colEnds[col] = ev.endMin;
+        ev.localCol = col;
+      });
+      cluster.forEach(ev=> ev.localColCount = colEnds.length);
+      colSpan = Math.max(colSpan, colEnds.length);
+    });
+
+    groups.push({catId, colStart:colOffset, colSpan});
+    catItems.forEach(ev=>{
+      ev.bandColStart = colOffset;
+      ev.bandColSpan = colSpan;
+      placed.push(ev);
+    });
+    colOffset += colSpan;
   });
-  return placed;
+  const colCount = Math.max(colOffset,1);
+  const items = placed.map(ev=>{
+    const widthPct = (ev.bandColSpan/ev.localColCount)/colCount*100;
+    const leftPct = (ev.bandColStart + (ev.localCol/ev.localColCount)*ev.bandColSpan)/colCount*100;
+    return {...ev, widthPct, leftPct};
+  });
+  return {items, groups, colCount};
 }
 function agendaGridHeightPx(){ return (AGENDA_GRID_END-AGENDA_GRID_START)/AGENDA_SLOT_MIN*AGENDA_SLOT_PX; }
 function agendaAxisHtml(){
@@ -233,6 +369,13 @@ function visitGrandTotal(v){
 function visitActivitiesSorted(v){
   return [...v.activities].sort((a,b)=> (a.startTime||'').localeCompare(b.startTime||''));
 }
+// ลำดับห้องในตารางค่าใช้จ่าย: Inspire Lab → Innovation Space → อื่นๆ
+const COST_ROOM_ORDER = ['inspirelab','innovation','other'];
+function visitActivitiesByTimeThenRoom(v){
+  const rank = a=>{ const i = COST_ROOM_ORDER.indexOf(a.room); return i<0 ? COST_ROOM_ORDER.length : i; };
+  return [...v.activities].sort((a,b)=>
+    (a.startTime||'').localeCompare(b.startTime||'') || rank(a)-rank(b));
+}
 function visitTimeRange(v){
   const starts = v.activities.map(a=>a.startTime).filter(Boolean).sort();
   const ends = v.activities.map(a=>a.endTime).filter(Boolean).sort();
@@ -269,9 +412,9 @@ function flattenOccurrences(){
   state.visits.forEach(v=>{
     v.activities.forEach(a=>{
       list.push({
-        visitId: v.id, activityId: a.id, room: a.room, topic: a.topic,
+        visitId: v.id, activityId: a.id, room: a.room, topic: a.topic, location: a.location,
         startTime: a.startTime || '00:00', endTime: a.endTime || '23:59',
-        school: v.school, status: v.status, date: v.date
+        school: v.school, status: v.status, date: v.date, childrenCount: a.childrenCount
       });
     });
   });
@@ -317,6 +460,34 @@ async function loadRefSchools(){
     }
   }
   renderSchoolDatalist();
+}
+function parseCsvFirstColumn(text){
+  // คอลัมน์แรกของทุกแถว ข้ามหัวตาราง รองรับค่าที่ครอบด้วย "..." (กรณีมีเครื่องหมายจุลภาคในชื่อ)
+  return text.trim().split(/\r?\n/).slice(1).map(line=>{
+    const m = line.match(/^"((?:[^"]|"")*)"/);
+    return (m ? m[1].replace(/""/g,'"') : line.split(',')[0]).trim();
+  }).filter(Boolean);
+}
+async function loadRefActivities(){
+  await Promise.all(ROOM_CATEGORIES.map(async r=>{
+    const url = CONFIG.ACTIVITY_CSV_URLS && CONFIG.ACTIVITY_CSV_URLS[r.id];
+    if(!url) return;
+    try{
+      const res = await fetch(url);
+      refActivities[r.id] = [...new Set(parseCsvFirstColumn(await res.text()))];
+    }catch(err){ /* คงรายการเดิมไว้ */ }
+  }));
+  document.querySelectorAll('#activityRows .activity-slot').forEach(refreshTopicOptions);
+}
+function topicOptionsHtml(room, current){
+  const list = refActivities[room] || [];
+  const extra = current && !list.includes(current) ? `<option value="${escapeHtml(current)}" selected>${escapeHtml(current)}</option>` : '';
+  return `<option value="">- เลือกเรื่อง/หัวข้อ -</option>` +
+    list.map(t=>`<option value="${escapeHtml(t)}" ${t===current?'selected':''}>${escapeHtml(t)}</option>`).join('') + extra;
+}
+function refreshTopicOptions(slot){
+  const sel = slot.querySelector('.act-topic');
+  sel.innerHTML = topicOptionsHtml(slot.querySelector('.act-room').value, sel.value);
 }
 function renderSchoolDatalist(){
   document.getElementById('schoolRefList').innerHTML =
@@ -519,11 +690,12 @@ function renderMonth(){
     const ds = fmtDate(cellDate);
     const isOther = cellDate.getMonth() !== month;
     const isToday = ds === todayStr();
+    const dayOff = isDayOff(cellDate);
     const dayItems = items.filter(o=>o.date===ds).sort((a,b)=>a.startTime.localeCompare(b.startTime));
     const shown = dayItems.slice(0,3);
     const extra = dayItems.length - shown.length;
-    body += `<div class="day-cell ${isOther?'other-month':''} ${isToday?'today':''}" data-date="${ds}">
-      <div class="daynum">${cellDate.getDate()}</div>
+    body += `<div class="day-cell ${isOther?'other-month':''} ${isToday?'today':''} ${dayOff?'day-off':''}" data-date="${ds}">
+      <div class="daynum">${cellDate.getDate()}${dayOff?'<span class="dayoff-tag">ปิด</span>':''}</div>
       ${shown.map(o=>`<div class="event-chip" data-visit-id="${o.visitId}" style="background:${roomInfo(o.room).bg};color:${roomInfo(o.room).color}">
         <b>${o.startTime}</b> ${escapeHtml(o.school)}
       </div>`).join('')}
@@ -556,29 +728,46 @@ function renderAgenda(){
     days = [state.cursorDate];
   }
   const gridHeight = agendaGridHeightPx();
-  container.innerHTML = `<div class="agenda-columns">
+  container.innerHTML = `<div class="agenda-columns ${state.view==='week'?'is-week':'is-day'}">
     <div class="agenda-timeaxis">
       <div class="ahead">&nbsp;</div>
+      <div class="agenda-colheads"><div class="agenda-colhead">&nbsp;</div></div>
       <div class="axis-body" style="height:${gridHeight}px">${agendaAxisHtml()}</div>
     </div>
     ${days.map(d=>{
     const ds = fmtDate(d);
     const dayItems = items.filter(o=>o.date===ds);
     const isToday = ds===todayStr();
-    const laidOut = layoutAgendaItems(dayItems);
-    return `<div class="agenda-day ${isToday?'today':''}">
-      <div class="ahead">${WEEKDAYS_TH[d.getDay()]} <span class="num">${d.getDate()}</span></div>
+    const dayOff = isDayOff(d);
+    const {items:laidOut, groups, colCount} = layoutAgendaItems(dayItems);
+    return `<div class="agenda-day ${isToday?'today':''} ${dayOff?'day-off':''}">
+      <div class="ahead">${WEEKDAYS_TH[d.getDay()]} <span class="num">${d.getDate()}</span>${dayOff?'<span class="dayoff-tag">ปิดทำการ</span>':''}</div>
+      <div class="agenda-colheads">
+        ${groups.map(g=>{
+          const r = roomInfo(g.catId);
+          const widthPct = g.colSpan/colCount*100;
+          return `<div class="agenda-colhead" style="width:${widthPct}%;background:${r.bg};color:${r.color}">${r.label}</div>`;
+        }).join('')}
+      </div>
       <div class="agenda-events" style="height:${gridHeight}px">
+        ${groups.map(g=>{
+          const r = roomInfo(g.catId);
+          const widthPct = g.colSpan/colCount*100;
+          const leftPct = g.colStart/colCount*100;
+          return `<div class="agenda-colband" style="left:${leftPct}%;width:${widthPct}%;background:${r.tint}"></div>`;
+        }).join('')}
         ${agendaGridLinesHtml()}
-        ${dayItems.length===0 ? '<div class="agenda-empty">ไม่มีการจอง</div>' : ''}
+        ${dayItems.length===0 ? `<div class="agenda-empty">${dayOff?'ปิดทำการ (วันจันทร์)':'ไม่มีการจอง'}</div>` : ''}
         ${laidOut.map(o=>{
           const r = roomInfo(o.room), s = statusInfo(o.status);
           const top = (Math.max(o.startMin,AGENDA_GRID_START)-AGENDA_GRID_START)/AGENDA_SLOT_MIN*AGENDA_SLOT_PX;
           const bottom = (Math.min(o.endMin,AGENDA_GRID_END)-AGENDA_GRID_START)/AGENDA_SLOT_MIN*AGENDA_SLOT_PX;
           const height = Math.max(bottom-top, AGENDA_SLOT_PX*0.7);
-          const widthPct = 100/o.colCount;
-          const leftPct = o.col*widthPct;
-          return `<div class="agenda-card" data-visit-id="${o.visitId}" style="border-left-color:${r.color};background:${r.bg};top:${top}px;height:${height}px;left:${leftPct}%;width:calc(${widthPct}% - 4px)">
+          return `<div class="agenda-card" data-visit-id="${o.visitId}" style="border-left-color:${r.color};background:${r.bg};top:${top}px;height:${height}px;left:${o.leftPct}%;width:calc(${o.widthPct}% - 4px)">
+            <div class="corner-info">
+              <div class="people-count" title="จำนวนคน">${Number(o.childrenCount)||0} คน</div>
+              ${o.location ? `<div class="location-tag" title="สถานที่">${escapeHtml(o.location)}</div>` : ''}
+            </div>
             <div class="time">${o.startTime}${o.endTime!=='23:59'?('–'+o.endTime):' เป็นต้นไป'}</div>
             <div class="name">${escapeHtml(o.topic)||r.label}</div>
             <div class="school">${escapeHtml(o.school)} · ${r.label}</div>
@@ -593,8 +782,59 @@ function renderAgenda(){
   });
 }
 
+/* ---------------- Mini calendar (sidebar, คลิกวันเพื่อไปยังวันนั้น) ---------------- */
+function renderMiniCal(){
+  const el = document.getElementById('miniCal');
+  const cur = state.cursorDate;
+  // เมื่อปฏิทินหลักข้ามเดือน ให้ปฏิทินย่อยตามไปด้วย (แต่ไม่รีเซ็ตเมื่อผู้ใช้เลื่อนดูเดือนอื่นเอง)
+  const curKey = cur.getFullYear()+'-'+cur.getMonth();
+  if(state.miniSyncedKey !== curKey){
+    state.miniSyncedKey = curKey;
+    state.miniMonth = new Date(cur.getFullYear(), cur.getMonth(), 1);
+  }
+  const m = state.miniMonth;
+  const gridStart = addDays(m, -m.getDay());
+  const busy = new Set(visibleOccurrences().map(o=>o.date));
+  const today = todayStr();
+  let selStart = null, selEnd = null;   // ช่วงที่กำลังแสดงในปฏิทินหลัก (สัปดาห์/วัน)
+  if(state.view==='week'){ selStart = fmtDate(startOfWeek(cur)); selEnd = fmtDate(addDays(startOfWeek(cur),6)); }
+  else if(state.view==='day'){ selStart = selEnd = fmtDate(cur); }
+  let cells = '';
+  for(let i=0;i<42;i++){
+    const d = addDays(gridStart, i), ds = fmtDate(d);
+    const cls = ['mini-day'];
+    if(d.getMonth()!==m.getMonth()) cls.push('muted');
+    if(ds===today) cls.push('is-today');
+    if(selStart && ds>=selStart && ds<=selEnd) cls.push('in-range');
+    if(busy.has(ds)) cls.push('has-events');
+    cells += `<button type="button" class="${cls.join(' ')}" data-date="${ds}">${d.getDate()}</button>`;
+  }
+  el.innerHTML = `<div class="mini-head">
+      <span class="mini-title">${MONTHS_TH[m.getMonth()]} ${m.getFullYear()+543}</span>
+      <button type="button" class="mini-nav" data-step="-1" aria-label="เดือนก่อนหน้า">‹</button>
+      <button type="button" class="mini-nav" data-step="1" aria-label="เดือนถัดไป">›</button>
+    </div>
+    <div class="mini-grid">${WEEKDAYS_TH.map(w=>`<div class="mini-wd">${w}</div>`).join('')}${cells}</div>`;
+}
+document.getElementById('miniCal').addEventListener('click', (e)=>{
+  const nav = e.target.closest('.mini-nav');
+  if(nav){
+    const m = state.miniMonth;
+    state.miniMonth = new Date(m.getFullYear(), m.getMonth()+Number(nav.dataset.step), 1);
+    renderMiniCal();
+    return;
+  }
+  const day = e.target.closest('.mini-day');
+  if(day){
+    state.cursorDate = parseDate(day.dataset.date);
+    state.miniSyncedKey = '';   // ให้ปฏิทินย่อยตามเดือนของวันที่เลือก
+    renderAll();
+  }
+});
+
 function renderAll(){
   updatePeriodLabel();
+  renderMiniCal();
   renderFilters();
   renderPendingList();
   if(state.view==='month'){
@@ -622,7 +862,7 @@ document.getElementById('nextBtn').addEventListener('click', ()=> stepPeriod(1))
 document.getElementById('todayBtn').addEventListener('click', ()=>{ state.cursorDate = new Date(); renderAll(); });
 document.getElementById('refreshBtn').addEventListener('click', async ()=>{
   showLoading('กำลังซิงก์ข้อมูล...');
-  try{ await Promise.all([loadRefSchools(), loadVisits()]); }
+  try{ await Promise.all([loadRefSchools(), loadRefActivities(), loadVisits()]); }
   finally{ hideLoading(); }
 });
 function stepPeriod(dir){
@@ -635,9 +875,35 @@ function stepPeriod(dir){
 document.getElementById('searchInput').addEventListener('input', e=>{ state.search = e.target.value; renderAll(); });
 
 /* ---------------- Booking form: activity groups (1 กลุ่มนักเรียน อาจมีหลายรอบเวลา/กิจกรรม) ---------------- */
+/* เวลาแบบ dropdown ชั่วโมง + นาที (ทุก 5 นาที) — ค่า "HH:MM" เก็บใน <input type="hidden" class="act-start|act-end"> */
+const TIME_MINUTE_STEP = 5;
+function timeFieldHtml(cls, value){
+  const [h='', m=''] = (value||'').split(':');
+  const hours = Array.from({length:24}, (_,i)=>pad(i));
+  const minutes = Array.from({length:60/TIME_MINUTE_STEP}, (_,i)=>pad(i*TIME_MINUTE_STEP));
+  if(m && !minutes.includes(m)){ minutes.push(m); minutes.sort(); }
+  return `<div class="time-field">
+    <input type="hidden" class="${cls}" value="${h?`${h}:${m||'00'}`:''}">
+    <select class="tp-h" aria-label="ชั่วโมง"><option value="">--</option>${hours.map(x=>`<option value="${x}" ${x===h?'selected':''}>${x}</option>`).join('')}</select>
+    <span class="tp-sep">:</span>
+    <select class="tp-m" aria-label="นาที">${minutes.map(x=>`<option value="${x}" ${x===(m||'00')?'selected':''}>${x}</option>`).join('')}</select>
+  </div>`;
+}
+function syncTimeField(field){
+  const h = field.querySelector('.tp-h').value;
+  field.querySelector('input[type="hidden"]').value = h ? `${h}:${field.querySelector('.tp-m').value}` : '';
+}
+function setTimeField(field, value){
+  const [h='', m='00'] = (value||'').split(':');
+  const mSel = field.querySelector('.tp-m');
+  if(h && ![...mSel.options].some(o=>o.value===m)) mSel.add(new Option(m, m));
+  field.querySelector('.tp-h').value = h;
+  mSel.value = h ? m : '00';
+  syncTimeField(field);
+}
 function activitySlotHtml(a){
   const id = a.id || uid();
-  return `<div class="activity-slot" data-activity-id="${id}">
+  return `<div class="activity-slot" data-activity-id="${id}" data-room="${a.room||ROOM_CATEGORIES[0].id}">
     <button type="button" class="activity-remove-btn" title="ลบรอบนี้">✕</button>
     <div class="activity-slot-grid">
       <div class="field">
@@ -648,15 +914,23 @@ function activitySlotHtml(a){
       </div>
       <div class="field">
         <label>เรื่อง/หัวข้อ</label>
-        <input class="act-topic" value="${escapeHtml(a.topic||'')}" placeholder="เช่น D.I.Y. My Zodiac">
+        <select class="act-topic">${topicOptionsHtml(a.room||ROOM_CATEGORIES[0].id, a.topic||'')}</select>
+      </div>
+      <div class="field">
+        <label>สถานที่</label>
+        <select class="act-location">
+          <option value="">- ไม่ระบุ -</option>
+          ${LOCATION_OPTIONS.map(loc=>`<option value="${loc}" ${a.location===loc?'selected':''}>${loc}</option>`).join('')}
+          ${a.location && !LOCATION_OPTIONS.includes(a.location) ? `<option value="${escapeHtml(a.location)}" selected>${escapeHtml(a.location)}</option>` : ''}
+        </select>
       </div>
       <div class="field">
         <label>เวลาเริ่ม</label>
-        <input type="time" class="act-start" value="${a.startTime||''}">
+        ${timeFieldHtml('act-start', a.startTime)}
       </div>
       <div class="field">
         <label>สิ้นสุด (ว่าง=ต่อเนื่อง)</label>
-        <input type="time" class="act-end" value="${a.endTime||''}">
+        ${timeFieldHtml('act-end', a.endTime)}
       </div>
       <div class="field">
         <label>ราคา/คน (บาท)</label>
@@ -673,7 +947,9 @@ function activitySlotHtml(a){
 function activityGroupHtml(groupId, groupActs){
   const first = groupActs[0];
   return `<div class="activity-group" data-group-id="${groupId}">
-    <button type="button" class="group-remove-btn" title="ลบกลุ่มนี้ทั้งหมด">✕ ลบกลุ่ม</button>
+    <div class="group-banner">
+      <button type="button" class="group-remove-btn" title="ลบกลุ่มนี้ทั้งหมด">✕ ลบกลุ่ม</button>
+    </div>
     <div class="activity-group-head">
       <div class="field">
         <label>ระดับชั้น/กลุ่ม</label>
@@ -716,6 +992,7 @@ function addActivityGroup(prefillActs){
   const groups = document.querySelectorAll('#activityRows .activity-group');
   recomputeGroupSubtotal(groups[groups.length-1]);
   updateTotalPeople();
+  refreshLocationAvailability();
 }
 document.getElementById('addActivityBtn').addEventListener('click', ()=> addActivityGroup());
 document.getElementById('activityRows').addEventListener('click', (e)=>{
@@ -724,18 +1001,22 @@ document.getElementById('activityRows').addEventListener('click', (e)=>{
     const defaults = {room: ROOM_CATEGORIES[0].id, pricePerPerson: ROOM_DEFAULT_PRICE[ROOM_CATEGORIES[0].id]};
     group.querySelector('.activity-slots').insertAdjacentHTML('beforeend', activitySlotHtml(defaults));
     recomputeGroupSubtotal(group);
+    refreshLocationAvailability();
   } else if(e.target.classList.contains('group-remove-btn')){
     e.target.closest('.activity-group').remove();
     updateTotalPeople();
+    refreshLocationAvailability();
   } else if(e.target.classList.contains('activity-remove-btn')){
     const group = e.target.closest('.activity-group');
     const slot = e.target.closest('.activity-slot');
     if(group.querySelectorAll('.activity-slot').length<=1){ group.remove(); } else { slot.remove(); }
     updateTotalPeople();
+    refreshLocationAvailability();
   } else if(e.target.matches('.round-presets button')){
     const slot = e.target.closest('.activity-slot');
-    slot.querySelector('.act-start').value = e.target.dataset.s || '';
-    slot.querySelector('.act-end').value = e.target.dataset.e || '';
+    setTimeField(slot.querySelector('.act-start').closest('.time-field'), e.target.dataset.s || '');
+    setTimeField(slot.querySelector('.act-end').closest('.time-field'), e.target.dataset.e || '');
+    refreshLocationAvailability();
   }
 });
 document.getElementById('activityRows').addEventListener('input', (e)=>{
@@ -749,9 +1030,29 @@ document.getElementById('activityRows').addEventListener('input', (e)=>{
 document.getElementById('activityRows').addEventListener('change', (e)=>{
   if(e.target.classList.contains('act-room')){
     const slot = e.target.closest('.activity-slot');
+    slot.dataset.room = e.target.value;
+    slot.querySelector('.act-topic').value = '';
+    refreshTopicOptions(slot);
     const priceInput = slot.querySelector('.act-price');
     if(!priceInput.value){ priceInput.value = ROOM_DEFAULT_PRICE[e.target.value] ?? ''; }
     recomputeGroupSubtotal(e.target.closest('.activity-group'));
+  }
+  if(e.target.matches('.tp-h, .tp-m')){
+    syncTimeField(e.target.closest('.time-field'));
+  }
+  if(e.target.matches('.tp-h, .tp-m, .act-location')){
+    refreshLocationAvailability();
+  }
+});
+document.getElementById('f_date').addEventListener('change', ()=>{
+  refreshLocationAvailability();
+  const warn = document.getElementById('conflictWarning');
+  const date = document.getElementById('f_date').value;
+  if(date && isDayOff(date)){
+    warn.style.display='block';
+    warn.innerHTML = '⛔ วันจันทร์เป็นวันหยุดของสถานที่ ไม่สามารถจองกิจกรรมในวันนี้ได้ กรุณาเลือกวันอื่น';
+  } else if(warn.innerHTML.includes('วันหยุดของสถานที่')){
+    warn.style.display='none';
   }
 });
 document.getElementById('f_adultCount').addEventListener('input', updateTotalPeople);
@@ -781,6 +1082,7 @@ function openAddForm(prefillDate){
   document.getElementById('activityRows').innerHTML = '';
   addActivityGroup();
   updateTotalPeople();
+  refreshLocationAvailability();
   openOverlay('formOverlay');
 }
 function openEditForm(v){
@@ -800,6 +1102,7 @@ function openEditForm(v){
   document.getElementById('conflictWarning').style.display = 'none';
   recomputeAllGroupSubtotals();
   updateTotalPeople();
+  refreshLocationAvailability();
   closeOverlay('detailOverlay');
   openOverlay('formOverlay');
 }
@@ -818,6 +1121,7 @@ function readActivitiesFromForm(){
         room: slotEl.querySelector('.act-room').value,
         gradeLevel,
         topic: slotEl.querySelector('.act-topic').value.trim(),
+        location: slotEl.querySelector('.act-location').value.trim(),
         startTime: slotEl.querySelector('.act-start').value,
         endTime: slotEl.querySelector('.act-end').value,
         childrenCount,
@@ -826,6 +1130,46 @@ function readActivitiesFromForm(){
     });
   });
   return activities;
+}
+/* ---------------- ตรวจสอบสถานที่ (physical location) ชนกันเวลาเดียวกัน — ห้ามเลือกซ้ำ ---------------- */
+function formSlotsSnapshot(){
+  return [...document.querySelectorAll('#activityRows .activity-slot')].map(slotEl=>({
+    slotEl,
+    id: slotEl.dataset.activityId,
+    startTime: slotEl.querySelector('.act-start').value,
+    endTime: slotEl.querySelector('.act-end').value || '23:59',
+    locationSel: slotEl.querySelector('.act-location')
+  }));
+}
+function findLocationConflict(location, startTime, endTime, date, excludeVisitId, excludeSlotId, formSlots){
+  if(!location || !startTime || !date) return null;
+  const end = endTime || '23:59';
+  for(const v of state.visits){
+    if(v.id === excludeVisitId) continue;
+    if(v.date !== date) continue;
+    for(const a of v.activities){
+      if(a.location !== location || !a.startTime) continue;
+      if(timeOverlap(startTime, end, a.startTime, a.endTime || '23:59')) return v.school;
+    }
+  }
+  for(const s of formSlots){
+    if(s.id === excludeSlotId) continue;
+    if(s.locationSel.value !== location || !s.startTime) continue;
+    if(timeOverlap(startTime, end, s.startTime, s.endTime)) return 'รอบอื่นในฟอร์มนี้';
+  }
+  return null;
+}
+function refreshLocationAvailability(){
+  const date = document.getElementById('f_date').value;
+  const formSlots = formSlotsSnapshot();
+  formSlots.forEach(s=>{
+    [...s.locationSel.options].forEach(opt=>{
+      if(!opt.value){ opt.disabled = false; opt.title=''; return; }
+      const conflict = findLocationConflict(opt.value, s.startTime, s.endTime, date, state.editingId, s.id, formSlots);
+      opt.disabled = !!conflict;
+      opt.title = conflict ? `ไม่ว่าง ช่วงเวลานี้ (${escapeHtml(conflict)})` : '';
+    });
+  });
 }
 function findActivityConflicts(activities, date, excludeVisitId){
   const conflicts = [];
@@ -851,6 +1195,9 @@ document.getElementById('saveBookingBtn').addEventListener('click', async ()=>{
   if(!school || !date){
     alert('กรุณากรอกชื่อโรงเรียนและวันที่ ให้ครบ'); return;
   }
+  if(isDayOff(date)){
+    alert('วันจันทร์เป็นวันหยุดของสถานที่ ไม่สามารถจองกิจกรรมในวันนี้ได้ กรุณาเลือกวันอื่น'); return;
+  }
   const activities = readActivitiesFromForm();
   if(activities.length===0){
     alert('กรุณาเพิ่มกิจกรรมอย่างน้อย 1 รายการ'); return;
@@ -858,6 +1205,11 @@ document.getElementById('saveBookingBtn').addEventListener('click', async ()=>{
   for(const a of activities){
     if(!a.startTime){ alert('กรุณาระบุเวลาเริ่มของทุกกิจกรรม'); return; }
     if(a.endTime && a.endTime <= a.startTime){ alert('เวลาสิ้นสุดต้องอยู่หลังเวลาเริ่ม'); return; }
+  }
+  for(const a of activities){
+    if(!a.location) continue;
+    const clash = findLocationConflict(a.location, a.startTime, a.endTime, date, state.editingId, a.id, formSlotsSnapshot());
+    if(clash){ alert(`สถานที่ "${a.location}" ไม่ว่างช่วงเวลานี้ (ชนกับ ${clash}) กรุณาเลือกสถานที่อื่นหรือปรับเวลา`); return; }
   }
 
   const saveBtn = document.getElementById('saveBookingBtn');
@@ -942,20 +1294,21 @@ function openDetail(id){
     <tr><td class="k">จำนวนคน</td><td>เด็ก ${v.childrenCount||0} · ผู้ใหญ่ ${v.adultCount||0} · รวม ${totalPeople} คน</td></tr>
     <tr><td class="k">หมายเหตุ</td><td>${escapeHtml(v.notes)||'-'}</td></tr>
   `;
-  const acts = visitActivitiesSorted(v);
+  const acts = visitActivitiesByTimeThenRoom(v);
   const grand = visitGrandTotal(v);
   const billable = billableCount(v);
   document.getElementById('costTable').innerHTML = `
-    <tr><th>กิจกรรม</th><th>ระดับชั้น/กลุ่ม</th><th>เวลา</th><th>จำนวนเด็ก</th><th>ราคา/คน</th><th>รวม (บาท)</th></tr>
-    ${acts.map(a=>`<tr>
+    <tr><th>กิจกรรม</th><th>สถานที่</th><th>ระดับชั้น/กลุ่ม</th><th>เวลา</th><th>จำนวนเด็ก</th><th>ราคา/คน</th><th>รวม (บาท)</th></tr>
+    ${acts.map(a=>`<tr data-room="${roomInfo(a.room).id}">
       <td>${roomInfo(a.room).label}${a.topic?('<br><span style="color:var(--ink-faint);font-size:11.5px;">'+escapeHtml(a.topic)+'</span>'):''}</td>
+      <td>${escapeHtml(a.location)||'-'}</td>
       <td>${escapeHtml(a.gradeLevel)||'-'}</td>
       <td>${a.startTime}${a.endTime?('–'+a.endTime):' เป็นต้นไป'}</td>
       <td>${a.childrenCount||0}</td>
       <td>${money(a.pricePerPerson)}</td>
       <td>${money(activitySubtotal(a))}</td>
     </tr>`).join('')}
-    <tr class="total-row"><td colspan="5">รวมค่าใช้จ่ายทั้งหมด (คิดจากเด็ก ${billable} คน)</td><td>${money(grand)} บาท</td></tr>
+    <tr class="total-row"><td colspan="6">รวมค่าใช้จ่ายทั้งหมด (คิดจากเด็ก ${billable} คน)</td><td>${money(grand)} บาท</td></tr>
   `;
   openOverlay('detailOverlay');
 }
@@ -1020,49 +1373,60 @@ function roomTopicLines(acts){
   });
   return ROOM_CATEGORIES.map(r=>r.id).filter(room=>map.has(room)).map(room=> ({room, topics: map.get(room)}));
 }
-function buildDocA_Html(v){
+function policyNoteHtml(text, T){
+  const b = T.policyNoteBold;
+  if(!b || !text.includes(b)) return escapeHtml(text);
+  const [before, after] = text.split(b);
+  return `${escapeHtml(before)}<b>${escapeHtml(b)}</b>${escapeHtml(after)}`;
+}
+function buildDocA_Html(v, lang='th'){
+  const T = DOC_LANG[lang], S = T.s;
   const acts = v.activities;
-  const roomLine = (id, label, showTopics)=>{
+  const roomLine = (id, showTopics)=>{
     const matched = acts.filter(x=>x.room===id);
     const total = matched.reduce((sum,a)=> sum+(Number(a.childrenCount)||0), 0);
     const topics = [...new Set(matched.map(a=>String(a.topic||'').trim()).filter(Boolean))];
     const topicPart = (showTopics && topics.length) ? ` (${topics.map(escapeHtml).join(', ')})` : '';
-    return `<div class="doc-checkbox-line">☐ กิจกรรม ${label}${topicPart} รวม จำนวน ${total} คน</div>`;
+    return `<div class="doc-checkbox-line">☐ ${S.roomSets(T.room(id), topicPart, total)}</div>`;
   };
   return `
   <div class="doc-page">
-    <div class="doc-title">แบบตอบรับการจองเข้าร่วมกิจกรรม</div>
-    <div class="doc-title sub">ณ ${escapeHtml(DOC_CONFIG.venueName)}</div>
+    <div class="doc-title">${S.titleA}</div>
+    <div class="doc-title sub">${`${S.at} ${escapeHtml(T.venueName)}`.trim()}</div>
     <hr class="doc-rule">
-    <div class="doc-line">1. ชื่อหน่วยงาน/โรงเรียน <b>${escapeHtml(v.school)}</b></div>
-    <div class="doc-line">2. เข้าร่วมกิจกรรมในวันที่ ${thaiFullDate(v.date)} ณ ${escapeHtml(DOC_CONFIG.venueName)}</div>
-    ${roomLine('innovation','Innovation Space')}
-    ${roomLine('inspirelab','Inspire Lab')}
-    ${roomLine('other', roomInfo('other').label, true)}
-    <div class="doc-section-title">3. รายละเอียดการเข้าร่วมกิจกรรม</div>
-    ${roomTopicLines(acts).map(r=>`<div class="doc-line">${roomInfo(r.room).label} เรื่อง ${r.topics.map(escapeHtml).join(', ')}</div>`).join('') || '<div class="doc-line">-</div>'}
-    <div class="doc-section-title">4. ผู้ประสานงาน</div>
-    <div class="doc-line doc-fill-line"><span>ชื่อ-สกุล</span><span class="fill-dots"></span></div>
-    <div class="doc-line doc-fill-line"><span>โทรศัพท์</span><span class="fill-dots"></span></div>
-    <div class="doc-notes-title">หมายเหตุ</div>
+    <div class="doc-line"><b>${S.school} ${escapeHtml(v.school)}</b></div>
+    <div class="doc-line"><b>${S.visitDate(T.date(v.date), escapeHtml(T.venueName))}</b></div>
+    ${roomLine('innovation')}
+    ${roomLine('inspirelab')}
+    ${roomLine('other', true)}
+    <div class="doc-section-title">${S.details}</div>
+    ${roomTopicLines(acts).map(r=>`<div class="doc-line">${S.roomTopic(T.room(r.room), r.topics.map(escapeHtml).join(', '))}</div>`).join('') || '<div class="doc-line">-</div>'}
+    <div class="doc-section-title">${S.contact}</div>
+    <div class="doc-line doc-fill-line"><span>${S.fullName}</span><span class="fill-dots"></span></div>
+    <div class="doc-line doc-fill-line"><span>${S.phone}</span><span class="fill-dots"></span></div>
+    <div class="doc-notes-title">${S.notes}</div>
     <ul class="doc-notes-list">
-      <li>${escapeHtml(DOC_CONFIG.policyNotes[0])}</li>
+      <li>${policyNoteHtml(T.policyNotes[0], T)}</li>
     </ul>
     <div class="doc-price-lines">
-      ${DOC_CONFIG.priceLines.map(p=>`<div class="doc-line">- <span class="doc-highlight">${escapeHtml(p.label)} :</span> ราคา คนละ ${p.price} บาท ต่อรอบกิจกรรม (จากปกติคนละ ${p.normalPrice} บาท ต่อรอบกิจกรรม)</div>`).join('')}
+      ${T.priceGroups.map(g=> g.lines
+        ? `<div class="doc-price-group-title">${escapeHtml(g.title)}</div>
+      ${g.lines.map(p=>`<div class="doc-line doc-price-line">- <span class="doc-highlight">${escapeHtml(p.label)} :</span> ${S.priceLine(p.price, p.normalPrice)}</div>`).join('')}`
+        : `<div class="doc-price-main"><u>${escapeHtml(g.title)}</u> : ${S.priceLine(g.price, g.normalPrice)}</div>`
+      ).join('')}
     </div>
     <ul class="doc-notes-list">
-      ${DOC_CONFIG.policyNotes.slice(1).map(n=>`<li>${escapeHtml(n)}</li>`).join('')}
+      ${T.policyNotes.slice(1).map((n,i)=>`<li${i+1===T.policyNoteFit?' class="doc-fit-line"':''}>${escapeHtml(n)}</li>`).join('')}
     </ul>
-    <div class="doc-payment-note">- ${escapeHtml(DOC_CONFIG.paymentNote)}</div>
+    <div class="doc-payment-note">${escapeHtml(T.paymentNote)}</div>
     <div class="doc-sign">
-      <div class="line-fill">ลงชื่อ ........................................</div>
+      <div class="line-fill">${S.sign} ........................................</div>
       <div class="line-fill">(........................................)</div>
-      <div class="line-fill">ตำแหน่ง ........................................</div>
+      <div class="line-fill">${S.position} ........................................</div>
     </div>
     <div class="doc-footer">
-      รบกวนส่งแบบตอบรับมาที่ Facebook Page : ${escapeHtml(DOC_CONFIG.facebookPage)} หรือ Email : ${escapeHtml(DOC_CONFIG.contactEmail)}<br>
-      สอบถามรายละเอียดเพิ่มเติม โทร. ${escapeHtml(DOC_CONFIG.contactPhone)}
+      ${S.footer1(escapeHtml(DOC_CONFIG.facebookPage), escapeHtml(DOC_CONFIG.contactEmail))}<br>
+      ${S.footer2(escapeHtml(DOC_CONFIG.contactPhone))}
     </div>
   </div>`;
 }
@@ -1081,69 +1445,53 @@ function roomCostSummary(acts){
   });
   return ROOM_CATEGORIES.map(r=>r.id).filter(id=>map.has(id)).map(id=> ({room:id, ...map.get(id)}));
 }
-function roomDetailLine(r){
-  // 1 บรรทัดต่อหมวดกิจกรรม รวมเรื่อง+จำนวนคนทุกกลุ่ม/รอบเข้าด้วยกัน ไม่บอกกลุ่ม/ระดับชั้น
-  const topicPart = r.topics.length ? ` เรื่อง ${r.topics.map(escapeHtml).join(', ')}` : '';
-  return `กิจกรรม ${roomInfo(r.room).label}${topicPart} รวม ${r.children} คน`;
+function docSlotLabel(slot, T){
+  return T.time(slot.startTime)+(slot.endTime?(' – '+T.time(slot.endTime)):' '+T.onwards);
 }
-function buildDocB_Html(v){
+function buildDocB_Html(v, lang='th'){
+  const T = DOC_LANG[lang], S = T.s;
   const billable = billableCount(v);
   const acts = visitActivitiesSorted(v);
   const grand = visitGrandTotal(v);
-  const gradesLabel = compactGradeSummary(acts);
-  const gradesPart = gradesLabel ? `ระดับชั้น ${escapeHtml(gradesLabel)} ` : '';
-  const introText = `${thaiFullDateWithDay(v.date)} ผู้เข้าร่วมกิจกรรม${gradesPart}จำนวน ${billable} คน`;
+  const gradesLabel = T.grades(compactGradeSummary(acts));
+  const introText = S.intro(T.dateWithDay(v.date), escapeHtml(gradesLabel), billable);
   const slots = buildTimeSlots(acts);
   return `
   <div class="doc-page">
-    <div class="doc-title small">ตารางการเข้าร่วมกิจกรรม ณ ${escapeHtml(DOC_CONFIG.venueName)}</div>
+    <div class="doc-title small">${S.titleB(escapeHtml(T.venueName))}</div>
     <div class="doc-title sub small">${escapeHtml(v.school)}</div>
     <hr class="doc-rule">
     <table class="doc-table">
       <tr>
-        <th style="width:22%;">จำนวนนักเรียน</th>
-        ${slots.map(s=>`<th>${timeSlotLabel(s)}</th>`).join('')}
+        <th style="width:22%;">${S.studentsCol}</th>
+        ${slots.map(s=>`<th>${docSlotLabel(s, T)}</th>`).join('')}
       </tr>
       ${groupActivitiesByGroup(acts).map((g,i)=>{
-        const label = g[0].gradeLevel ? escapeHtml(g[0].gradeLevel) : ('กลุ่ม '+(i+1));
+        const label = g[0].gradeLevel ? escapeHtml(g[0].gradeLevel) : S.group(i+1);
         return `<tr>
-        <td><b><u>${label}</u></b><br>(${g[0].childrenCount||0} คน)</td>
-        ${slots.map(s=>{ const a = g.find(x=>sameSlot(x,s)); return a ? `<td><div class="room">${roomInfo(a.room).label}</div>${a.topic?`<div class="topic">${escapeHtml(a.topic)}</div>`:''}</td>` : '<td></td>'; }).join('')}
+        <td><b><u>${label}</u></b><br>${S.people(g[0].childrenCount||0)}</td>
+        ${slots.map(s=>{ const a = g.find(x=>sameSlot(x,s)); return a ? `<td><div class="room">${T.room(a.room)}</div>${a.topic?`<div class="topic">${escapeHtml(a.topic)}</div>`:''}${a.location?`<div class="location">${escapeHtml(a.location)}</div>`:''}</td>` : '<td></td>'; }).join('')}
       </tr>`;
       }).join('')}
     </table>
-    <div class="doc-section-title">รายละเอียดการเข้าร่วมกิจกรรม</div>
-    <div class="doc-line"><b>${introText}</b></div>
+    <div class="doc-section-title">${S.detailsB}</div>
+    <div class="doc-line">${introText}</div>
+    <div class="doc-section-title">${S.costTitle}</div>
     <ul class="doc-notes-list">
-      ${roomCostSummary(acts).map(r=>`<li>${roomDetailLine(r)}</li>`).join('')}
+      ${roomCostSummary(acts).map(r=>{ const topicPart = (r.room==='other' && r.topics.length) ? ` (${r.topics.map(escapeHtml).join(', ')})` : ''; return `<li>${S.costLine(T.room(r.room), topicPart, r.children, money(r.cost))}</li>`; }).join('')}
     </ul>
-    <div class="doc-section-title">สรุปค่าใช้จ่ายในการทำกิจกรรม</div>
-    <ul class="doc-notes-list">
-      ${roomCostSummary(acts).map(r=>{ const topicPart = (r.room==='other' && r.topics.length) ? ` (${r.topics.map(escapeHtml).join(', ')})` : ''; return `<li>กิจกรรม ${roomInfo(r.room).label}${topicPart} ผู้เข้าร่วม รวม ${r.children} คน รวมเป็นเงิน ${money(r.cost)} บาท</li>`; }).join('')}
-    </ul>
-    <div class="doc-line doc-cost-blue">รวมค่าใช้จ่ายในการเข้าร่วมกิจกรรม ${money(grand)} บาท${v.packageLabel?(' ('+escapeHtml(v.packageLabel)+')'):''}</div>
-    <div class="doc-payment-note" style="margin-left:0;">${escapeHtml(DOC_CONFIG.paymentNote)}</div>
+    <div class="doc-line doc-cost-blue">${S.total(money(grand), v.packageLabel ? escapeHtml(v.packageLabel) : '')}</div>
+    <div class="doc-payment-note" style="margin-left:0;">${escapeHtml(T.paymentNote)}</div>
   </div>`;
 }
 
-document.getElementById('printDocAllBtn').addEventListener('click', ()=>{
+function printDocs(which, lang){
   const v = state.visits.find(x=>x.id===state.currentDetailId);
   if(!v) return;
-  document.getElementById('printArea').innerHTML = buildDocA_Html(v) + buildDocB_Html(v);
+  document.getElementById('printArea').innerHTML =
+    (which==='A'||which==='all' ? buildDocA_Html(v, lang) : '') + (which==='B'||which==='all' ? buildDocB_Html(v, lang) : '');
   window.print();
-});
-document.getElementById('printDocABtn').addEventListener('click', ()=>{
-  const v = state.visits.find(x=>x.id===state.currentDetailId);
-  if(!v) return;
-  document.getElementById('printArea').innerHTML = buildDocA_Html(v);
-  window.print();
-});
-document.getElementById('printDocBBtn').addEventListener('click', ()=>{
-  const v = state.visits.find(x=>x.id===state.currentDetailId);
-  if(!v) return;
-  document.getElementById('printArea').innerHTML = buildDocB_Html(v);
-  window.print();
-});
+}
 
 /* ---------------- Word (.docx) export using docx.js, font: TH Sarabun PSK ---------------- */
 const DOCX_FONT = 'TH SarabunPSK';
@@ -1178,6 +1526,7 @@ function dParaMulti(runs, opts={}){
     alignment: alignMap[opts.align||'left'],
     spacing: {after: opts.after??120, before: opts.before||0},
     indent: opts.indent ? {left: opts.indent} : undefined,
+    bullet: opts.bullet ? {level:0} : undefined,
     children: runs.map(r=> dRun(r.text, {size: opts.size, bold: opts.bold, ...r}))
   });
 }
@@ -1202,77 +1551,95 @@ function dCell(paras, opts={}){
   });
 }
 
-function buildDocA_DocxChildren(v){
+function buildDocA_DocxChildren(v, lang='th'){
+  const T = DOC_LANG[lang], S = T.s;
   const acts = v.activities;
-  const roomLinePara = (id,label,showTopics)=>{
+  const roomLinePara = (id, showTopics)=>{
     const matched = acts.filter(x=>x.room===id);
     const total = matched.reduce((sum,a)=> sum+(Number(a.childrenCount)||0), 0);
     const topics = [...new Set(matched.map(a=>String(a.topic||'').trim()).filter(Boolean))];
     const topicPart = (showTopics && topics.length) ? ` (${topics.join(', ')})` : '';
-    return dCheckboxPara(false, `กิจกรรม ${label}${topicPart} รวม จำนวน ${total} คน`);
+    return dCheckboxPara(false, S.roomSets(T.room(id), topicPart, total));
   };
-  const topicParas = roomTopicLines(acts).map(r=> dPara(`${roomInfo(r.room).label} เรื่อง ${r.topics.join(', ')}`, {after:30}));
-  const priceParas = DOC_CONFIG.priceLines.map(p=> dParaMulti([
-    {text:'- '},
-    {text:p.label+' :'},
-    {text:` ราคา คนละ ${p.price} บาท ต่อรอบกิจกรรม (จากปกติคนละ ${p.normalPrice} บาท ต่อรอบกิจกรรม)`}
-  ], {after:20}));
-  const noteParas = DOC_CONFIG.policyNotes.map(n=> dPara(n, {after:20, bullet:true}));
+  const topicParas = roomTopicLines(acts).map(r=> dPara(S.roomTopic(T.room(r.room), r.topics.join(', ')), {after:30}));
+  const priceParas = T.priceGroups.flatMap(g=> g.lines ? [
+    dPara(g.title, {indent:360, after:20, underline:true}),
+    ...g.lines.map(p=> dParaMulti([
+      {text:'- '},
+      {text:p.label+' :'},
+      {text:' '+S.priceLine(p.price, p.normalPrice)}
+    ], {after:20, indent:720}))
+  ] : [
+    dParaMulti([
+      {text:g.title, underline:true},
+      {text:' : '+S.priceLine(g.price, g.normalPrice)}
+    ], {after:20, indent:360})
+  ]);
+  const noteParas = T.policyNotes.map((n,i)=>{
+    if(i===0 && T.policyNoteBold && n.includes(T.policyNoteBold)){
+      const [before, after] = n.split(T.policyNoteBold);
+      return dParaMulti([{text:before}, {text:T.policyNoteBold, bold:true}, {text:after}], {after:20, bullet:true});
+    }
+    return dPara(n, {after:20, bullet:true, size: i===T.policyNoteFit ? 27 : undefined});
+  });
 
   return [
-    dPara('แบบตอบรับการจองเข้าร่วมกิจกรรม', {align:'center', bold:true, size:32, after:20}),
-    dPara('ณ '+DOC_CONFIG.venueName, {align:'center', bold:true, size:32, after:60, borderBottom:true}),
-    dPara('1. ชื่อหน่วยงาน/โรงเรียน  '+v.school, {after:40}),
-    dPara('2. เข้าร่วมกิจกรรมในวันที่ '+thaiFullDate(v.date)+' ณ '+DOC_CONFIG.venueName, {after:30}),
-    roomLinePara('innovation','Innovation Space'),
-    roomLinePara('inspirelab','Inspire Lab'),
-    roomLinePara('other', roomInfo('other').label, true),
-    dPara('3. รายละเอียดการเข้าร่วมกิจกรรม', {bold:true, after:20, before:30}),
+    dPara(S.titleA, {align:'center', bold:true, size:32, after:20}),
+    dPara((S.at+' '+T.venueName).trim(), {align:'center', bold:true, size:32, after:60, borderBottom:true}),
+    dPara(S.school+'  '+v.school, {bold:true, after:40}),
+    dPara(S.visitDate(T.date(v.date), T.venueName), {bold:true, after:30}),
+    roomLinePara('innovation'),
+    roomLinePara('inspirelab'),
+    roomLinePara('other', true),
+    dPara(S.details, {bold:true, after:20, before:30}),
     ...(topicParas.length?topicParas:[dPara('-', {after:30})]),
-    dPara('4. ผู้ประสานงาน', {bold:true, after:20}),
-    dSignLine('ชื่อ-สกุล', {after:20}),
-    dSignLine('โทรศัพท์', {after:60}),
-    dPara('หมายเหตุ', {bold:true, after:20}),
+    dPara(S.contact, {bold:true, after:20}),
+    dSignLine(S.fullName, {after:20}),
+    dSignLine(S.phone, {after:60}),
+    dPara(S.notes, {bold:true, after:20}),
     noteParas[0],
     ...priceParas,
     ...noteParas.slice(1),
-    dPara(DOC_CONFIG.paymentNote, {bold:true, color:'B00000', indent:360, after:140}),
-    dPara('ลงชื่อ ........................................', {align:'right', after:6}),
+    dPara(T.paymentNote, {bold:true, color:'B00000', indent:720, after:480}),
+    dPara(S.sign+' ........................................', {align:'right', after:6}),
     dPara('(........................................)', {align:'right', after:6}),
-    dPara('ตำแหน่ง ........................................', {align:'right', after:120})
+    dPara(S.position+' ........................................', {align:'right', after:120})
   ];
 }
-function docAFooterParas(){
+function docAFooterParas(lang='th'){
   // ปักไว้มุมล่างซ้ายของทุกหน้าด้วย docx footer จริง (ไม่ไหลตามเนื้อหาข้างบน)
+  const S = DOC_LANG[lang].s;
   return [
-    dPara('รบกวนส่งแบบตอบรับมาที่ Facebook Page : '+DOC_CONFIG.facebookPage+' หรือ Email : '+DOC_CONFIG.contactEmail, {size:24, after:20}),
-    dPara('สอบถามรายละเอียดเพิ่มเติม โทร. '+DOC_CONFIG.contactPhone, {size:24})
+    dPara(S.footer1(DOC_CONFIG.facebookPage, DOC_CONFIG.contactEmail), {size:24, after:20}),
+    dPara(S.footer2(DOC_CONFIG.contactPhone), {size:24})
   ];
 }
-function buildDocA_Docx(v){
-  return new docx.Document({ sections:[{ properties: DOCX_PAGE_PROPERTIES, children: buildDocA_DocxChildren(v), footers:{ default: new docx.Footer({ children: docAFooterParas() }) } }] });
+function buildDocA_Docx(v, lang='th'){
+  return new docx.Document({ sections:[{ properties: DOCX_PAGE_PROPERTIES, children: buildDocA_DocxChildren(v, lang), footers:{ default: new docx.Footer({ children: docAFooterParas(lang) }) } }] });
 }
 
-function buildDocB_DocxChildren(v, opts={}){
+function buildDocB_DocxChildren(v, opts={}, lang='th'){
+  const T = DOC_LANG[lang], S = T.s;
   const billable = billableCount(v);
   const acts = visitActivitiesSorted(v);
   const grand = visitGrandTotal(v);
 
   const slots = buildTimeSlots(acts);
   const headerCells = [
-    dCell(dPara('จำนวนนักเรียน', {align:'center', bold:true, size:27, after:0}), {width:22, fill:'BDD7EE'}),
-    ...slots.map(s=> dCell(dPara(timeSlotLabel(s), {align:'center', bold:true, size:27, after:0}), {fill:'BDD7EE'}))
+    dCell(dPara(S.studentsCol, {align:'center', bold:true, size:27, after:0}), {width:22, fill:'BDD7EE'}),
+    ...slots.map(s=> dCell(dPara(docSlotLabel(s, T), {align:'center', bold:true, size:27, after:0}), {fill:'BDD7EE'}))
   ];
   const rows = groupActivitiesByGroup(acts).map((g,i)=> new docx.TableRow({children:[
     dCell([
-      dPara(g[0].gradeLevel || ('กลุ่ม '+(i+1)), {align:'center', bold:true, underline:true, size:27, after:10}),
-      dPara(`(${g[0].childrenCount||0} คน)`, {align:'center', size:24, after:0})
+      dPara(g[0].gradeLevel || S.group(i+1), {align:'center', bold:true, underline:true, size:27, after:10}),
+      dPara(S.people(g[0].childrenCount||0), {align:'center', size:24, after:0})
     ]),
     ...slots.map(s=>{
       const a = g.find(x=>sameSlot(x,s));
       return dCell(a ? [
-        dPara(roomInfo(a.room).label, {align:'center', bold:true, size:27, after:10}),
-        dPara(a.topic||'-', {align:'center', size:24, after:0})
+        dPara(T.room(a.room), {align:'center', bold:true, size:27, after:10}),
+        dPara(a.topic||'-', {align:'center', size:24, after: a.location?10:0}),
+        ...(a.location ? [dPara(a.location, {align:'center', size:21, after:0})] : [])
       ] : [dPara('', {after:0})]);
     })
   ]}));
@@ -1281,44 +1648,35 @@ function buildDocB_DocxChildren(v, opts={}){
     rows: [ new docx.TableRow({children:headerCells}), ...rows ]
   });
 
-  const detailBullets = roomCostSummary(acts).map(r=> dPara(roomDetailLineDocx(r), {after:20, bullet:true}));
-  const gradesLabelDocx = compactGradeSummary(acts);
-  const gradesPartDocx = gradesLabelDocx ? `ระดับชั้น ${gradesLabelDocx} ` : '';
-  const introText = `${thaiFullDateWithDay(v.date)} ผู้เข้าร่วมกิจกรรม${gradesPartDocx}จำนวน ${billable} คน`;
+  const introText = S.intro(T.dateWithDay(v.date), T.grades(compactGradeSummary(acts)), billable);
   const costBullets = roomCostSummary(acts).map(r=>{
     const topicPart = (r.room==='other' && r.topics.length) ? ` (${r.topics.join(', ')})` : '';
-    return dPara(`กิจกรรม ${roomInfo(r.room).label}${topicPart} ผู้เข้าร่วม รวม ${r.children} คน รวมเป็นเงิน ${money(r.cost)} บาท`, {after:20, bullet:true});
+    return dPara(S.costLine(T.room(r.room), topicPart, r.children, money(r.cost)), {after:20, bullet:true});
   });
 
   return [
-    dPara('ตารางการเข้าร่วมกิจกรรม ณ '+DOC_CONFIG.venueName, {align:'center', bold:true, size:27, after:15, pageBreakBefore: !!opts.pageBreakBefore}),
+    dPara(S.titleB(T.venueName), {align:'center', bold:true, size:27, after:15, pageBreakBefore: !!opts.pageBreakBefore}),
     dPara(v.school, {align:'center', bold:true, size:27, after:60, borderBottom:true}),
     table,
     dPara('', {after:60}),
-    dPara('รายละเอียดการเข้าร่วมกิจกรรม', {bold:true, after:20}),
-    dPara(introText, {bold:true, after:20}),
-    ...detailBullets,
-    dPara('สรุปค่าใช้จ่ายในการทำกิจกรรม', {bold:true, after:20, before:20}),
+    dPara(S.detailsB, {bold:true, after:20}),
+    dPara(introText, {after:20}),
+    dPara(S.costTitle, {bold:true, after:20, before:20}),
     ...costBullets,
-    dPara(`รวมค่าใช้จ่ายในการเข้าร่วมกิจกรรม ${money(grand)} บาท${v.packageLabel?(' ('+v.packageLabel+')'):''}`, {bold:true, color:'1F4E96', after:40}),
-    dPara(DOC_CONFIG.paymentNote, {bold:true, color:'B00000'})
+    dPara(S.total(money(grand), v.packageLabel||''), {bold:true, color:'1F4E96', after:40}),
+    dPara(T.paymentNote, {bold:true, color:'B00000'})
   ];
 }
-function buildDocB_Docx(v){
-  return new docx.Document({ sections:[{ properties: DOCX_PAGE_PROPERTIES, children: buildDocB_DocxChildren(v) }] });
+function buildDocB_Docx(v, lang='th'){
+  return new docx.Document({ sections:[{ properties: DOCX_PAGE_PROPERTIES, children: buildDocB_DocxChildren(v, {}, lang) }] });
 }
-function buildCombined_Docx(v){
+function buildCombined_Docx(v, lang='th'){
   const children = [
-    ...buildDocA_DocxChildren(v),
-    ...buildDocB_DocxChildren(v, {pageBreakBefore:true})
+    ...buildDocA_DocxChildren(v, lang),
+    ...buildDocB_DocxChildren(v, {pageBreakBefore:true}, lang)
   ];
-  return new docx.Document({ sections:[{ properties: DOCX_PAGE_PROPERTIES, children, footers:{ default: new docx.Footer({ children: docAFooterParas() }) } }] });
+  return new docx.Document({ sections:[{ properties: DOCX_PAGE_PROPERTIES, children, footers:{ default: new docx.Footer({ children: docAFooterParas(lang) }) } }] });
 }
-function roomDetailLineDocx(r){
-  const topicPart = r.topics.length ? ` เรื่อง ${r.topics.join(', ')}` : '';
-  return `กิจกรรม ${roomInfo(r.room).label}${topicPart} รวม ${r.children} คน`;
-}
-
 function triggerDocxDownload(doc, filename){
   docx.Packer.toBlob(doc).then(blob=>{
     const url = URL.createObjectURL(blob);
@@ -1328,26 +1686,24 @@ function triggerDocxDownload(doc, filename){
     URL.revokeObjectURL(url);
   }).catch(err=> alert('สร้างไฟล์ Word ไม่สำเร็จ: '+err.message));
 }
-document.getElementById('downloadDocAllBtn').addEventListener('click', ()=>{
+function downloadDocs(which, lang){
   const v = state.visits.find(x=>x.id===state.currentDetailId);
   if(!v) return;
-  triggerDocxDownload(buildCombined_Docx(v), `เอกสารกิจกรรม_${v.docNo||v.id}.docx`);
-});
-document.getElementById('downloadDocABtn').addEventListener('click', ()=>{
-  const v = state.visits.find(x=>x.id===state.currentDetailId);
-  if(!v) return;
-  triggerDocxDownload(buildDocA_Docx(v), `แบบตอบรับ_${v.docNo||v.id}.docx`);
-});
-document.getElementById('downloadDocBBtn').addEventListener('click', ()=>{
-  const v = state.visits.find(x=>x.id===state.currentDetailId);
-  if(!v) return;
-  triggerDocxDownload(buildDocB_Docx(v), `ตารางกิจกรรม_${v.docNo||v.id}.docx`);
+  const doc = which==='A' ? buildDocA_Docx(v, lang) : which==='B' ? buildDocB_Docx(v, lang) : buildCombined_Docx(v, lang);
+  triggerDocxDownload(doc, `${DOC_LANG[lang].filePrefix[which]}_${v.docNo||v.id}.docx`);
+}
+// ปุ่ม export ทุกปุ่ม: data-doc = all|A|B, data-act = print|word, data-lang = th|en
+document.querySelector('.doc-export-grid').addEventListener('click', (e)=>{
+  const btn = e.target.closest('button[data-doc]');
+  if(!btn) return;
+  const {doc, act, lang} = btn.dataset;
+  if(act==='print') printDocs(doc, lang); else downloadDocs(doc, lang);
 });
 
 /* ---------------- Init ---------------- */
 (async ()=>{
   showLoading('กำลังโหลดข้อมูล...');
-  try{ await Promise.all([loadVisits(), loadRefSchools()]); }
+  try{ await Promise.all([loadVisits(), loadRefSchools(), loadRefActivities()]); }
   finally{ hideLoading(); }
 })();
 if(CONFIG.API_URL){
