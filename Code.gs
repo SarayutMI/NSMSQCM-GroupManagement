@@ -22,7 +22,8 @@ const SHEET_NAME = 'Bookings';
 const HEADERS = [
   'id','docNo','school','gradeLevel','packageLabel','contactPerson','contactPhone',
   'date','childrenCount','adultCount','totalPeople','status','notes',
-  'activitiesJson','createdAt','updatedAt','contactFacebook'
+  'activitiesJson','createdAt','updatedAt','contactFacebook','location'
+  // 'location' ต่อท้ายสุดเสมอ — ห้ามแทรกกลาง เพราะจะทำให้คอลัมน์ของแถวเก่าในชีตเลื่อนตำแหน่งผิด
 ];
 
 /**
@@ -120,12 +121,25 @@ function summarizeGradeLevels_(activities) {
   return out.join(', ');
 }
 
+function summarizeLocations_(activities) {
+  // สถานที่ (LAB Room / INNO Room / ADA Space / Andromeda / WorkingSpace) เก็บต่อกิจกรรมย่อยจริง
+  // ใน activities[].location — คอลัมน์นี้สรุปรวม (ไม่ซ้ำ) ไว้ให้ดูง่ายตอนเปิดชีตตรงๆ เท่านั้น
+  const seen = {};
+  const out = [];
+  (activities || []).forEach(a => {
+    const loc = String((a && a.location) || '').trim();
+    if (loc && !seen[loc]) { seen[loc] = true; out.push(loc); }
+  });
+  return out.join(', ');
+}
+
 function buildRecord_(data, overrides) {
   const activities = data.activities || [];
   const total = (Number(data.childrenCount) || 0) + (Number(data.adultCount) || 0);
   return Object.assign({
     school: data.school || '',
     gradeLevel: summarizeGradeLevels_(activities),
+    location: summarizeLocations_(activities),
     packageLabel: data.packageLabel || '',
     contactPerson: data.contactPerson || '',
     contactPhone: data.contactPhone || '',
@@ -169,7 +183,8 @@ function updateBooking_(data) {
     const now = new Date().toISOString();
     const existingRow = sheet.getRange(rowIndex, 1, 1, HEADERS.length).getValues()[0];
     const existing = rowToObject_(HEADERS, existingRow);
-    const record = buildRecord_(data, { id: existing.id, docNo: existing.docNo, createdAt: existing.createdAt, updatedAt: now });
+    // ฟอร์มแก้ไขไม่ส่ง status มา — คงสถานะเดิมของแถวไว้ (ไม่รีเซ็ตกลับเป็น pending)
+    const record = buildRecord_(data, { id: existing.id, docNo: existing.docNo, status: data.status || existing.status || 'pending', createdAt: existing.createdAt, updatedAt: now });
     const dateCol = HEADERS.indexOf('date') + 1;
     sheet.getRange(rowIndex, dateCol).setNumberFormat('@'); // กันชีตแปลงวันที่เป็น Date object ตอนแก้ไขด้วย
     sheet.getRange(rowIndex, 1, 1, HEADERS.length).setValues([HEADERS.map(h => record[h])]);
