@@ -9,8 +9,10 @@
      แล้วคัดลอกลิงก์มาใส่ที่ SCHOOLS_CSV_URL ด้านล่าง (คอลัมน์: school, contactPerson, contactPhone)
    ========================================================= */
 const CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycbyBd_8LfXcvB7dmioapMrdCQukL_EvERvN5nQX-HwZNz87izueM-Gbh4euUDZv16E0L9A/exec',            // <-- ใส่ URL ของ Google Apps Script Web App (จาก Code.gs) ที่นี่ เพื่อเชื่อม Sheet จริง
+  API_URL: 'https://script.google.com/macros/s/AKfycbxVEm1uJp76f0DLDiOklytQfbVmjniAu8jvu2jwL_3aFZCC_4oU9tUlEeImXuVSSZ_vlg/exec',            // <-- ใส่ URL ของ Google Apps Script Web App (จาก Code.gs) ที่นี่ เพื่อเชื่อม Sheet จริง
   SCHOOLS_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=0&single=true&output=csv',     // <-- ใส่ลิงก์ CSV รายชื่อโรงเรียนอ้างอิงจาก Google Sheet ที่นี่
+  // รายชื่อพนักงาน (แท็บ Staff_Name ในชีตเดียวกัน, คอลัมน์: Staff_Name, Role) ใช้เป็นตัวเลือก "ผู้บันทึก/ผู้แก้ไข"
+  STAFF_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=1863604525&single=true&output=csv',
   // รายการ "เรื่อง/หัวข้อ" ของแต่ละห้อง/กิจกรรม (ชีตเดียวกับรายชื่อโรงเรียน คนละแท็บ, คอลัมน์เดียว: แถวแรกเป็นหัวตาราง)
   ACTIVITY_CSV_URLS: {
     innovation: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=1326757397&single=true&output=csv',
@@ -165,6 +167,7 @@ const SAMPLE_SCHOOLS = [
 
 let refSchools = [];
 let refActivities = {innovation:[], inspirelab:[], other:[]};
+let refStaff = [];
 
 let state = {
   visits: [],
@@ -172,6 +175,7 @@ let state = {
   cursorDate: new Date(),
   miniMonth: new Date(new Date().getFullYear(), new Date().getMonth(), 1),  // เดือนที่ปฏิทินย่อยด้านซ้ายกำลังแสดง
   miniSyncedKey: '',
+  orderWeekStart: startOfWeek(new Date()),
   activeRoomFilters: new Set(ROOM_CATEGORIES.map(r=>r.id)),
   activeStatusFilters: new Set(Object.keys(STATUS_CONFIG)),
   search: '',
@@ -479,6 +483,40 @@ async function loadRefActivities(){
   }));
   document.querySelectorAll('#activityRows .activity-slot').forEach(refreshTopicOptions);
 }
+/* ---------------- ผู้บันทึก / ผู้แก้ไข (รายชื่อพนักงานจากชีต) ---------------- */
+async function loadRefStaff(){
+  if(!CONFIG.STAFF_CSV_URL) return;
+  try{
+    const res = await fetch(CONFIG.STAFF_CSV_URL);
+    refStaff = [...new Set(parseCsvFirstColumn(await res.text()))];
+  }catch(err){ /* คงรายการเดิมไว้ */ }
+  renderStaffOptions();
+}
+function staffOptionsHtml(placeholder, current){
+  const extra = current && !refStaff.includes(current) ? `<option value="${escapeHtml(current)}" selected>${escapeHtml(current)}</option>` : '';
+  return `<option value="">${placeholder}</option>` +
+    refStaff.map(n=>`<option value="${escapeHtml(n)}" ${n===current?'selected':''}>${escapeHtml(n)}</option>`).join('') + extra;
+}
+function renderStaffOptions(){
+  const rec = document.getElementById('f_recorder'), edt = document.getElementById('f_editor');
+  if(!rec || !edt) return;
+  rec.innerHTML = staffOptionsHtml('- เลือกผู้บันทึก -', rec.value);
+  edt.innerHTML = staffOptionsHtml(state.editingId ? '- เลือกผู้แก้ไข -' : '- (เฉพาะตอนแก้ไข) -', edt.value);
+}
+// เพิ่มใหม่: ผู้บันทึกเลือกได้, ผู้แก้ไขปิดไว้ | แก้ไข: ผู้บันทึกล็อกถ้ามีแล้ว (ใส่ได้ครั้งเดียว), ผู้แก้ไขต้องเลือกใหม่ทุกครั้ง (เริ่มว่างเสมอ)
+function setupStaffFields(v){
+  const rec = document.getElementById('f_recorder'), edt = document.getElementById('f_editor');
+  rec.innerHTML = staffOptionsHtml('- เลือกผู้บันทึก -', v ? (v.recorder||'') : '');
+  rec.value = v ? (v.recorder||'') : '';
+  rec.disabled = !!(v && v.recorder);
+  edt.innerHTML = staffOptionsHtml(v ? '- เลือกผู้แก้ไข -' : '- (เฉพาะตอนแก้ไข) -', '');
+  edt.value = '';
+  edt.disabled = !v;
+  rec.classList.remove('needs-input'); edt.classList.remove('needs-input');
+}
+document.getElementById('f_recorder').addEventListener('change', e=> e.target.classList.remove('needs-input'));
+document.getElementById('f_editor').addEventListener('change', e=> e.target.classList.remove('needs-input'));
+
 function topicOptionsHtml(room, current){
   const list = refActivities[room] || [];
   const extra = current && !list.includes(current) ? `<option value="${escapeHtml(current)}" selected>${escapeHtml(current)}</option>` : '';
@@ -848,6 +886,143 @@ function renderAll(){
   }
 }
 
+/* ---------------- Order: สรุปกิจกรรมรายสัปดาห์ แยก Inspire Lab / Innovation Space / อื่นๆ สำหรับคนเตรียมของ ---------------- */
+const ORDER_ROOMS = [   // ลำดับคอลัมน์ + สี
+  {id:'inspirelab', color:'#3E93C9', bg:'#E7F2F8'},
+  {id:'innovation', color:'#A67C00', bg:'#FFF3CC'},
+  {id:'other',      color:'#7C4DBB', bg:'#F1E9FA'}
+];
+const ORDER_CSS = `
+.order-sheet{font-family:'Sarabun','TH SarabunPSK',sans-serif;color:#1B2836;font-size:14px;line-height:1.45;}
+.order-sheet h1{font-size:20px;margin:0 0 2px;color:#1E3A5F;}
+.order-sheet .order-sub{color:#5B6B85;font-size:13px;margin-bottom:14px;}
+.order-sheet .order-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;align-items:start;}
+.order-sheet .order-col{border:1px solid #DEE5EC;border-radius:10px;overflow:hidden;background:#fff;}
+.order-sheet .order-col-head{display:flex;justify-content:space-between;align-items:baseline;padding:9px 12px;font-weight:700;}
+.order-sheet .order-col-head small{font-weight:600;font-size:12px;}
+.order-sheet .order-col-head .order-col-right{display:flex;align-items:center;gap:8px;}
+.order-sheet .order-col-print{border:1px solid currentColor;background:rgba(255,255,255,.7);color:inherit;border-radius:7px;padding:2px 9px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;}
+.order-sheet .order-col-print:hover{background:#fff;}
+.order-sheet .order-item{padding:9px 12px;border-top:1px solid #EEF2F7;}
+.order-sheet .order-topic{display:flex;justify-content:space-between;gap:8px;font-weight:700;}
+.order-sheet .order-topic span:last-child{white-space:nowrap;}
+.order-sheet .order-lines{margin:3px 0 0;padding:0;list-style:none;color:#5B6B85;font-size:12.5px;}
+.order-sheet .order-lines li{padding:1px 0;}
+.order-sheet .order-empty{padding:12px;color:#9AA7B8;font-size:13px;}
+.order-sheet .pending-tag{color:#B9822C;font-weight:600;white-space:nowrap;}
+@media (max-width:760px){.order-sheet .order-cols{grid-template-columns:1fr;}}
+/* ใบพิมพ์ 80 มม. (เครื่องพิมพ์ความร้อน/สลิป) — ขาวดำล้วน ห้องละ 1 ใบ */
+.order-receipt{font-family:'Sarabun','TH SarabunPSK',sans-serif;color:#000;background:#fff;font-size:12px;line-height:1.3;width:100%;}
+.order-receipt .r-title{font-size:17px;font-weight:700;text-align:center;}
+.order-receipt .r-room{font-size:15px;font-weight:700;text-align:center;border:1.5px solid #000;padding:2px 0;margin:3px 0;}
+.order-receipt .r-week{text-align:center;font-size:12px;}
+.order-receipt .r-total{text-align:center;font-weight:700;margin-top:2px;}
+.order-receipt hr{border:none;border-top:1px dashed #000;margin:6px 0;}
+.order-receipt .r-topic{font-weight:700;font-size:13.5px;}
+.order-receipt .r-sum{font-weight:700;}
+.order-receipt .r-row{margin:3px 0 0 6px;}
+.order-receipt .r-when{font-weight:600;}
+.order-receipt .r-foot{text-align:center;font-size:10px;margin-top:4px;}
+.order-receipt + .order-receipt{page-break-before:always;}
+`;
+(function injectOrderStyle(){
+  const st = document.createElement('style'); st.id = 'orderStyle'; st.textContent = ORDER_CSS; document.head.appendChild(st);
+})();
+
+function orderWeekLabel(weekStart){
+  const end = addDays(weekStart, 6);
+  return `${weekStart.getDate()} ${MONTHS_TH[weekStart.getMonth()].slice(0,3)} – ${end.getDate()} ${MONTHS_TH[end.getMonth()].slice(0,3)} ${end.getFullYear()+543}`;
+}
+function buildOrderData(weekStart){
+  // รายการในสัปดาห์นั้น (ไม่รวมที่ยกเลิก) จัดกลุ่มตามห้อง → ชื่อกิจกรรม/หัวข้อ
+  const from = fmtDate(weekStart), to = fmtDate(addDays(weekStart, 6));
+  const occ = flattenOccurrences().filter(o=> o.date>=from && o.date<=to && o.status!=='cancelled');
+  return ORDER_ROOMS.map(r=>{
+    const byTopic = new Map();
+    occ.filter(o=>o.room===r.id).forEach(o=>{
+      const topic = String(o.topic||'').trim() || '(ไม่ระบุเรื่อง)';
+      if(!byTopic.has(topic)) byTopic.set(topic, {topic, total:0, rows:[]});
+      const g = byTopic.get(topic);
+      g.total += Number(o.childrenCount)||0;
+      g.rows.push(o);
+    });
+    const groups = [...byTopic.values()].sort((a,b)=> a.topic.localeCompare(b.topic,'th'));
+    groups.forEach(g=> g.rows.sort((a,b)=> (a.date+a.startTime).localeCompare(b.date+b.startTime)));
+    return {...r, label: roomInfo(r.id).label, groups, total: groups.reduce((n,g)=>n+g.total,0)};
+  });
+}
+function buildOrderHtml(weekStart){
+  const cols = buildOrderData(weekStart);
+  const rowLine = o=>{
+    const d = parseDate(o.date);
+    const time = o.startTime + (o.endTime!=='23:59' ? '–'+o.endTime : ' เป็นต้นไป');
+    return `<li>${WEEKDAYS_TH[d.getDay()]} ${d.getDate()} ${MONTHS_TH[d.getMonth()].slice(0,3)} · ${time} · ${escapeHtml(o.school)} · ${Number(o.childrenCount)||0} ชุด${o.location?' · '+escapeHtml(o.location):''}${o.status==='pending'?' <span class="pending-tag">(รอยืนยัน)</span>':''}</li>`;
+  };
+  return `<div class="order-sheet">
+    <h1>Order · สรุปกิจกรรมสำหรับเตรียมของ</h1>
+    <div class="order-sub">สัปดาห์ ${orderWeekLabel(weekStart)} · แยกตามห้อง/กิจกรรม และชื่อกิจกรรม (ไม่รวมรายการที่ยกเลิก · จำนวน = ชุดกิจกรรม)</div>
+    <div class="order-cols">
+      ${cols.map(c=>`<div class="order-col">
+        <div class="order-col-head" style="background:${c.bg};color:${c.color}"><span>${escapeHtml(c.label)}</span><span class="order-col-right"><small>รวม ${c.total} ชุด</small><button type="button" class="order-col-print" data-order-print="${c.id}" title="พิมพ์ใบ ${escapeHtml(c.label)} (80 มม.)">🖨 พิมพ์</button></span></div>
+        ${c.groups.length ? c.groups.map(g=>`<div class="order-item">
+          <div class="order-topic"><span>${escapeHtml(g.topic)}</span><span>${g.total} ชุด · ${g.rows.length} รอบ</span></div>
+          <ul class="order-lines">${g.rows.map(rowLine).join('')}</ul>
+        </div>`).join('') : '<div class="order-empty">ไม่มีรายการ</div>'}
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+function renderOrder(){
+  document.getElementById('orderBody').innerHTML = buildOrderHtml(state.orderWeekStart);
+}
+function shiftOrderWeek(weeks){ state.orderWeekStart = addDays(state.orderWeekStart, 7*weeks); renderOrder(); }
+document.getElementById('orderBtn').addEventListener('click', ()=>{
+  state.orderWeekStart = startOfWeek(state.cursorDate);   // เริ่มที่สัปดาห์ที่กำลังดูอยู่ แล้วกดเลื่อนดูสัปดาห์อื่นได้ในหน้านี้
+  renderOrder();
+  openOverlay('orderOverlay');
+});
+document.getElementById('orderPrev').addEventListener('click', ()=> shiftOrderWeek(-1));
+document.getElementById('orderNext').addEventListener('click', ()=> shiftOrderWeek(1));
+document.getElementById('orderThisWeek').addEventListener('click', ()=>{ state.orderWeekStart = startOfWeek(new Date()); renderOrder(); });
+/* ---- พิมพ์ใบ Order ขนาด 80 มม. (FUJITSU FP-2000 / เครื่องพิมพ์ความร้อน) ---- */
+const RECEIPT_PAGE_CSS = '@page{size:80mm auto;margin:3mm 4mm;}';   // ความกว้าง 80 มม. ความยาวตามเนื้อหา
+function buildOrderReceiptHtml(weekStart, col){
+  const rowHtml = o=>{
+    const d = parseDate(o.date);
+    const time = o.startTime + (o.endTime!=='23:59' ? '–'+o.endTime : ' เป็นต้นไป');
+    return `<div class="r-row"><div class="r-when">${WEEKDAYS_TH[d.getDay()]} ${d.getDate()} ${MONTHS_TH[d.getMonth()].slice(0,3)} · ${time}</div>
+      <div>${escapeHtml(o.school)} · ${Number(o.childrenCount)||0} ชุด${o.location?' · '+escapeHtml(o.location):''}${o.status==='pending'?' (รอยืนยัน)':''}</div></div>`;
+  };
+  return `<div class="order-receipt">
+    <div class="r-title">ORDER</div>
+    <div class="r-room">${escapeHtml(col.label)}</div>
+    <div class="r-week">สัปดาห์ ${orderWeekLabel(weekStart)}</div>
+    <div class="r-total">รวม ${col.total} ชุด</div>
+    ${col.groups.map(g=>`<hr>
+      <div class="r-topic">${escapeHtml(g.topic)}</div>
+      <div class="r-sum">รวม ${g.total} ชุด · ${g.rows.length} รอบ</div>
+      ${g.rows.map(rowHtml).join('')}`).join('')}
+    <hr>
+    <div class="r-foot">พิมพ์เมื่อ ${new Date().toLocaleString('th-TH')}</div>
+  </div>`;
+}
+function printOrder(which){
+  const cols = buildOrderData(state.orderWeekStart);
+  // 'all' = ทีละห้อง ห้องละ 1 ใบ (ข้ามห้องที่ไม่มีรายการเพื่อประหยัดกระดาษ) | ระบุห้อง = ใบเดียวของห้องนั้น
+  const picked = which==='all' ? cols.filter(c=>c.groups.length) : cols.filter(c=>c.id===which);
+  if(picked.length===0){ alert('ไม่มีรายการกิจกรรมในสัปดาห์นี้'); return; }
+  document.getElementById('printArea').innerHTML = picked.map(c=> buildOrderReceiptHtml(state.orderWeekStart, c)).join('');
+  let st = document.getElementById('receiptPageStyle');
+  if(!st){ st = document.createElement('style'); st.id = 'receiptPageStyle'; document.head.appendChild(st); }
+  st.textContent = RECEIPT_PAGE_CSS;   // ใช้เฉพาะตอนพิมพ์ Order แล้วเอาออกเมื่อพิมพ์เสร็จ ไม่กระทบเอกสาร A4
+  window.addEventListener('afterprint', ()=> st.remove(), {once:true});
+  window.print();
+}
+document.getElementById('orderOverlay').addEventListener('click', (e)=>{
+  const btn = e.target.closest('[data-order-print]');
+  if(btn) printOrder(btn.dataset.orderPrint);
+});
+
 /* ---------------- Nav controls ---------------- */
 function syncViewButtons(){
   document.querySelectorAll('.view-switch button').forEach(b=>{
@@ -862,7 +1037,7 @@ document.getElementById('nextBtn').addEventListener('click', ()=> stepPeriod(1))
 document.getElementById('todayBtn').addEventListener('click', ()=>{ state.cursorDate = new Date(); renderAll(); });
 document.getElementById('refreshBtn').addEventListener('click', async ()=>{
   showLoading('กำลังซิงก์ข้อมูล...');
-  try{ await Promise.all([loadRefSchools(), loadRefActivities(), loadVisits()]); }
+  try{ await Promise.all([loadRefSchools(), loadRefActivities(), loadRefStaff(), loadVisits()]); }
   finally{ hideLoading(); }
 });
 function stepPeriod(dir){
@@ -1081,12 +1256,14 @@ function openAddForm(prefillDate){
   document.getElementById('conflictWarning').style.display = 'none';
   document.getElementById('activityRows').innerHTML = '';
   addActivityGroup();
+  setupStaffFields(null);
   updateTotalPeople();
   refreshLocationAvailability();
   openOverlay('formOverlay');
 }
 function openEditForm(v){
   state.editingId = v.id;
+  setupStaffFields(v);
   document.getElementById('formTitle').textContent = 'แก้ไขการจอง';
   document.getElementById('f_id').value = v.id;
   document.getElementById('f_school').value = v.school;
@@ -1212,6 +1389,18 @@ document.getElementById('saveBookingBtn').addEventListener('click', async ()=>{
     if(clash){ alert(`สถานที่ "${a.location}" ไม่ว่างช่วงเวลานี้ (ชนกับ ${clash}) กรุณาเลือกสถานที่อื่นหรือปรับเวลา`); return; }
   }
 
+  // ผู้บันทึก: ต้องมีเสมอ (ใส่ครั้งเดียว) | ผู้แก้ไข: ต้องเลือกทุกครั้งที่แก้ไข
+  const recorderEl = document.getElementById('f_recorder'), editorEl = document.getElementById('f_editor');
+  const recorder = recorderEl.value.trim(), editor = editorEl.value.trim();
+  if(!recorder){
+    recorderEl.classList.add('needs-input'); recorderEl.focus();
+    alert(refStaff.length ? 'กรุณาเลือกผู้บันทึก' : 'ยังไม่มีรายชื่อพนักงานจาก Sheet (แท็บ Staff_Name) — กด "⟳ ซิงก์ข้อมูลอ้างอิง" แล้วลองใหม่'); return;
+  }
+  if(state.editingId && !editor){
+    editorEl.classList.add('needs-input'); editorEl.focus();
+    alert('กรุณาเลือกผู้แก้ไข (ต้องระบุทุกครั้งที่แก้ไข)'); return;
+  }
+
   const saveBtn = document.getElementById('saveBookingBtn');
   const conflicts = findActivityConflicts(activities, date, state.editingId);
   const warn = document.getElementById('conflictWarning');
@@ -1233,6 +1422,8 @@ document.getElementById('saveBookingBtn').addEventListener('click', async ()=>{
     childrenCount: groupActivitiesByGroup(activities).reduce((sum,g)=> sum+(Number(g[0].childrenCount)||0), 0),
     adultCount: Number(document.getElementById('f_adultCount').value)||0,
     notes: document.getElementById('f_notes').value.trim(),
+    recorder,
+    editor: state.editingId ? editor : '',   // การจองใหม่ยังไม่มีผู้แก้ไข
     activities
   };
 
@@ -1293,6 +1484,8 @@ function openDetail(id){
     <tr><td class="k">วันที่</td><td>${v.date} (${thaiFullDate(v.date)})</td></tr>
     <tr><td class="k">จำนวนคน</td><td>เด็ก ${v.childrenCount||0} · ผู้ใหญ่ ${v.adultCount||0} · รวม ${totalPeople} คน</td></tr>
     <tr><td class="k">หมายเหตุ</td><td>${escapeHtml(v.notes)||'-'}</td></tr>
+    <tr><td class="k">ผู้บันทึก</td><td>${escapeHtml(v.recorder)||'-'}</td></tr>
+    <tr><td class="k">ผู้แก้ไขล่าสุด</td><td>${escapeHtml(v.editor)||'-'}</td></tr>
   `;
   const acts = visitActivitiesByTimeThenRoom(v);
   const grand = visitGrandTotal(v);
@@ -1703,7 +1896,7 @@ document.querySelector('.doc-export-grid').addEventListener('click', (e)=>{
 /* ---------------- Init ---------------- */
 (async ()=>{
   showLoading('กำลังโหลดข้อมูล...');
-  try{ await Promise.all([loadVisits(), loadRefSchools(), loadRefActivities()]); }
+  try{ await Promise.all([loadVisits(), loadRefSchools(), loadRefActivities(), loadRefStaff()]); }
   finally{ hideLoading(); }
 })();
 if(CONFIG.API_URL){

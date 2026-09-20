@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20260921i">
+<link rel="stylesheet" href="style.css?v=20260921n">
 <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
 </head>
 <body>
@@ -35,6 +35,7 @@
     </div>
     <div class="today-label" id="periodLabel">-</div>
     <div class="spacer"></div>
+    <button class="btn" id="orderBtn" title="สรุปรายการกิจกรรมรายสัปดาห์ แยกตามห้อง สำหรับเตรียมของ">📋 Order</button>
     <button class="btn btn-ghost" id="refreshBtn" title="โหลดรายชื่อโรงเรียนอ้างอิงใหม่">⟳ ซิงก์ข้อมูลอ้างอิง</button>
     <div class="view-switch">
       <button data-view="month" class="active">เดือน</button>
@@ -150,10 +151,43 @@
         </div>
       </form>
     </div>
-    <div class="modal-foot">
-      <button class="btn" data-close="formOverlay">ยกเลิก</button>
-      <button class="btn btn-primary" id="saveBookingBtn">บันทึกการจอง</button>
+    <div class="modal-foot form-foot">
+      <div class="foot-staff">
+        <div class="foot-field">
+          <label for="f_recorder">ผู้บันทึก</label>
+          <select id="f_recorder" title="ระบุได้ครั้งเดียวตอนบันทึกการจอง หลังจากนั้นแก้ไขไม่ได้"></select>
+        </div>
+        <div class="foot-field">
+          <label for="f_editor">ผู้แก้ไข</label>
+          <select id="f_editor" title="ต้องเลือกใหม่ทุกครั้งที่แก้ไข (ชื่อผู้แก้ไขเดิมจะถูกแทนที่)"></select>
+        </div>
+      </div>
+      <div class="foot-actions">
+        <button class="btn" data-close="formOverlay">ยกเลิก</button>
+        <button class="btn btn-primary" id="saveBookingBtn">บันทึกการจอง</button>
+      </div>
     </div>
+  </div>
+</div>
+
+<!-- ============ Order (weekly prep list) Modal ============ -->
+<div class="overlay" id="orderOverlay">
+  <div class="modal xwide">
+    <div class="modal-head">
+      <h2>Order · สรุปกิจกรรมสำหรับเตรียมของ</h2>
+      <button class="close-x" data-close="orderOverlay">✕</button>
+    </div>
+    <div class="order-toolbar">
+      <div class="order-nav">
+        <button class="icon-btn" id="orderPrev" aria-label="สัปดาห์ก่อนหน้า">‹</button>
+        <button class="btn btn-sm" id="orderThisWeek">สัปดาห์นี้</button>
+        <button class="icon-btn" id="orderNext" aria-label="สัปดาห์ถัดไป">›</button>
+      </div>
+      <div class="order-actions">
+        <button class="btn btn-sm btn-primary" data-order-print="all" title="พิมพ์ทีละห้อง ห้องละ 1 ใบ (เว้นห้องที่ไม่มีรายการ) ขนาดกระดาษ 80 มม.">🖨 พิมพ์ทั้งหมด (80 มม.)</button>
+      </div>
+    </div>
+    <div class="modal-body" id="orderBody"></div>
   </div>
 </div>
 
@@ -242,6 +276,6 @@
 <!-- ============ Hidden print area ============ -->
 <div id="printArea"></div>
 
-<script src="script.js?v=20260921i"></script>
+<script src="script.js?v=20260921n"></script>
 </body>
 </html>

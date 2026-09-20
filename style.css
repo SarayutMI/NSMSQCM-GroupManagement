@@ -311,6 +311,11 @@
     box-shadow:var(--shadow-lg);
   }
   .modal.wide{max-width:660px;}
+  .modal.xwide{max-width:1040px;}
+  .order-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 24px;border-bottom:1px solid var(--line);flex-wrap:wrap;}
+  .order-nav,.order-actions{display:flex;align-items:center;gap:6px;}
+  .order-nav .icon-btn{color:var(--ink-soft);}
+
   .modal-head{
     display:flex;align-items:center;justify-content:space-between;
     padding:19px 24px;border-bottom:1px solid var(--line);
@@ -318,6 +323,15 @@
   .modal-head h2{font-size:16.5px;}
   .modal-body{padding:22px 24px;max-height:70vh;overflow-y:auto;}
   .modal-foot{padding:16px 24px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px;}
+  .modal-foot.form-foot{justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;}
+  .foot-staff{display:flex;gap:12px;}
+  .foot-field label{display:block;font-size:11px;font-weight:700;color:var(--ink-soft);margin-bottom:3px;}
+  .foot-field select{
+    min-width:150px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:var(--surface);font-size:13.5px;
+  }
+  .foot-field select:disabled{background:var(--surface-2);color:var(--ink-soft);cursor:not-allowed;}
+  .foot-field select.needs-input{border-color:var(--cancelled);box-shadow:0 0 0 3px var(--cancelled-bg);}
+  .foot-actions{display:flex;gap:8px;}
   .close-x{border:none;background:none;font-size:19px;color:var(--ink-faint);line-height:1;padding:4px;border-radius:6px;}
   .close-x:hover{background:var(--surface-2);color:var(--ink);}
 
