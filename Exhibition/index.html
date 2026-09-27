@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>แบบบันทึกจำนวนผู้เข้าชมกิจกรรม จัตุรัสวิทยาศาสตร์ อพวช.เชียงใหม่</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/base.css" />
+    <link rel="stylesheet" href="css/form.css" />
+  </head>
+  <body>
+    <div class="nsm-exhead">
+      <span class="ic">🖼️</span>
+      <div>
+        <div class="ti">Exhibition Management</div>
+        <div class="su">จัตุรัสวิทยาศาสตร์ อพวช. เชียงใหม่ · แบบบันทึกจำนวนผู้เข้าชม</div>
+      </div>
+    </div>
+    <div class="toolbar">
+      <span id="sheetStatus"></span>
+      <a class="btn btn-secondary" href="dashboard.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="9"></rect>
+          <rect x="14" y="3" width="7" height="5"></rect>
+          <rect x="14" y="12" width="7" height="9"></rect>
+          <rect x="3" y="16" width="7" height="5"></rect>
+        </svg>
+        Dashboard
+      </a>
+      <button class="btn btn-secondary" id="saveBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"></path>
+          <polyline points="17 21 17 13 7 13 7 21"></polyline>
+          <polyline points="7 3 7 8 15 8"></polyline>
+        </svg>
+        บันทึกลง Sheet
+      </button>
+      <button class="btn btn-secondary" type="button" onclick="window.print()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 6 2 18 2 18 9"></polyline>
+          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+          <rect x="6" y="14" width="12" height="8"></rect>
+        </svg>
+        Print
+      </button>
+      <button class="btn btn-primary" type="button" onclick="window.print()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        Save as PDF
+      </button>
+    </div>
+
+    <div class="sheet">
+      <h1 class="page-title">แบบบันทึกจำนวนผู้เข้าชมกิจกรรม</h1>
+      <p class="subtitle">จัตุรัสวิทยาศาสตร์ อพวช. เชียงใหม่</p>
+
+      <div class="date-row">
+        <label class="calendar-btn">
+          🗓️ Date
+          <input type="date" id="visitDate" />
+        </label>
+        <span id="thaiDate"></span>
+      </div>
+
+      <div class="columns">
+        <!-- ================= LEFT: นิทรรศการ ================= -->
+        <div>
+          <p class="col-title">ส่วนนิทรรศการ</p>
+          <div class="bento bento-exhibit">
+            <div class="bento-head"><span class="dot"></span><span class="t">ส่วนนิทรรศการ</span></div>
+
+            <div class="block sub-card-walkin">
+              <p class="block-label">บุคคลทั่วไป Walk-in</p>
+              <table>
+                <thead>
+                  <tr>
+                    <th>เด็กไทย</th>
+                    <th>ผู้ใหญ่ไทย</th>
+                    <th>เด็กต่างชาติ</th>
+                    <th>ผู้ใหญ่ต่างชาติ</th>
+                  </tr>
+                </thead>
+                <!-- rows built by js/form-render.js -->
+                <tbody id="walkin-rows"></tbody>
+                <tbody>
+                  <tr class="total">
+                    <td class="rowlabel">รวมเด็กไทย<br /><input type="text" id="walkin_child_th_total" class="tag-gray" readonly placeholder="0" /></td>
+                    <td class="rowlabel">รวมผู้ใหญ่ไทย<br /><input type="text" id="walkin_adult_th_total" class="tag-gray" readonly placeholder="0" /></td>
+                    <td class="rowlabel">รวมเด็กต่างชาติ<br /><input type="text" id="walkin_child_intl_total" class="tag-gray" readonly placeholder="0" /></td>
+                    <td class="rowlabel">รวมผู้ใหญ่ต่างชาติ<br /><input type="text" id="walkin_adult_intl_total" class="tag-gray" readonly placeholder="0" /></td>
+                  </tr>
+                  <tr class="total">
+                    <td class="rowlabel">ยอดรวม Walkin</td>
+                    <td class="rowlabel">ยอดรวมเด็ก Walkin<br /><input type="text" id="walkin_child_grand_total" class="val-md tag-yellow" readonly placeholder="0" style="text-align:center; margin:0 auto; display:block;" /></td>
+                    <td class="rowlabel">ยอดรวมผู้ใหญ่ Walkin<br /><input type="text" id="walkin_adult_grand_total" class="val-md tag-yellow" readonly placeholder="0" /></td>
+                    <td class="rowlabel" colspan="2">ยอดรวม Walkin<br /><input type="text" id="walkin_grand_total" class="val-lg tag-orange" readonly placeholder="0" /></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="block sub-card-group">
+              <p class="block-label">หมู่คณะ</p>
+              <table>
+                <thead>
+                  <tr>
+                    <th class="rowlabel">ชื่อโรงเรียน</th>
+                    <th>เด็ก</th>
+                    <th>ผู้ใหญ่</th>
+                  </tr>
+                </thead>
+                <tbody id="group-rows"></tbody>
+                <tbody>
+                  <tr class="total">
+                    <td class="rowlabel" style="text-align:center;">รวมยอด</td>
+                    <td><input type="text" id="group_child_total" class="tag-gray" placeholder="0" readonly style="text-align:center;" /></td>
+                    <td><input type="text" id="group_adult_total" class="tag-gray" placeholder="0" readonly style="text-align:center;" /></td>
+                  </tr>
+                  <tr class="total">
+                    <td class="rowlabel" style="text-align:center;">ยอดรวมหมู่คณะ</td>
+                    <td class="rowlabel" style="text-align:center;">ยอดรวมเด็กหมู่คณะ<br /><input type="text" id="group_child_grand_total" class="val-md tag-yellow" readonly placeholder="0" style="text-align:center;" /></td>
+                    <td class="rowlabel" style="text-align:center;">ยอดรวมผู้ใหญ่หมู่คณะ<br /><input type="text" id="group_adult_grand_total" class="val-md tag-yellow" readonly placeholder="0" style="text-align:center;" /></td>
+                  </tr>
+                  <tr class="total">
+                    <td class="rowlabel" colspan="3" style="text-align:center;">ยอดรวม Group<br /><input type="text" id="group_grand_total" class="val-lg tag-orange" readonly placeholder="0" style="width:100%; text-align:center;" /></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="block">
+              <table>
+                <thead>
+                  <tr>
+                    <th class="rowlabel" style="text-align:center;">รวมยอดนิทรรศการ</th>
+                    <th>รวมเด็ก</th>
+                    <th>รวมผู้ใหญ่</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td></td>
+                    <td><input type="text" id="exhibition_total_child" class="val-md tag-yellow" readonly style="text-align:center;" /></td>
+                    <td><input type="text" id="exhibition_total_adult" class="val-md tag-yellow" readonly style="text-align:center;" /></td>
+                  </tr>
+                  <tr class="total">
+                    <td class="rowlabel" style="text-align:center;">รวมนิทรรศการทั้งหมด</td>
+                    <td colspan="2"><input type="text" id="exhibition_grand_total" class="val-xl tag-orange" readonly style="text-align:center; margin:0 auto; display:block;" /></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= MIDDLE: กิจกรรม (one block per room in the Rooms tab) ================= -->
+        <div>
+          <p class="col-title">ส่วนกิจกรรม</p>
+          <div class="bento bento-activity">
+            <div class="bento-head"><span class="dot"></span><span class="t">ส่วนกิจกรรม</span></div>
+            <div id="rooms">
+              <p class="block-label" id="roomsLoading">กำลังโหลดรายชื่อห้อง / กิจกรรมจาก Sheet...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= กิจกรรมอื่นๆ (External Activity: Walk Rally / Mini Make and Play / Don't Miss / อื่นๆ) ================= -->
+        <div class="col-external">
+          <p class="col-title">ส่วนกิจกรรมอื่นๆ</p>
+          <div class="bento bento-external">
+            <div class="bento-head"><span class="dot"></span><span class="t">กิจกรรมอื่นๆ</span></div>
+            <div class="block pos-col-activity">
+              <table>
+                <thead>
+                  <tr>
+                    <th class="rowlabel">กิจกรรม</th>
+                    <th>เด็ก</th>
+                    <th>ผู้ใหญ่</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="rowlabel">Walk Rally</td>
+                    <td><input type="text" id="activity_walkrally_child" placeholder="0" inputmode="none" data-calc /></td>
+                    <td><input type="text" id="activity_walkrally_adult" placeholder="0" inputmode="none" data-calc /></td>
+                  </tr>
+                  <tr>
+                    <td class="rowlabel">Mini Make and Play</td>
+                    <td><input type="text" id="activity_miniplay_child" placeholder="0" inputmode="none" data-calc /></td>
+                    <td><input type="text" id="activity_miniplay_adult" placeholder="0" inputmode="none" data-calc /></td>
+                  </tr>
+                  <tr>
+                    <td class="rowlabel">Don't Miss</td>
+                    <td><input type="text" id="activity_other1_child" placeholder="0" inputmode="none" data-calc /></td>
+                    <td><input type="text" id="activity_other1_adult" placeholder="0" inputmode="none" data-calc /></td>
+                  </tr>
+                  <tr>
+                    <td class="rowlabel">กิจกรรมอื่นๆ</td>
+                    <td><input type="text" id="activity_other2_child" placeholder="0" inputmode="none" data-calc /></td>
+                    <td><input type="text" id="activity_other2_adult" placeholder="0" inputmode="none" data-calc /></td>
+                  </tr>
+                  <tr class="total-room">
+                    <td class="rowlabel">รวมยอด External Activity</td>
+                    <td colspan="2"><input type="text" id="external_rooms_total" class="val-lg tag-blue" placeholder="0" readonly /></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= POS + สรุปยอด + หมายเหตุ ================= -->
+        <div class="col-side">
+          <div class="bento bento-pos">
+            <div class="bento-head"><span class="dot"></span><span class="t">POS</span></div>
+            <div class="block pos-col-summary">
+              <table>
+                <thead>
+                  <tr>
+                    <th class="rowlabel">รายการ</th>
+                    <th>จำนวน</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="rowlabel">เด็กไทย (Walk-In)</td>
+                    <td><input type="text" id="pos_child_th" class="tag-gray" placeholder="0" readonly /></td>
+                  </tr>
+                  <tr>
+                    <td class="rowlabel">ผู้ใหญ่ไทย (Walk-In + กิจกรรม)</td>
+                    <td><input type="text" id="pos_adult_th" class="tag-gray" placeholder="0" readonly /></td>
+                  </tr>
+                  <tr>
+                    <td class="rowlabel">เด็กต่างชาติ (Walk-In)</td>
+                    <td><input type="text" id="pos_child_intl" class="tag-gray" placeholder="0" readonly /></td>
+                  </tr>
+                  <tr>
+                    <td class="rowlabel">ผู้ใหญ่ต่างชาติ (Walk-In + กิจกรรม)</td>
+                    <td><input type="text" id="pos_adult_intl" class="tag-gray" placeholder="0" readonly /></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="summary" style="display:flex; justify-content:center; flex-wrap:wrap; gap:10px; align-items:flex-start;">
+            <div class="stat">
+              <div class="lbl">รวมยอดการทำกิจกรรม</div>
+              <input type="text" id="summary_activity_total" class="val-xl tag-purple" readonly placeholder="0" />
+            </div>
+            <div class="stat">
+              <div class="lbl">รวมยอดผู้เข้าร่วมกิจกรรมทั้งหมด (กิจกรรม+นิทรรศการ)</div>
+              <input type="text" id="summary_AllDay_participants" class="val-xl tag-green" readonly placeholder="0" />
+            </div>
+          </div>
+
+          <div class="stat notes-block">
+            <div class="lbl">หมายเหตุ</div>
+            <textarea id="notes" placeholder="ใส่หมายเหตุต่างๆ ที่นี่"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <footer>จัตุรัสวิทยาศาสตร์ อพวช. เชียงใหม่</footer>
+
+      <div class="logos">
+        <img src="./Logo/NSMLOGO.png" alt="Logo 1" />
+        <img src="./Logo/InspireLAB.png" alt="Logo 2" />
+        <img src="./Logo/Innovationspace.png" alt="Logo 3" />
+      </div>
+    </div>
+
+    <!-- ============ Numpad กดตัวเลข (แทนคีย์บอร์ดเครื่อง ใช้แบบเดียวกันทั้ง Browser/มือถือ) ============ -->
+    <div id="numpadBar" class="numpad-bar">
+      <div class="numpad-head">
+        <span id="numpadLabel">กรอกตัวเลข</span>
+        <button type="button" id="numpadCloseX" class="numpad-x">✕</button>
+      </div>
+      <div class="numpad-grid">
+        <button type="button" class="numpad-btn" data-k="7">7</button>
+        <button type="button" class="numpad-btn" data-k="8">8</button>
+        <button type="button" class="numpad-btn" data-k="9">9</button>
+        <button type="button" class="numpad-btn numpad-action" data-k="back">⌫</button>
+        <button type="button" class="numpad-btn" data-k="4">4</button>
+        <button type="button" class="numpad-btn" data-k="5">5</button>
+        <button type="button" class="numpad-btn" data-k="6">6</button>
+        <button type="button" class="numpad-btn numpad-action" data-k="clear">C</button>
+        <button type="button" class="numpad-btn" data-k="1">1</button>
+        <button type="button" class="numpad-btn" data-k="2">2</button>
+        <button type="button" class="numpad-btn" data-k="3">3</button>
+        <button type="button" class="numpad-btn" data-k="00">00</button>
+        <button type="button" class="numpad-btn numpad-wide" data-k="0">0</button>
+        <button type="button" class="numpad-btn numpad-done numpad-wide" data-k="done">✓ เสร็จ</button>
+      </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/form-render.js"></script>
+    <script src="js/form-calc.js"></script>
+    <script src="js/numpad.js"></script>
+    <script src="js/form.js"></script>
+    <script>window.NSM_NAV_BASE = '../';</script>
+    <script src="../nav-drawer.js"></script>
+  </body>
+</html>

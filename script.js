@@ -6,16 +6,18 @@
      ในสเปรดชีตที่ผูกกับสคริปต์นั้น (ไม่ต้องสร้างชีตหรือตั้งหัวตารางเอง) — ดูขั้นตอนเต็มใน README.md
    - ข้อมูล "อ้างอิง" (รายชื่อโรงเรียน) ดึงจาก Google Sheet ที่ Publish to web เป็น CSV แยกต่างหาก
      วิธีทำ: เปิด Sheet > File > Share > Publish to web > เลือกแท็บ > Comma-separated values (.csv)
-     แล้วคัดลอกลิงก์มาใส่ที่ SCHOOLS_CSV_URL ด้านล่าง (คอลัมน์: school, contactPerson, contactPhone)
+     แล้วคัดลอกลิงก์มาใส่ที่ SCHOOLS_CSV_URL ด้านล่าง (คอลัมน์: school_TH, school_ENG, contactPerson, contactPhone)
    ========================================================= */
 const CONFIG = {
   API_URL: 'https://script.google.com/macros/s/AKfycbxVEm1uJp76f0DLDiOklytQfbVmjniAu8jvu2jwL_3aFZCC_4oU9tUlEeImXuVSSZ_vlg/exec',            // <-- ใส่ URL ของ Google Apps Script Web App (จาก Code.gs) ที่นี่ เพื่อเชื่อม Sheet จริง
-  SCHOOLS_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=0&single=true&output=csv',     // <-- ใส่ลิงก์ CSV รายชื่อโรงเรียนอ้างอิงจาก Google Sheet ที่นี่
+  SCHOOLS_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=0&single=true&output=csv',     // คอลัมน์: school_TH, school_ENG, contactPerson, contactPhone
   // รายชื่อพนักงาน (แท็บ Staff_Name ในชีตเดียวกัน, คอลัมน์: Staff_Name, Role) ใช้เป็นตัวเลือก "ผู้บันทึก/ผู้แก้ไข"
   STAFF_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=1863604525&single=true&output=csv',
-  // รายการ "เรื่อง/หัวข้อ" ของแต่ละห้อง/กิจกรรม (ชีตเดียวกับรายชื่อโรงเรียน คนละแท็บ, คอลัมน์เดียว: แถวแรกเป็นหัวตาราง)
+  // รายชื่อ "สถานที่" (แท็บ Location ในชีตเดียวกัน, คอลัมน์เดียว: แถวแรกเป็นหัวตาราง)
+  LOCATIONS_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=437766438&single=true&output=csv',
+  // รายการ "เรื่อง/หัวข้อ" ของแต่ละห้อง/กิจกรรม (ชีตเดียวกับรายชื่อโรงเรียน คนละแท็บ, 2 คอลัมน์: ไทย, อังกฤษ — แถวแรกเป็นหัวตาราง)
   ACTIVITY_CSV_URLS: {
-    innovation: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=1326757397&single=true&output=csv',
+    innovation: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=116326658&single=true&output=csv',
     inspirelab: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=1497609226&single=true&output=csv',
     other:      'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=867048367&single=true&output=csv'
   }
@@ -145,7 +147,8 @@ const ROOM_CATEGORIES = [
   {id:'other',      label:'อื่นๆ',              color:'var(--purple)', bg:'var(--purple-dim)', tint:'var(--purple-tint)'}
 ];
 const ROOM_DEFAULT_PRICE = { innovation: 90, inspirelab: 90, other: 100 };
-const LOCATION_OPTIONS = ['LAB Room', 'INNO Room', 'ADA Space', 'Andromeda', 'WorkingSpace'];
+// รายชื่อสถานที่ตั้งต้น (ใช้ก่อนโหลดจาก LOCATIONS_CSV_URL เสร็จ หรือกรณีโหลดไม่สำเร็จ)
+let refLocations = ['LAB Room', 'INNO Room', 'ADA Space', 'Andromeda', 'WorkingSpace'];
 
 const STATUS_CONFIG = {
   pending:   {label:'รอยืนยัน',   color:'var(--pending)',   bg:'var(--pending-bg)'},
@@ -158,15 +161,16 @@ const MONTHS_TH = ['มกราคม','กุมภาพันธ์','มี
 
 /* ตัวอย่างรายชื่อโรงเรียนอ้างอิง (ใช้เมื่อยังไม่ได้ตั้งค่า SCHOOLS_CSV_URL) */
 const SAMPLE_SCHOOLS = [
-  {school:'โรงเรียนสันป่าตอง สุวรรณราษฎร์วิทยาคาร', contactPerson:'ครูนภา', contactPhone:'081-999-0000'},
-  {school:'โรงเรียนสาธิตจุฬาลงกรณ์มหาวิทยาลัย', contactPerson:'ครูอรทัย', contactPhone:'081-234-5678'},
-  {school:'โรงเรียนกรุงเทพคริสเตียนวิทยาลัย', contactPerson:'ครูสมชาย', contactPhone:'089-111-2222'},
-  {school:'โรงเรียนอัสสัมชัญ', contactPerson:'ครูวิภา', contactPhone:'062-333-4444'},
-  {school:'โรงเรียนเซนต์คาเบรียล', contactPerson:'ครูปิยะ', contactPhone:'095-555-6666'}
+  {school_TH:'โรงเรียนสันป่าตอง สุวรรณราษฎร์วิทยาคาร', school_ENG:'', contactPerson:'ครูนภา', contactPhone:'081-999-0000'},
+  {school_TH:'โรงเรียนสาธิตจุฬาลงกรณ์มหาวิทยาลัย', school_ENG:'', contactPerson:'ครูอรทัย', contactPhone:'081-234-5678'},
+  {school_TH:'โรงเรียนกรุงเทพคริสเตียนวิทยาลัย', school_ENG:'', contactPerson:'ครูสมชาย', contactPhone:'089-111-2222'},
+  {school_TH:'โรงเรียนอัสสัมชัญ', school_ENG:'', contactPerson:'ครูวิภา', contactPhone:'062-333-4444'},
+  {school_TH:'โรงเรียนเซนต์คาเบรียล', school_ENG:'', contactPerson:'ครูปิยะ', contactPhone:'095-555-6666'}
 ];
 
 let refSchools = [];
 let refActivities = {innovation:[], inspirelab:[], other:[]};
+let refActivityEN = {innovation:{}, inspirelab:{}, other:{}};   // {[room]: {topicTH: topicENG}}
 let refStaff = [];
 
 let state = {
@@ -220,7 +224,9 @@ function roomInfo(id){ return ROOM_CATEGORIES.find(r=>r.id===id) || ROOM_CATEGOR
 const AGENDA_GRID_START = 8*60;  // 08:00
 const AGENDA_GRID_END = 17*60;   // 17:00
 const AGENDA_SLOT_MIN = 30;
-const AGENDA_SLOT_PX = 34;
+// ความสูงต่อ 30 นาทีคงที่ (กระชับพอดีกับข้อมูลจริง ไม่ยืดตามพื้นที่จอ — ยืดแล้วดูโหว่เกินไปเมื่อ
+// วันนั้นมีรายการน้อย พื้นที่ว่างใต้ตารางถือเป็นเรื่องปกติเหมือนปฏิทินทั่วไป)
+const AGENDA_SLOT_PX = 45; // +20% จาก 34px เดิม แล้ว +10% อีกรอบจาก 41px
 function timeToMinutes(t){
   if(!t) return null;
   const [h,m] = t.split(':').map(Number);
@@ -241,31 +247,35 @@ function layoutAgendaItems(dayItems){
   const groups = [];
   let colOffset = 0;
   AGENDA_COLUMN_ORDER.forEach(catId=>{
+    // แสดงคอลัมน์ทั้ง 3 หมวด (Inspire Lab / Innovation Space / อื่นๆ) ไว้เสมอทุกวัน แม้หมวดนั้น
+    // จะไม่มีการจองเลย — กันไม่ให้เลย์เอาต์เพี้ยนไปมาแต่ละวัน (เดิม: หมวดว่างจะถูกข้ามไปเลย
+    // ทำให้หมวดที่มีจองอยู่ยืดเต็มความกว้างแทน)
     const catItems = withMin.filter(o=>o.room===catId).sort((a,b)=> a.startMin-b.startMin || a.endMin-b.endMin);
-    if(!catItems.length) return;
-
-    // แตก cluster เฉพาะช่วงที่เวลาทับซ้อนกันจริงๆ ในหมวดนี้ ถ้าช่วงไหนมีอันเดียวจะเต็มแถว
-    const clusters = [];
-    let current = [], currentEnd = -Infinity;
-    catItems.forEach(ev=>{
-      if(current.length && ev.startMin >= currentEnd){ clusters.push(current); current=[]; currentEnd=-Infinity; }
-      current.push(ev);
-      currentEnd = Math.max(currentEnd, ev.endMin);
-    });
-    if(current.length) clusters.push(current);
 
     let colSpan = 1;
-    clusters.forEach(cluster=>{
-      const colEnds = [];
-      cluster.forEach(ev=>{
-        let col = colEnds.findIndex(end=> end<=ev.startMin);
-        if(col===-1){ col = colEnds.length; colEnds.push(ev.endMin); }
-        else colEnds[col] = ev.endMin;
-        ev.localCol = col;
+    if(catItems.length){
+      // แตก cluster เฉพาะช่วงที่เวลาทับซ้อนกันจริงๆ ในหมวดนี้ ถ้าช่วงไหนมีอันเดียวจะเต็มแถว
+      const clusters = [];
+      let current = [], currentEnd = -Infinity;
+      catItems.forEach(ev=>{
+        if(current.length && ev.startMin >= currentEnd){ clusters.push(current); current=[]; currentEnd=-Infinity; }
+        current.push(ev);
+        currentEnd = Math.max(currentEnd, ev.endMin);
       });
-      cluster.forEach(ev=> ev.localColCount = colEnds.length);
-      colSpan = Math.max(colSpan, colEnds.length);
-    });
+      if(current.length) clusters.push(current);
+
+      clusters.forEach(cluster=>{
+        const colEnds = [];
+        cluster.forEach(ev=>{
+          let col = colEnds.findIndex(end=> end<=ev.startMin);
+          if(col===-1){ col = colEnds.length; colEnds.push(ev.endMin); }
+          else colEnds[col] = ev.endMin;
+          ev.localCol = col;
+        });
+        cluster.forEach(ev=> ev.localColCount = colEnds.length);
+        colSpan = Math.max(colSpan, colEnds.length);
+      });
+    }
 
     groups.push({catId, colStart:colOffset, colSpan});
     catItems.forEach(ev=>{
@@ -301,6 +311,14 @@ function agendaGridLinesHtml(){
   return out;
 }
 function statusInfo(id){ return STATUS_CONFIG[id] || STATUS_CONFIG.pending; }
+function locationColorInfo(loc){
+  // เทียบแบบไม่สนตัวพิมพ์เล็ก/ใหญ่และคำเต็ม/ย่อ เพราะชื่อสถานที่มาจากชีต (Lab Room, Innovation Room, ...)
+  // อาจสะกดต่างจากค่าเดิมที่เคย hardcode ไว้ (LAB Room, INNO Room)
+  const s = String(loc||'').toLowerCase();
+  if(s.includes('lab')) return {bg:'var(--sky)', color:'#fff'};
+  if(s.includes('inno')) return {bg:'#F4B400', color:'#fff'};
+  return {bg:'var(--purple)', color:'#fff'};
+}
 function timeOverlap(s1,e1,s2,e2){ return s1 < e2 && s2 < e1; }
 function escapeHtml(str){
   return String(str||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -389,18 +407,57 @@ function visitRoomLabels(v){
   return [...new Set(v.activities.map(a=>roomInfo(a.room).label))];
 }
 function buildTimeSlots(acts){
-  const seen = new Map();
+  // คอลัมน์ = เวลาที่มีรอบจริงอย่างน้อย 1 รอบ (ยึดเวลาที่มีอยู่แล้วเป็นหลัก ไม่เพิ่มคอลัมน์ใหม่เปล่าๆ)
+  // ถ้าหลายกิจกรรมเริ่มเวลาเดียวกันแต่ระยะเวลาไม่เท่ากัน ใช้อันที่ "สั้นที่สุด" เป็นคอลัมน์หลักของเวลานั้น
+  // ส่วนอันที่ยาวกว่า (เช่น Don't Miss 9.30-11.00) จะไปเชื่อม (colspan) ข้ามคอลัมน์ที่มีอยู่แล้วแทน
+  // ไม่สร้างคอลัมน์ใหม่ให้มัน แม้ปลายทางจริงจะไม่ตรงเป๊ะกับขอบคอลัมน์ที่ไปเชื่อมถึงก็ตาม (ดู docActivitySpan)
+  const byStart = new Map();
   acts.forEach(a=>{
-    const key = a.startTime+'|'+(a.endTime||'');
-    if(!seen.has(key)) seen.set(key, {startTime:a.startTime, endTime:a.endTime});
+    if(!a.startTime) return;
+    const openEnded = !a.endTime || a.endTime==='23:59';
+    const dur = openEnded ? Infinity : timeToMinutes(a.endTime)-timeToMinutes(a.startTime);
+    const cur = byStart.get(a.startTime);
+    if(!cur || dur < cur.dur) byStart.set(a.startTime, {startTime:a.startTime, endTime: openEnded?'':a.endTime, dur});
   });
-  return [...seen.values()].sort((x,y)=> (x.startTime||'').localeCompare(y.startTime||''));
+  return [...byStart.values()]
+    .sort((x,y)=> x.startTime.localeCompare(y.startTime))
+    .map(({startTime,endTime})=>({startTime,endTime}));
 }
 function timeSlotLabel(slot){
   return thTime(slot.startTime)+(slot.endTime?(' – '+thTime(slot.endTime)):' เป็นต้นไป');
 }
-function sameSlot(a, slot){
-  return a.startTime===slot.startTime && (a.endTime||'')===(slot.endTime||'');
+/** จำนวนคอลัมน์ (slot) ติดต่อกันที่กิจกรรม a ต้องเชื่อมถึง เริ่มนับจาก slots[fromIndex] (ซึ่งต้องเป็น
+ *  slot ที่ a.startTime ตรงกับ slots[fromIndex].startTime อยู่แล้ว) — เดินหาคอลัมน์แรกที่ปลายเวลาถึง
+ *  หรือเลยเวลาสิ้นสุดจริงของ a แล้วหยุด (ไม่ต้องตรงเป๊ะ เพราะไม่มีการเพิ่มคอลัมน์ใหม่ให้) */
+function docActivitySpan(a, slots, fromIndex, g){
+  if(!a.endTime || a.endTime==='23:59') return slots.length - fromIndex;
+  let span = 1;
+  for(let i=fromIndex+1; i<slots.length; i++){
+    // คอลัมน์ถัดไปเริ่มหลังจากกิจกรรมนี้จบไปแล้ว (มีช่องว่างคั่น) ไม่ต้องคาบต่อ — กันไม่ให้กิจกรรมสั้นๆ
+    // ที่จบไปนานแล้วโดนยืดไปกินคอลัมน์ที่ไม่เกี่ยวข้องกันเลยในเวลาต่อมา
+    if(slots[i].startTime >= a.endTime) break;
+    // กลุ่มเดียวกันมีกิจกรรมอื่นเริ่มพอดีที่คอลัมน์ถัดไปอยู่แล้ว ห้ามคาบข้ามไปทับ ต้องเว้นให้มันโชว์เอง
+    // (กันไม่ให้กิจกรรมที่ colspan ยาวๆ กลืนคอลัมน์ของกิจกรรมอื่นในแถวเดียวกันจนหายไป)
+    if(g.some(x=> x.startTime===slots[i].startTime)) break;
+    span++;
+    const end = slots[i].endTime;
+    if(!end || end==='23:59' || end>=a.endTime) break;
+  }
+  return span;
+}
+/** เซลล์จริงที่ต้องเรนเดอร์ของกลุ่ม g ตามแนวเวลา slots (ตัดช่องที่ถูก colspan คลุมไปแล้วออก) */
+function docRowCells(g, slots){
+  const cells = [];
+  let skipUntil = -1;
+  slots.forEach((s, i)=>{
+    if(i<=skipUntil) return;
+    const a = g.find(x=> x.startTime===s.startTime);
+    if(!a){ cells.push({activity:null, span:1}); return; }
+    const span = docActivitySpan(a, slots, i, g);
+    skipUntil = i+span-1;
+    cells.push({activity:a, span});
+  });
+  return cells;
 }
 function groupActivitiesByGroup(acts){
   const map = new Map();
@@ -472,16 +529,64 @@ function parseCsvFirstColumn(text){
     return (m ? m[1].replace(/""/g,'"') : line.split(',')[0]).trim();
   }).filter(Boolean);
 }
+function parseCsvCell(cell){
+  const m = (cell||'').match(/^"((?:[^"]|"")*)"/);
+  return (m ? m[1].replace(/""/g,'"') : cell).trim();
+}
+function parseCsvTwoColumns(text){
+  // คอลัมน์ที่ 1 = ไทย (หลัก), คอลัมน์ที่ 2 = อังกฤษ (เสริม ไม่บังคับมี) — แถวแรกเป็นหัวตาราง ไม่สนใจชื่อหัวตาราง
+  return text.trim().split(/\r?\n/).slice(1).map(line=>{
+    const cells = line.split(',');
+    return { th: parseCsvCell(cells[0]||''), en: parseCsvCell(cells[1]||'') };
+  }).filter(r=>r.th);
+}
 async function loadRefActivities(){
   await Promise.all(ROOM_CATEGORIES.map(async r=>{
     const url = CONFIG.ACTIVITY_CSV_URLS && CONFIG.ACTIVITY_CSV_URLS[r.id];
     if(!url) return;
     try{
       const res = await fetch(url);
-      refActivities[r.id] = [...new Set(parseCsvFirstColumn(await res.text()))];
+      const rows = parseCsvTwoColumns(await res.text());
+      refActivities[r.id] = [...new Set(rows.map(x=>x.th))];
+      const enMap = {};
+      rows.forEach(x=>{ if(x.en) enMap[x.th] = x.en; });
+      refActivityEN[r.id] = enMap;
     }catch(err){ /* คงรายการเดิมไว้ */ }
   }));
   document.querySelectorAll('#activityRows .activity-slot').forEach(refreshTopicOptions);
+}
+/* ---------------- สถานที่ (รายชื่อจากชีต — 2 คอลัมน์ ไทย/อังกฤษ เหมือนกิจกรรม) ---------------- */
+let refLocationEN = {};   // {locationTH: locationENG}
+async function loadRefLocations(){
+  if(!CONFIG.LOCATIONS_CSV_URL) return;
+  try{
+    const res = await fetch(CONFIG.LOCATIONS_CSV_URL);
+    const rows = parseCsvTwoColumns(await res.text());
+    const list = [...new Set(rows.map(x=>x.th))];
+    if(list.length) refLocations = list;
+    const enMap = {};
+    rows.forEach(x=>{ if(x.en) enMap[x.th] = x.en; });
+    refLocationEN = enMap;
+  }catch(err){ /* คงรายการเดิมไว้ */ }
+}
+/* ---------------- แปลชื่อโรงเรียน/เรื่องกิจกรรม/สถานที่เป็นอังกฤษสำหรับเอกสาร (ไม่มี = ใช้ไทยแทน) ---------------- */
+function schoolNameEN(schoolTH){
+  const key = String(schoolTH||'').trim();
+  const match = refSchools.find(s=>String(s.school_TH||'').trim()===key);
+  return (match && match.school_ENG) ? match.school_ENG : schoolTH;
+}
+function topicNameEN(room, topicTH){
+  const key = String(topicTH||'').trim();
+  const en = (refActivityEN[room] || {})[key];   // enMap ถูก trim ไว้แล้วตอนโหลด (parseCsvCell)
+  return en || topicTH;
+}
+function locationNameEN(locTH){
+  const key = String(locTH||'').trim();
+  return refLocationEN[key] || locTH;
+}
+function localizeVisitForLang(v, lang){
+  if(lang!=='en') return v;
+  return { ...v, school: schoolNameEN(v.school), activities: v.activities.map(a=>({...a, topic: topicNameEN(a.room, a.topic), location: locationNameEN(a.location)})) };
 }
 /* ---------------- ผู้บันทึก / ผู้แก้ไข (รายชื่อพนักงานจากชีต) ---------------- */
 async function loadRefStaff(){
@@ -529,10 +634,10 @@ function refreshTopicOptions(slot){
 }
 function renderSchoolDatalist(){
   document.getElementById('schoolRefList').innerHTML =
-    refSchools.map(s=>`<option value="${escapeHtml(s.school)}">`).join('');
+    refSchools.map(s=>`<option value="${escapeHtml(s.school_TH)}">`).join('');
 }
 document.getElementById('f_school').addEventListener('change', (e)=>{
-  const match = refSchools.find(s=>s.school===e.target.value);
+  const match = refSchools.find(s=>s.school_TH===e.target.value);
   if(match){
     const cp = document.getElementById('f_contactPerson');
     const ct = document.getElementById('f_contactPhone');
@@ -804,7 +909,7 @@ function renderAgenda(){
           return `<div class="agenda-card" data-visit-id="${o.visitId}" style="border-left-color:${r.color};background:${r.bg};top:${top}px;height:${height}px;left:${o.leftPct}%;width:calc(${o.widthPct}% - 4px)">
             <div class="corner-info">
               <div class="people-count" title="จำนวนคน">${Number(o.childrenCount)||0} คน</div>
-              ${o.location ? `<div class="location-tag" title="สถานที่">${escapeHtml(o.location)}</div>` : ''}
+              ${o.location ? (()=>{ const lc = locationColorInfo(o.location); return `<div class="location-tag" title="สถานที่" style="background:${lc.bg};color:${lc.color}">${escapeHtml(o.location)}</div>`; })() : ''}
             </div>
             <div class="time">${o.startTime}${o.endTime!=='23:59'?('–'+o.endTime):' เป็นต้นไป'}</div>
             <div class="name">${escapeHtml(o.topic)||r.label}</div>
@@ -900,35 +1005,55 @@ const ORDER_CSS = `
 .order-sheet .order-col{border:1px solid #DEE5EC;border-radius:10px;overflow:hidden;background:#fff;}
 .order-sheet .order-col-head{display:flex;justify-content:space-between;align-items:baseline;padding:9px 12px;font-weight:700;}
 .order-sheet .order-col-head small{font-weight:600;font-size:12px;}
-.order-sheet .order-col-head .order-col-right{display:flex;align-items:center;gap:8px;}
+.order-sheet .order-col-head .order-col-right{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
 .order-sheet .order-col-print{border:1px solid currentColor;background:rgba(255,255,255,.7);color:inherit;border-radius:7px;padding:2px 9px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;}
 .order-sheet .order-col-print:hover{background:#fff;}
+.order-sheet .order-col-pick{border:none;background:transparent;color:inherit;text-decoration:underline;font:inherit;font-size:11px;font-weight:600;cursor:pointer;padding:0 1px;opacity:.85;}
+.order-sheet .order-col-pick:hover{opacity:1;}
 .order-sheet .order-item{padding:9px 12px;border-top:1px solid #EEF2F7;}
 .order-sheet .order-topic{display:flex;justify-content:space-between;gap:8px;font-weight:700;}
 .order-sheet .order-topic span:last-child{white-space:nowrap;}
+.order-sheet .order-group-line{display:flex;align-items:center;gap:6px;cursor:pointer;min-width:0;}
+.order-sheet .order-group-chk{flex-shrink:0;accent-color:#2A66C4;cursor:pointer;}
 .order-sheet .order-lines{margin:3px 0 0;padding:0;list-style:none;color:#5B6B85;font-size:12.5px;}
-.order-sheet .order-lines li{padding:1px 0;}
+.order-sheet .order-lines li{padding:2px 0;}
+.order-sheet .order-row-line{display:flex;align-items:flex-start;gap:6px;cursor:pointer;}
+.order-sheet .order-row-chk{margin-top:3px;flex-shrink:0;accent-color:#2A66C4;cursor:pointer;}
+.order-sheet .order-lines li.is-printed{opacity:.55;}
+.order-sheet .printed-tag{color:#9AA7B8;font-weight:600;}
 .order-sheet .order-empty{padding:12px;color:#9AA7B8;font-size:13px;}
-.order-sheet .pending-tag{color:#B9822C;font-weight:600;white-space:nowrap;}
+.order-sheet .status-tag{font-weight:600;white-space:nowrap;}
 @media (max-width:760px){.order-sheet .order-cols{grid-template-columns:1fr;}}
 /* ใบพิมพ์ 80 มม. (เครื่องพิมพ์ความร้อน/สลิป) — ขาวดำล้วน ห้องละ 1 ใบ */
-.order-receipt{font-family:'Sarabun','TH SarabunPSK',sans-serif;color:#000;background:#fff;font-size:12px;line-height:1.3;width:100%;}
-.order-receipt .r-title{font-size:17px;font-weight:700;text-align:center;}
-.order-receipt .r-room{font-size:15px;font-weight:700;text-align:center;border:1.5px solid #000;padding:2px 0;margin:3px 0;}
-.order-receipt .r-week{text-align:center;font-size:12px;}
-.order-receipt .r-total{text-align:center;font-weight:700;margin-top:2px;}
-.order-receipt hr{border:none;border-top:1px dashed #000;margin:6px 0;}
-.order-receipt .r-topic{font-weight:700;font-size:13.5px;}
+.order-receipt{font-family:'Sarabun','TH SarabunPSK',sans-serif;color:#000;background:#fff;font-size:15px;line-height:1.35;width:100%;}
+.order-receipt .r-title{font-size:21px;font-weight:700;text-align:center;}
+.order-receipt .r-room{font-size:19px;font-weight:700;text-align:center;border:1.5px solid #000;padding:3px 0;margin:4px 0;}
+.order-receipt .r-week{text-align:center;font-size:15px;}
+.order-receipt .r-total{text-align:center;font-weight:700;margin-top:3px;}
+.order-receipt hr{border:none;border-top:1px dashed #000;margin:7px 0;}
+.order-receipt .r-topic{font-weight:700;font-size:17px;}
 .order-receipt .r-sum{font-weight:700;}
-.order-receipt .r-row{margin:3px 0 0 6px;}
+.order-receipt .r-row{margin:4px 0 0 6px;}
 .order-receipt .r-when{font-weight:600;}
-.order-receipt .r-foot{text-align:center;font-size:10px;margin-top:4px;}
+.order-receipt .r-foot{text-align:center;font-size:12px;margin-top:5px;}
 .order-receipt + .order-receipt{page-break-before:always;}
 `;
 (function injectOrderStyle(){
   const st = document.createElement('style'); st.id = 'orderStyle'; st.textContent = ORDER_CSS; document.head.appendChild(st);
 })();
 
+/* ติ๊กเลือกรายการก่อนพิมพ์ — กันพิมพ์ซ้ำเมื่อมีรายการเพิ่มเข้ามาทีหลัง: รายการที่เคยพิมพ์แล้ว
+   (จำไว้ต่อสัปดาห์ผ่าน localStorage) จะไม่ถูกติ๊กให้อัตโนมัติในครั้งถัดไป ส่วนรายการใหม่ที่ยังไม่
+   เคยพิมพ์จะติ๊กไว้ให้เลย พิมพ์เฉพาะที่ติ๊กเท่านั้น */
+function orderRowKey(o){ return o.visitId+'|'+o.activityId; }
+function orderPrintedStoreKey(weekStart){ return 'order_printed_'+fmtDate(weekStart); }
+function loadOrderPrinted(weekStart){
+  try{ return new Set(JSON.parse(localStorage.getItem(orderPrintedStoreKey(weekStart))||'[]')); }
+  catch(e){ return new Set(); }
+}
+function saveOrderPrinted(weekStart, set){
+  try{ localStorage.setItem(orderPrintedStoreKey(weekStart), JSON.stringify([...set])); } catch(e){ /* ignore */ }
+}
 function orderWeekLabel(weekStart){
   const end = addDays(weekStart, 6);
   return `${weekStart.getDate()} ${MONTHS_TH[weekStart.getMonth()].slice(0,3)} – ${end.getDate()} ${MONTHS_TH[end.getMonth()].slice(0,3)} ${end.getFullYear()+543}`;
@@ -953,27 +1078,57 @@ function buildOrderData(weekStart){
 }
 function buildOrderHtml(weekStart){
   const cols = buildOrderData(weekStart);
+  const printed = loadOrderPrinted(weekStart);
   const rowLine = o=>{
     const d = parseDate(o.date);
     const time = o.startTime + (o.endTime!=='23:59' ? '–'+o.endTime : ' เป็นต้นไป');
-    return `<li>${WEEKDAYS_TH[d.getDay()]} ${d.getDate()} ${MONTHS_TH[d.getMonth()].slice(0,3)} · ${time} · ${escapeHtml(o.school)} · ${Number(o.childrenCount)||0} ชุด${o.location?' · '+escapeHtml(o.location):''}${o.status==='pending'?' <span class="pending-tag">(รอยืนยัน)</span>':''}</li>`;
+    const st = statusInfo(o.status);
+    const isPrinted = printed.has(orderRowKey(o));
+    return `<li class="${isPrinted?'is-printed':''}">
+      <label class="order-row-line">
+        <input type="checkbox" class="order-row-chk" data-key="${orderRowKey(o)}" ${isPrinted?'':'checked'}>
+        <span>${WEEKDAYS_TH[d.getDay()]} ${d.getDate()} ${MONTHS_TH[d.getMonth()].slice(0,3)} · ${time} · ${escapeHtml(o.school)} · ${Number(o.childrenCount)||0} ชุด${o.location?' · '+escapeHtml(o.location):''} · <span class="status-tag" style="color:${st.color}">${st.label}</span>${isPrinted?' · <span class="printed-tag">พิมพ์แล้ว</span>':''}</span>
+      </label>
+    </li>`;
   };
   return `<div class="order-sheet">
     <h1>Order · สรุปกิจกรรมสำหรับเตรียมของ</h1>
-    <div class="order-sub">สัปดาห์ ${orderWeekLabel(weekStart)} · แยกตามห้อง/กิจกรรม และชื่อกิจกรรม (ไม่รวมรายการที่ยกเลิก · จำนวน = ชุดกิจกรรม)</div>
+    <div class="order-sub">สัปดาห์ ${orderWeekLabel(weekStart)} · แยกตามห้อง/กิจกรรม และชื่อกิจกรรม (ไม่รวมรายการที่ยกเลิก · จำนวน = ชุดกิจกรรม) · ติ๊กเลือกรายการที่จะพิมพ์ — รายการที่เคยพิมพ์แล้วจะไม่ถูกติ๊กให้อัตโนมัติอีก</div>
     <div class="order-cols">
-      ${cols.map(c=>`<div class="order-col">
-        <div class="order-col-head" style="background:${c.bg};color:${c.color}"><span>${escapeHtml(c.label)}</span><span class="order-col-right"><small>รวม ${c.total} ชุด</small><button type="button" class="order-col-print" data-order-print="${c.id}" title="พิมพ์ใบ ${escapeHtml(c.label)} (80 มม.)">🖨 พิมพ์</button></span></div>
+      ${cols.map(c=>`<div class="order-col" data-room="${c.id}">
+        <div class="order-col-head" style="background:${c.bg};color:${c.color}">
+          <span>${escapeHtml(c.label)}</span>
+          <span class="order-col-right">
+            <small>รวม ${c.total} ชุด</small>
+            ${c.groups.length ? `<button type="button" class="order-col-pick" data-pick="all">เลือกทั้งหมด</button><button type="button" class="order-col-pick" data-pick="none">ล้าง</button>` : ''}
+            <button type="button" class="order-col-print" data-order-print="${c.id}" title="พิมพ์เฉพาะรายการที่ติ๊กเลือกไว้ของ ${escapeHtml(c.label)} (80 มม.)">🖨 พิมพ์ที่เลือก</button>
+          </span>
+        </div>
         ${c.groups.length ? c.groups.map(g=>`<div class="order-item">
-          <div class="order-topic"><span>${escapeHtml(g.topic)}</span><span>${g.total} ชุด · ${g.rows.length} รอบ</span></div>
+          <div class="order-topic">
+            <label class="order-group-line"><input type="checkbox" class="order-group-chk"><span>${escapeHtml(g.topic)}</span></label>
+            <span>${g.total} ชุด · ${g.rows.length} รอบ</span>
+          </div>
           <ul class="order-lines">${g.rows.map(rowLine).join('')}</ul>
         </div>`).join('') : '<div class="order-empty">ไม่มีรายการ</div>'}
       </div>`).join('')}
     </div>
   </div>`;
 }
+function updateOrderGroupCheckboxes(root){
+  // เช็คบล็อกที่หัวแต่ละกิจกรรม: ติ๊กเมื่อทุกแถวในกิจกรรมนั้นถูกติ๊ก, indeterminate เมื่อติ๊กบางส่วน
+  root.querySelectorAll('.order-item').forEach(item=>{
+    const rows = [...item.querySelectorAll('.order-row-chk')];
+    const groupChk = item.querySelector('.order-group-chk');
+    if(!groupChk || !rows.length) return;
+    const checkedCount = rows.filter(r=>r.checked).length;
+    groupChk.checked = checkedCount===rows.length;
+    groupChk.indeterminate = checkedCount>0 && checkedCount<rows.length;
+  });
+}
 function renderOrder(){
   document.getElementById('orderBody').innerHTML = buildOrderHtml(state.orderWeekStart);
+  updateOrderGroupCheckboxes(document.getElementById('orderBody'));
 }
 function shiftOrderWeek(weeks){ state.orderWeekStart = addDays(state.orderWeekStart, 7*weeks); renderOrder(); }
 document.getElementById('orderBtn').addEventListener('click', ()=>{
@@ -990,8 +1145,9 @@ function buildOrderReceiptHtml(weekStart, col){
   const rowHtml = o=>{
     const d = parseDate(o.date);
     const time = o.startTime + (o.endTime!=='23:59' ? '–'+o.endTime : ' เป็นต้นไป');
+    const st = statusInfo(o.status);
     return `<div class="r-row"><div class="r-when">${WEEKDAYS_TH[d.getDay()]} ${d.getDate()} ${MONTHS_TH[d.getMonth()].slice(0,3)} · ${time}</div>
-      <div>${escapeHtml(o.school)} · ${Number(o.childrenCount)||0} ชุด${o.location?' · '+escapeHtml(o.location):''}${o.status==='pending'?' (รอยืนยัน)':''}</div></div>`;
+      <div>${escapeHtml(o.school)} · ${Number(o.childrenCount)||0} ชุด${o.location?' · '+escapeHtml(o.location):''} · (${st.label})</div></div>`;
   };
   return `<div class="order-receipt">
     <div class="r-title">ORDER</div>
@@ -1006,21 +1162,57 @@ function buildOrderReceiptHtml(weekStart, col){
     <div class="r-foot">พิมพ์เมื่อ ${new Date().toLocaleString('th-TH')}</div>
   </div>`;
 }
+function buildSelectedOrderData(weekStart, which){
+  // ตัดเหลือเฉพาะแถวที่ผู้ใช้ติ๊กเลือกไว้บนหน้าจอ (คำนวณจำนวนรวมของแต่ละกลุ่ม/ห้องใหม่ตามแถวที่เหลือ)
+  const cols = buildOrderData(weekStart);
+  const checkedKeys = new Set([...document.querySelectorAll('#orderBody .order-row-chk:checked')].map(el=>el.dataset.key));
+  const scoped = which==='all' ? cols : cols.filter(c=>c.id===which);
+  return scoped.map(c=>{
+    const groups = c.groups
+      .map(g=>({...g, rows: g.rows.filter(o=>checkedKeys.has(orderRowKey(o)))}))
+      .filter(g=>g.rows.length)
+      .map(g=>({...g, total: g.rows.reduce((n,o)=>n+(Number(o.childrenCount)||0),0)}));
+    return {...c, groups, total: groups.reduce((n,g)=>n+g.total,0)};
+  }).filter(c=>c.groups.length);
+}
 function printOrder(which){
-  const cols = buildOrderData(state.orderWeekStart);
-  // 'all' = ทีละห้อง ห้องละ 1 ใบ (ข้ามห้องที่ไม่มีรายการเพื่อประหยัดกระดาษ) | ระบุห้อง = ใบเดียวของห้องนั้น
-  const picked = which==='all' ? cols.filter(c=>c.groups.length) : cols.filter(c=>c.id===which);
-  if(picked.length===0){ alert('ไม่มีรายการกิจกรรมในสัปดาห์นี้'); return; }
+  const picked = buildSelectedOrderData(state.orderWeekStart, which);
+  if(picked.length===0){ alert('กรุณาติ๊กเลือกรายการที่ต้องการพิมพ์อย่างน้อย 1 รายการ'); return; }
   document.getElementById('printArea').innerHTML = picked.map(c=> buildOrderReceiptHtml(state.orderWeekStart, c)).join('');
   let st = document.getElementById('receiptPageStyle');
   if(!st){ st = document.createElement('style'); st.id = 'receiptPageStyle'; document.head.appendChild(st); }
   st.textContent = RECEIPT_PAGE_CSS;   // ใช้เฉพาะตอนพิมพ์ Order แล้วเอาออกเมื่อพิมพ์เสร็จ ไม่กระทบเอกสาร A4
-  window.addEventListener('afterprint', ()=> st.remove(), {once:true});
+  const printed = loadOrderPrinted(state.orderWeekStart);
+  picked.forEach(c=> c.groups.forEach(g=> g.rows.forEach(o=> printed.add(orderRowKey(o)))));
+  saveOrderPrinted(state.orderWeekStart, printed);
+  window.addEventListener('afterprint', ()=> { st.remove(); renderOrder(); }, {once:true});
   window.print();
 }
 document.getElementById('orderOverlay').addEventListener('click', (e)=>{
-  const btn = e.target.closest('[data-order-print]');
-  if(btn) printOrder(btn.dataset.orderPrint);
+  const printBtn = e.target.closest('[data-order-print]');
+  if(printBtn){ printOrder(printBtn.dataset.orderPrint); return; }
+  const pickBtn = e.target.closest('.order-col-pick');
+  if(pickBtn){
+    const col = pickBtn.closest('.order-col');
+    col.querySelectorAll('.order-row-chk').forEach(chk=> chk.checked = pickBtn.dataset.pick==='all');
+    updateOrderGroupCheckboxes(col);
+    return;
+  }
+  const pickAllBtn = e.target.closest('[data-pick-all]');
+  if(pickAllBtn){
+    const body = document.getElementById('orderBody');
+    body.querySelectorAll('.order-row-chk').forEach(chk=> chk.checked = pickAllBtn.dataset.pickAll==='all');
+    updateOrderGroupCheckboxes(body);
+  }
+});
+document.getElementById('orderBody').addEventListener('change', (e)=>{
+  if(e.target.classList.contains('order-row-chk')){
+    updateOrderGroupCheckboxes(e.target.closest('.order-item'));
+  } else if(e.target.classList.contains('order-group-chk')){
+    const item = e.target.closest('.order-item');
+    item.querySelectorAll('.order-row-chk').forEach(chk=> chk.checked = e.target.checked);
+    e.target.indeterminate = false;
+  }
 });
 
 /* ---------------- Nav controls ---------------- */
@@ -1037,7 +1229,7 @@ document.getElementById('nextBtn').addEventListener('click', ()=> stepPeriod(1))
 document.getElementById('todayBtn').addEventListener('click', ()=>{ state.cursorDate = new Date(); renderAll(); });
 document.getElementById('refreshBtn').addEventListener('click', async ()=>{
   showLoading('กำลังซิงก์ข้อมูล...');
-  try{ await Promise.all([loadRefSchools(), loadRefActivities(), loadRefStaff(), loadVisits()]); }
+  try{ await Promise.all([loadRefSchools(), loadRefActivities(), loadRefStaff(), loadRefLocations(), loadVisits()]); }
   finally{ hideLoading(); }
 });
 function stepPeriod(dir){
@@ -1050,32 +1242,75 @@ function stepPeriod(dir){
 document.getElementById('searchInput').addEventListener('input', e=>{ state.search = e.target.value; renderAll(); });
 
 /* ---------------- Booking form: activity groups (1 กลุ่มนักเรียน อาจมีหลายรอบเวลา/กิจกรรม) ---------------- */
-/* เวลาแบบ dropdown ชั่วโมง + นาที (ทุก 5 นาที) — ค่า "HH:MM" เก็บใน <input type="hidden" class="act-start|act-end"> */
-const TIME_MINUTE_STEP = 5;
+/* เวลา: input ข้อความธรรมดา (HH:MM) พิมพ์ตัวเลขจากคีย์บอร์ดได้ตรงๆ พร้อม popup กดเลือกชั่วโมง/นาที
+   ทุก 5 นาที (นาทีของ picker เดิมแบบ type=time โชว์ทีละ 1 นาทีเสมอ ปรับด้วย step ไม่ได้จริงในเบราว์เซอร์)
+   ค่า "HH:MM" อยู่ใน .value เหมือนเดิม โค้ดที่อ่าน .act-start/.act-end อื่นๆ ไม่ต้องแก้ */
 function timeFieldHtml(cls, value){
-  const [h='', m=''] = (value||'').split(':');
-  const hours = Array.from({length:24}, (_,i)=>pad(i));
-  const minutes = Array.from({length:60/TIME_MINUTE_STEP}, (_,i)=>pad(i*TIME_MINUTE_STEP));
-  if(m && !minutes.includes(m)){ minutes.push(m); minutes.sort(); }
-  return `<div class="time-field">
-    <input type="hidden" class="${cls}" value="${h?`${h}:${m||'00'}`:''}">
-    <select class="tp-h" aria-label="ชั่วโมง"><option value="">--</option>${hours.map(x=>`<option value="${x}" ${x===h?'selected':''}>${x}</option>`).join('')}</select>
-    <span class="tp-sep">:</span>
-    <select class="tp-m" aria-label="นาที">${minutes.map(x=>`<option value="${x}" ${x===(m||'00')?'selected':''}>${x}</option>`).join('')}</select>
-  </div>`;
+  return `<input type="text" inputmode="numeric" maxlength="5" placeholder="HH:MM" class="${cls} time-text" value="${value||''}">`;
 }
-function syncTimeField(field){
-  const h = field.querySelector('.tp-h').value;
-  field.querySelector('input[type="hidden"]').value = h ? `${h}:${field.querySelector('.tp-m').value}` : '';
+const TIME_PICKER_MINUTES = Array.from({length:12}, (_,i)=> pad(i*5));
+const TIME_PICKER_HOURS = Array.from({length:24}, (_,i)=> pad(i));
+let timePickerTarget = null;
+function timePickerOptionsHtml(){
+  document.getElementById('tpHours').innerHTML = TIME_PICKER_HOURS.map(h=>`<div class="tp-opt" data-h="${h}">${h}</div>`).join('');
+  document.getElementById('tpMinutes').innerHTML = TIME_PICKER_MINUTES.map(m=>`<div class="tp-opt" data-m="${m}">${m}</div>`).join('');
 }
-function setTimeField(field, value){
-  const [h='', m='00'] = (value||'').split(':');
-  const mSel = field.querySelector('.tp-m');
-  if(h && ![...mSel.options].some(o=>o.value===m)) mSel.add(new Option(m, m));
-  field.querySelector('.tp-h').value = h;
-  mSel.value = h ? m : '00';
-  syncTimeField(field);
+timePickerOptionsHtml();
+function openTimePicker(input){
+  timePickerTarget = input;
+  const [h,m] = (input.value||'').split(':');
+  const popup = document.getElementById('timePickerPopup');
+  popup.querySelectorAll('.tp-opt').forEach(el=>{
+    el.classList.toggle('active', ('h' in el.dataset && el.dataset.h===h) || ('m' in el.dataset && el.dataset.m===m));
+  });
+  const rect = input.getBoundingClientRect();
+  popup.style.left = Math.round(rect.left)+'px';
+  popup.style.top = Math.round(rect.bottom+4)+'px';
+  popup.classList.add('show');
+  const activeH = popup.querySelector('#tpHours .tp-opt.active');
+  if(activeH) activeH.scrollIntoView({block:'center'});
+  const activeM = popup.querySelector('#tpMinutes .tp-opt.active');
+  if(activeM) activeM.scrollIntoView({block:'center'});
 }
+function closeTimePicker(){
+  document.getElementById('timePickerPopup').classList.remove('show');
+  timePickerTarget = null;
+}
+document.getElementById('timePickerPopup').addEventListener('mousedown', e=> e.preventDefault());
+document.getElementById('timePickerPopup').addEventListener('click', e=>{
+  const opt = e.target.closest('.tp-opt');
+  if(!opt || !timePickerTarget) return;
+  const [ch,cm] = (timePickerTarget.value||'').split(':');
+  const h = 'h' in opt.dataset ? opt.dataset.h : (ch||'00');
+  const m = 'm' in opt.dataset ? opt.dataset.m : (cm||'00');
+  timePickerTarget.value = `${h}:${m}`;
+  timePickerTarget.dispatchEvent(new Event('input', {bubbles:true}));
+  timePickerTarget.dispatchEvent(new Event('change', {bubbles:true}));
+  openTimePicker(timePickerTarget); // อัปเดต highlight ไว้ ไม่ปิด เผื่อกดเลือกอีกฝั่ง
+});
+document.addEventListener('focusin', e=>{
+  if(e.target.matches('.time-text')) openTimePicker(e.target);
+  else if(timePickerTarget && !document.getElementById('timePickerPopup').contains(e.target)) closeTimePicker();
+});
+document.addEventListener('click', e=>{
+  if(!timePickerTarget) return;
+  if(e.target.matches('.time-text') || document.getElementById('timePickerPopup').contains(e.target)) return;
+  closeTimePicker();
+});
+document.addEventListener('input', e=>{
+  if(!e.target.matches('.time-text')) return;
+  let v = e.target.value.replace(/[^0-9]/g,'').slice(0,4);
+  if(v.length>=3) v = v.slice(0,2)+':'+v.slice(2);
+  e.target.value = v;
+});
+document.addEventListener('focusout', e=>{
+  if(!e.target.matches('.time-text')) return;
+  const m = e.target.value.match(/^(\d{1,2}):(\d{1,2})$/);
+  if(!m) return;
+  const h = Math.min(23, parseInt(m[1],10));
+  const mi = Math.min(59, parseInt(m[2],10));
+  e.target.value = pad(h)+':'+pad(mi);
+});
 function activitySlotHtml(a){
   const id = a.id || uid();
   return `<div class="activity-slot" data-activity-id="${id}" data-room="${a.room||ROOM_CATEGORIES[0].id}">
@@ -1095,8 +1330,8 @@ function activitySlotHtml(a){
         <label>สถานที่</label>
         <select class="act-location">
           <option value="">- ไม่ระบุ -</option>
-          ${LOCATION_OPTIONS.map(loc=>`<option value="${loc}" ${a.location===loc?'selected':''}>${loc}</option>`).join('')}
-          ${a.location && !LOCATION_OPTIONS.includes(a.location) ? `<option value="${escapeHtml(a.location)}" selected>${escapeHtml(a.location)}</option>` : ''}
+          ${refLocations.map(loc=>`<option value="${escapeHtml(loc)}" ${a.location===loc?'selected':''}>${escapeHtml(loc)}</option>`).join('')}
+          ${a.location && !refLocations.includes(a.location) ? `<option value="${escapeHtml(a.location)}" selected>${escapeHtml(a.location)}</option>` : ''}
         </select>
       </div>
       <div class="field">
@@ -1104,7 +1339,7 @@ function activitySlotHtml(a){
         ${timeFieldHtml('act-start', a.startTime)}
       </div>
       <div class="field">
-        <label>สิ้นสุด (ว่าง=ต่อเนื่อง)</label>
+        <label>สิ้นสุด</label>
         ${timeFieldHtml('act-end', a.endTime)}
       </div>
       <div class="field">
@@ -1189,8 +1424,8 @@ document.getElementById('activityRows').addEventListener('click', (e)=>{
     refreshLocationAvailability();
   } else if(e.target.matches('.round-presets button')){
     const slot = e.target.closest('.activity-slot');
-    setTimeField(slot.querySelector('.act-start').closest('.time-field'), e.target.dataset.s || '');
-    setTimeField(slot.querySelector('.act-end').closest('.time-field'), e.target.dataset.e || '');
+    slot.querySelector('.act-start').value = e.target.dataset.s || '';
+    slot.querySelector('.act-end').value = e.target.dataset.e || '';
     refreshLocationAvailability();
   }
 });
@@ -1212,10 +1447,7 @@ document.getElementById('activityRows').addEventListener('change', (e)=>{
     if(!priceInput.value){ priceInput.value = ROOM_DEFAULT_PRICE[e.target.value] ?? ''; }
     recomputeGroupSubtotal(e.target.closest('.activity-group'));
   }
-  if(e.target.matches('.tp-h, .tp-m')){
-    syncTimeField(e.target.closest('.time-field'));
-  }
-  if(e.target.matches('.tp-h, .tp-m, .act-location')){
+  if(e.target.matches('.act-start, .act-end, .act-location')){
     refreshLocationAvailability();
   }
 });
@@ -1267,7 +1499,14 @@ function openEditForm(v){
   document.getElementById('formTitle').textContent = 'แก้ไขการจอง';
   document.getElementById('f_id').value = v.id;
   document.getElementById('f_school').value = v.school;
-  document.getElementById('f_packageLabel').value = v.packageLabel||'';
+  const packageSel = document.getElementById('f_packageLabel');
+  const pkg = v.packageLabel||'';
+  const BASE_PACKAGE_OPTIONS = ['', 'Basic', 'Advance'];
+  [...packageSel.options].forEach(o=>{ if(!BASE_PACKAGE_OPTIONS.includes(o.value)) o.remove(); }); // ล้างตัวเลือกเก่าที่เคยเติมไว้จากการแก้ไขครั้งก่อน
+  if(pkg && !BASE_PACKAGE_OPTIONS.includes(pkg)){
+    packageSel.appendChild(new Option(pkg, pkg)); // ข้อมูลเก่าที่เคยพิมพ์เองนอกเหนือ Basic/Advance ไม่ให้หายไปเงียบๆ
+  }
+  packageSel.value = pkg;
   document.getElementById('f_contactPerson').value = v.contactPerson||'';
   document.getElementById('f_contactPhone').value = v.contactPhone||'';
   document.getElementById('f_contactFacebook').value = v.contactFacebook||'';
@@ -1573,6 +1812,7 @@ function policyNoteHtml(text, T){
   return `${escapeHtml(before)}<b>${escapeHtml(b)}</b>${escapeHtml(after)}`;
 }
 function buildDocA_Html(v, lang='th'){
+  v = localizeVisitForLang(v, lang);
   const T = DOC_LANG[lang], S = T.s;
   const acts = v.activities;
   const roomLine = (id, showTopics)=>{
@@ -1642,6 +1882,7 @@ function docSlotLabel(slot, T){
   return T.time(slot.startTime)+(slot.endTime?(' – '+T.time(slot.endTime)):' '+T.onwards);
 }
 function buildDocB_Html(v, lang='th'){
+  v = localizeVisitForLang(v, lang);
   const T = DOC_LANG[lang], S = T.s;
   const billable = billableCount(v);
   const acts = visitActivitiesSorted(v);
@@ -1663,7 +1904,7 @@ function buildDocB_Html(v, lang='th'){
         const label = g[0].gradeLevel ? escapeHtml(g[0].gradeLevel) : S.group(i+1);
         return `<tr>
         <td><b><u>${label}</u></b><br>${S.people(g[0].childrenCount||0)}</td>
-        ${slots.map(s=>{ const a = g.find(x=>sameSlot(x,s)); return a ? `<td><div class="room">${T.room(a.room)}</div>${a.topic?`<div class="topic">${escapeHtml(a.topic)}</div>`:''}${a.location?`<div class="location">${escapeHtml(a.location)}</div>`:''}</td>` : '<td></td>'; }).join('')}
+        ${docRowCells(g, slots).map(c=> c.activity ? `<td${c.span>1?` colspan="${c.span}"`:''}><div class="room">${T.room(c.activity.room)}</div>${c.activity.topic?`<div class="topic">${escapeHtml(c.activity.topic)}</div>`:''}${c.activity.location?`<div class="location">${escapeHtml(c.activity.location)}</div>`:''}</td>` : '<td></td>').join('')}
       </tr>`;
       }).join('')}
     </table>
@@ -1678,12 +1919,67 @@ function buildDocB_Html(v, lang='th'){
   </div>`;
 }
 
+/* ---------------- Preview modal (แทนการ window.print() ตรงๆ) ----------------
+   เปิดเป็น popup/modal ในหน้าเดิม (ไม่เปิดแท็บใหม่) โดยใช้ iframe แสดงตัวอย่างให้ซูมดูได้
+   เหมือนกันทุกเบราว์เซอร์ (Chrome/Edge/Safari) — เนื้อหา .doc-page และ style.css ที่ใช้
+   พิมพ์จริงไม่มีการแก้ไขใดๆ ยังคงเหมือนเดิมทุกประการ
+   ส่วนปุ่ม "พิมพ์ / บันทึก PDF" ไม่ได้สั่งพิมพ์จาก iframe ตรงๆ (เบราว์เซอร์บางตัวเรนเดอร์
+   หน้าว่างเปล่าเมื่อพิมพ์จาก iframe) แต่ใช้กลไก #printArea + window.print() เดิมของหน้าเว็บ
+   ซึ่งพิสูจน์แล้วว่าใช้งานได้จริง — ผลลัพธ์ที่พิมพ์/บันทึกเป็น PDF จึงเหมือนกับ iframe ที่เห็นทุกจุด */
+let docPreviewZoom = 1;
+let docPreviewPagesHtml = [];
+function setDocPreviewZoom(z){
+  docPreviewZoom = Math.min(2, Math.max(0.4, Math.round(z*100)/100));
+  const frame = document.getElementById('docPreviewFrame');
+  const stack = frame.contentDocument && frame.contentDocument.getElementById('pvStack');
+  if(stack) stack.style.transform = 'scale('+docPreviewZoom+')';
+  document.getElementById('docPreviewZoomLabel').textContent = Math.round(docPreviewZoom*100)+'%';
+}
+document.getElementById('docPreviewZoomIn').addEventListener('click', ()=> setDocPreviewZoom(docPreviewZoom+0.1));
+document.getElementById('docPreviewZoomOut').addEventListener('click', ()=> setDocPreviewZoom(docPreviewZoom-0.1));
+document.getElementById('docPreviewZoomReset').addEventListener('click', ()=> setDocPreviewZoom(1));
+document.getElementById('docPreviewPrintBtn').addEventListener('click', ()=>{
+  document.getElementById('printArea').innerHTML = docPreviewPagesHtml.join('');
+  window.print();
+});
+
+function openDocPreviewModal(pagesHtml, title){
+  docPreviewPagesHtml = pagesHtml;
+  const frame = document.getElementById('docPreviewFrame');
+  const cssHref = new URL('style.css', location.href).href;
+  const sheets = pagesHtml.map(html => `<div class="pvPage">${html}</div>`).join('');
+  frame.srcdoc = `<!DOCTYPE html>
+<html lang="th"><head><meta charset="UTF-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="${cssHref}">
+<style>
+  html,body{margin:0;background:#787878;}
+  #pvStack{padding:24px 0 60px;display:flex;flex-direction:column;align-items:center;gap:24px;transform-origin:top center;}
+  .pvPage{width:210mm;min-height:297mm;background:#fff;box-shadow:0 2px 16px rgba(0,0,0,.3);padding:25mm 20mm 15mm 25mm;box-sizing:border-box;}
+  @media print{
+    html,body{background:#fff !important;}
+    #pvStack{padding:0 !important;gap:0 !important;transform:none !important;}
+    .pvPage{width:auto !important;min-height:0 !important;box-shadow:none !important;padding:0 !important;margin:0 !important;}
+    .pvPage + .pvPage{page-break-before:always;}
+    @page{size:A4;margin:25mm 20mm 15mm 25mm;}
+  }
+</style>
+</head><body><div id="pvStack">${sheets}</div></body></html>`;
+  document.getElementById('docPreviewTitle').textContent = title || 'พรีวิวเอกสาร';
+  docPreviewZoom = 1;
+  document.getElementById('docPreviewZoomLabel').textContent = '100%';
+  openOverlay('docPreviewOverlay');
+}
+
 function printDocs(which, lang){
   const v = state.visits.find(x=>x.id===state.currentDetailId);
   if(!v) return;
-  document.getElementById('printArea').innerHTML =
-    (which==='A'||which==='all' ? buildDocA_Html(v, lang) : '') + (which==='B'||which==='all' ? buildDocB_Html(v, lang) : '');
-  window.print();
+  const pages = [];
+  if(which==='A'||which==='all') pages.push(buildDocA_Html(v, lang));
+  if(which==='B'||which==='all') pages.push(buildDocB_Html(v, lang));
+  openDocPreviewModal(pages, `พรีวิวเอกสาร — ${v.school || ''}`);
 }
 
 /* ---------------- Word (.docx) export using docx.js, font: TH Sarabun PSK ---------------- */
@@ -1740,11 +2036,13 @@ function dCell(paras, opts={}){
   return new docx.TableCell({
     width: opts.width ? {size:opts.width, type:docx.WidthType.PERCENTAGE} : undefined,
     shading: opts.fill ? {fill: opts.fill} : undefined,
+    columnSpan: opts.colSpan && opts.colSpan>1 ? opts.colSpan : undefined,
     children: Array.isArray(paras) ? paras : [paras]
   });
 }
 
 function buildDocA_DocxChildren(v, lang='th'){
+  v = localizeVisitForLang(v, lang);
   const T = DOC_LANG[lang], S = T.s;
   const acts = v.activities;
   const roomLinePara = (id, showTopics)=>{
@@ -1812,6 +2110,7 @@ function buildDocA_Docx(v, lang='th'){
 }
 
 function buildDocB_DocxChildren(v, opts={}, lang='th'){
+  v = localizeVisitForLang(v, lang);
   const T = DOC_LANG[lang], S = T.s;
   const billable = billableCount(v);
   const acts = visitActivitiesSorted(v);
@@ -1827,13 +2126,13 @@ function buildDocB_DocxChildren(v, opts={}, lang='th'){
       dPara(g[0].gradeLevel || S.group(i+1), {align:'center', bold:true, underline:true, size:27, after:10}),
       dPara(S.people(g[0].childrenCount||0), {align:'center', size:24, after:0})
     ]),
-    ...slots.map(s=>{
-      const a = g.find(x=>sameSlot(x,s));
+    ...docRowCells(g, slots).map(c=>{
+      const a = c.activity;
       return dCell(a ? [
         dPara(T.room(a.room), {align:'center', bold:true, size:27, after:10}),
         dPara(a.topic||'-', {align:'center', size:24, after: a.location?10:0}),
         ...(a.location ? [dPara(a.location, {align:'center', size:21, after:0})] : [])
-      ] : [dPara('', {after:0})]);
+      ] : [dPara('', {after:0})], {colSpan: c.span});
     })
   ]}));
   const table = new docx.Table({
@@ -1896,7 +2195,7 @@ document.querySelector('.doc-export-grid').addEventListener('click', (e)=>{
 /* ---------------- Init ---------------- */
 (async ()=>{
   showLoading('กำลังโหลดข้อมูล...');
-  try{ await Promise.all([loadVisits(), loadRefSchools(), loadRefActivities(), loadRefStaff()]); }
+  try{ await Promise.all([loadVisits(), loadRefSchools(), loadRefActivities(), loadRefStaff(), loadRefLocations()]); }
   finally{ hideLoading(); }
 })();
 if(CONFIG.API_URL){

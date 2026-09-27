@@ -1,0 +1,2977 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <title>
+      แบบบันทึกจำนวนผู้เข้าชมกิจกรรม จัสตุรัสวิทยาศาสตร์ อพวช.เชียงใหม่
+    </title>
+    <style>
+      :root {
+        --line: #e8e8ed;
+        --line-strong: #d2d2d7;
+        --ink: #1d1d1f;
+        --muted: #86868b;
+        --label: #6e6e73;
+        --bg: #f5f5f7;
+        --panel: #ffffff;
+        --accent: #0071e3;
+        --radius: 14px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        padding: 32px 20px 80px;
+        background: var(--bg);
+        font-family:
+          -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue",
+          "Noto Sans Thai", "Sarabun", sans-serif;
+        color: var(--ink);
+        -webkit-font-smoothing: antialiased;
+      }
+      .sheet {
+        max-width: 1320px;
+        margin: 0 auto;
+        background: var(--panel);
+        border-radius: var(--radius);
+        padding: 36px 40px 28px;
+        box-shadow:
+          0 1px 2px rgba(0, 0, 0, 0.04),
+          0 8px 30px rgba(0, 0, 0, 0.05);
+      }
+
+      /* ===== Toolbar ===== */
+      .toolbar {
+        max-width: 1320px;
+        margin: 0 auto 16px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+      }
+      .btn {
+        appearance: none;
+        border: none;
+        cursor: pointer;
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 500;
+        padding: 10px 20px;
+        border-radius: 980px;
+        transition:
+          transform 0.15s ease,
+          opacity 0.15s ease,
+          background 0.15s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        letter-spacing: 0.01em;
+      }
+      .btn:active {
+        transform: scale(0.97);
+      }
+      .btn-primary {
+        background: var(--accent);
+        color: #fff;
+      }
+      .btn-primary:hover {
+        background: #0077ed;
+      }
+      .btn-secondary {
+        background: #fff;
+        color: var(--ink);
+        border: 1px solid var(--line-strong);
+      }
+      .btn-secondary:hover {
+        background: #f5f5f7;
+      }
+      .btn svg {
+        width: 15px;
+        height: 15px;
+      }
+
+      h1 {
+        text-align: center;
+        font-size: 22px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        margin: 0 0 4px;
+      }
+      .subtitle {
+        text-align: center;
+        font-size: 12.5px;
+        color: var(--muted);
+        margin: 0 0 28px;
+        font-weight: 400;
+      }
+      .columns {
+        display: grid;
+        grid-template-columns: 1.5fr 1fr;
+        gap: 20px;
+        align-items: start;
+      }
+      .col-title {
+        font-size: 13px;
+        color: var(--ink);
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--accent);
+        margin: 0 0 14px;
+        border-radius: 12px;
+      }
+      .block {
+        margin-bottom: 24px;
+      }
+
+      /* ===== Bento cards ===== */
+      .bento {
+        border-radius: 18px;
+        padding: 20px 22px 16px;
+        margin-bottom: 18px;
+        background: #fbfbfd;
+        border: 1px solid var(--line);
+      }
+      .bento .block:last-child {
+        margin-bottom: 0;
+      }
+      .bento-head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 14px;
+      }
+      .bento-head .dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        flex: none;
+      }
+      .bento-head .t {
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        color: var(--ink);
+      }
+      .bento-exhibit {
+        background: linear-gradient(
+          180deg,
+          #f8fbff 0%,
+          #f7fbff 55%,
+          #fbfbfd 100%
+        );
+        border-color: #4d4d4d;
+      }
+      .bento-exhibit .dot {
+        background: #0071e3;
+      }
+      .bento-activity {
+        background: linear-gradient(
+          180deg,
+          #f8fbff 0%,
+          #f7fbff 55%,
+          #fbfbfd 100%
+        );
+        border-color: #4d4d4d;
+      }
+      .bento-activity .dot {
+        background: #0c00b1;
+      }
+      .bento-pos {
+        background: linear-gradient(
+          180deg,
+          hsla(0, 0%, 19%, 0.243) 0%,
+        );
+        border-color: #4d4d4d;
+      }
+      .bento-pos .dot {
+        background: #1fa966;
+      }
+
+      .sub-bento {
+        background: #ffffff;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px 14px 10px;
+        margin-bottom: 14px;
+      }
+      .sub-bento:last-child {
+        margin-bottom: 0;
+      }
+      .sub-bento .lab-head {
+        margin-bottom: 6px;
+      }
+      .block-label {
+        font-size: 11.5px;
+        font-weight: 600;
+        color: var(--label);
+        margin: 0 0 8px;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+      }
+      th,
+      td {
+        border-bottom: 1px solid var(--line);
+        padding: 6px 4px;
+        text-align: center;
+        font-size: 11.5px;
+        font-weight: 400;
+      }
+      th {
+        font-weight: 500;
+        color: var(--label);
+        font-size: 10px;
+        border-bottom: 1px solid var(--line-strong);
+        padding-bottom: 6px;
+      }
+      th.rowlabel,
+      td.rowlabel {
+        text-align: left;
+        color: var(--label);
+        font-weight: 500;
+        font-size: 10.5px;
+      }
+      tr.total td {
+        font-weight: 600;
+        border-top: 1px solid var(--ink);
+        border-bottom: 1px solid var(--ink);
+        background: #fafafa;
+      }
+      tr.total-room td {
+        font-weight: 600;
+        background: #f5f5f7;
+        border-top: 1px solid var(--line-strong);
+      }
+      input[type="text"] {
+        width: 100%;
+        max-width: 56px;
+        border: none;
+        border-bottom: 1px solid transparent;
+        text-align: center;
+        background: transparent;
+        font-family: inherit;
+        font-size: 11.5px;
+        color: var(--ink);
+        padding: 2px 0;
+        border-radius: 0;
+      }
+      input[type="text"].wide {
+        max-width: none;
+        text-align: left;
+      }
+      input::placeholder {
+        color: #c7c7cc;
+        font-weight: 300;
+      }
+      input[type="text"]:focus {
+        outline: none;
+        border-bottom: 1px solid var(--accent);
+      }
+      .lab-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        margin-bottom: 8px;
+      }
+      .lab-head .name {
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .lab-head .tag {
+        font-size: 9.5px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .summary {
+        margin-top: 28px;
+        padding-top: 18px;
+        border-top: 1px solid var(--ink);
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+      }
+      .summary .stat {
+        text-align: center;
+      }
+      .summary .stat .lbl {
+        font-size: 10px;
+        color: var(--label);
+        margin-bottom: 5px;
+      }
+      .summary .stat input {
+        max-width: none;
+        width: 100%;
+        font-size: 19px;
+        font-weight: 300;
+        text-align: center;
+      }
+      .pos-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        margin-top: 10px;
+      }
+      .pos-col-activity {
+        background: #ffffff;
+        border: 1px solid #e9e9e9;
+        border-radius: 12px;
+        padding: 12px 14px 10px;
+      }
+      .sub-card-walkin {
+        background: #ffffff;
+        border: 1px solid #e7e7e7;
+        border-radius: 12px;
+        padding: 12px 14px 10px;
+      }
+      .sub-card-group {
+        background: #ffffff;
+        border: 1px solid #f6f6f6;
+        border-radius: 12px;
+        padding: 12px 14px 10px;
+      }
+      footer {
+        text-align: center;
+        font-size: 10px;
+        color: var(--muted);
+        margin-top: 28px;
+      }
+      @media (max-width: 900px) {
+        .columns {
+          grid-template-columns: 1fr;
+        }
+        .summary {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+
+      .date-row {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 10px;
+        font-size: 15px;
+        margin-bottom: 6px;
+      }
+
+      .calendar-btn {
+        position: relative;
+        cursor: pointer;
+        font-family: inherit;
+        font-size: 11.5px;
+        line-height: 1;
+      }
+
+      .calendar-btn input {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        cursor: pointer;
+        width: 100%;
+        height: 100%;
+      }
+      #thaiDate {
+        font-size: 12px;
+        color: var(--label);
+        font-weight: 500;
+      }
+
+      .staff-select,
+      .inspirelab-activity-select,
+      .innovationspace-activity-select {
+        width: 100%;
+        border: none;
+        outline: none;
+        background: transparent;
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        font-size: 10.5px;
+        font-family: inherit;
+        text-align: center;
+        cursor: pointer;
+        color: var(--ink);
+      }
+
+      .staff-select::-ms-expand,
+      .inspirelab-activity-select::-ms-expand,
+      .innovationspace-activity-select::-ms-expand {
+        display: none;
+      }
+
+      td.rowlabel input[readonly] {
+        max-width: none;
+        text-align: left;
+        font-weight: 600;
+        margin-top: 2px;
+      }
+
+      textarea#notes {
+        border: 1px solid var(--line-strong) !important;
+        border-radius: 8px;
+        font-family: inherit !important;
+      }
+
+      .notes-block {
+        display: block;
+        margin: 12px 0;
+      }
+      .notes-block .lbl {
+        font-weight: 600;
+        margin-bottom: 6px;
+        color: #333;
+      }
+      .notes-block textarea {
+        width: 100%;
+        min-height: 140px;
+        padding: 12px;
+        border: 1px solid #e0e6ef;
+        border-radius: 8px;
+        box-shadow: 0 1px 4px rgba(25, 40, 60, 0.06) inset;
+        background: linear-gradient(180deg, #fff, #fbfdff);
+        font-family: inherit;
+        font-size: 14px;
+        color: #1b1f23;
+        resize: vertical;
+        transition:
+          box-shadow 0.12s ease,
+          border-color 0.12s ease;
+      }
+      .notes-block textarea:focus {
+        outline: none;
+        border-color: #6ea8fe;
+        box-shadow: 0 4px 18px rgba(110, 168, 254, 0.18);
+      }
+
+      /* ===== Print: force everything onto one A4 page ===== */
+      @media print {
+        @page {
+          size: A4 Landscape;
+          margin: 5mm;
+        }
+        html,
+        body {
+          width: 100%;
+          height: 100%;
+          padding: 0 !important;
+          margin: 0 !important;
+        }
+        .toolbar {
+          display: none !important;
+        }
+        .sheet {
+          box-shadow: none !important;
+          border-radius: 0 !important;
+          max-width: 100% !important;
+          width: 100% !important;
+          padding: 0 !important;
+          transform-origin: top left;
+        }
+        h1 {
+          font-size: 13px;
+          margin-bottom: 1px;
+        }
+        .subtitle {
+          font-size: 7.5px;
+          margin-bottom: 5px;
+        }
+        .col-title {
+          font-size: 7.5px;
+          margin-bottom: 3px;
+          padding-bottom: 2px;
+        }
+        .block {
+          margin-bottom: 4px;
+        }
+        .block-label {
+          font-size: 7.5px;
+          margin-bottom: 2px;
+        }
+        th,
+        td {
+          padding: 1px 2px;
+          font-size: 6.5px;
+        }
+        th {
+          font-size: 6px;
+          padding-bottom: 2px;
+        }
+        th.rowlabel,
+        td.rowlabel {
+          font-size: 6.3px;
+        }
+        input[type="text"] {
+          font-size: 6.5px;
+          padding: 1px 0;
+        }
+        .staff-select,
+        .inspirelab-activity-select,
+        .innovationspace-activity-select {
+          font-size: 6px;
+        }
+        .lab-head {
+          margin-bottom: 2px;
+        }
+        .lab-head .name {
+          font-size: 8px;
+        }
+        .lab-head .tag {
+          font-size: 5.5px;
+        }
+        .columns {
+          gap: 8px;
+          grid-template-columns: 1.5fr 1fr;
+        }
+        .pos-grid {
+          gap: 8px;
+          margin-top: 2px;
+          grid-template-columns: 1fr 1fr;
+        }
+        .summary {
+          margin-top: 5px;
+          padding-top: 4px;
+          gap: 8px;
+        }
+        .summary .stat .lbl {
+          font-size: 6px;
+        }
+        .summary .stat input {
+          font-size: 11px;
+        }
+        textarea#notes {
+          min-height: 24px !important;
+          font-size: 6.3px;
+          padding: 3px !important;
+        }
+        footer {
+          font-size: 5.5px;
+          margin-top: 4px;
+        }
+        footer + p {
+          display: none;
+        }
+        .date-row {
+          margin-bottom: 1px;
+        }
+        .date-row #thaiDate {
+          font-size: 7px;
+        }
+        .calendar-btn {
+          font-size: 7px;
+        }
+        img {
+          height: 22px !important;
+          margin: 0 4px !important;
+        }
+        div[style*="text-align:center; margin:16px 0"] {
+          margin: 3px 0 !important;
+        }
+
+        .bento {
+          border-radius: 6px;
+          padding: 5px 6px 3px;
+          margin-bottom: 5px;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+        
+        textarea#notes {
+          border: 1px solid var(--line-strong) !important;
+          border-radius: 4px;
+          font-family: inherit !important;
+          resize: both;
+          overflow: auto;
+        }
+
+      .notes-block {
+        display: block;
+        margin: 12px 0;
+      }
+      .notes-block .lbl {
+        font-weight: 200;
+        margin-bottom: 3px;
+        font-size: 7px;
+        color: #333;
+      }
+      .notes-block textarea {
+        width: 70%;
+        min-height: 140px;
+        padding: 12px;
+        font-size: 8px;
+      }
+
+        .bento-head {
+          margin-bottom: 3px;
+          gap: 4px;
+        }
+        .bento-head .dot {
+          width: 5px;
+          height: 5px;
+        }
+        .bento-head .t {
+          font-size: 8px;
+        }
+        .sub-bento {
+          padding: 4px 5px 3px;
+          margin-bottom: 4px;
+          border-radius: 6px;
+        }
+        .pos-col-activity {
+          padding: 4px 5px 3px;
+          border-radius: 6px;
+        }
+        .pos-col-summary {
+          padding: 4px 5px 3px;
+          border-radius: 6px;
+        }
+        .sub-card-walkin {
+          padding: 4px 5px 3px;
+          border-radius: 6px;
+        }
+        .sub-card-group {
+          padding: 4px 5px 3px;
+          border-radius: 6px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="toolbar">
+      <button class="btn btn-secondary" onclick="window.print()">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="6 9 6 2 18 2 18 9"></polyline>
+          <path
+            d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"
+          ></path>
+          <rect x="6" y="14" width="12" height="8"></rect>
+        </svg>
+        Print
+      </button>
+      <button class="btn btn-primary" onclick="window.print()">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        Save as PDF
+      </button>
+    </div>
+
+    <div class="sheet">
+      <h1>แบบบันทึกจำนวนผู้เข้าชมกิจกรรม</h1>
+      <p class="subtitle">จัสตุรัสวิทยาศาสตร์ อพวช. เชียงใหม่</p>
+
+      <div class="date-row">
+        <label class="calendar-btn">
+          🗓️ Date
+          <input type="date" id="visitDate" />
+        </label>
+
+        <span id="thaiDate"></span>
+        <p></p>
+      </div>
+      <div class="columns">
+        <!-- ================= LEFT: นิทรรศการ ================= -->
+        <div>
+          <p class="col-title">ส่วนนิทรรศการ</p>
+          <div class="bento bento-exhibit">
+            <div class="bento-head">
+              <span class="dot"></span><span class="t">ส่วนนิทรรศการ</span>
+            </div>
+
+            <div class="block sub-card-walkin">
+              <p class="block-label">บุคคลทั่วไป Walk-in</p>
+              <table>
+                <tr>
+                  <th>เด็กไทย</th>
+                  <th>ผู้ใหญ่ไทย</th>
+                  <th>เด็กต่างชาติ</th>
+                  <th>ผู้ใหญ่ต่างชาติ</th>
+                </tr>
+
+                <tr>
+                  <td>
+                    <input
+                      type="text"
+                      name="walkin_child_th_1"
+                      id="walkin_child_th_1"
+                      placeholder="0"
+                      oninput="updateWalkinTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="walkin_adult_th_1"
+                      id="walkin_adult_th_1"
+                      placeholder="0"
+                      oninput="updateWalkinTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="walkin_child_intl_1"
+                      id="walkin_child_intl_1"
+                      placeholder="0"
+                      oninput="updateWalkinTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="walkin_adult_intl_1"
+                      id="walkin_adult_intl_1"
+                      placeholder="0"
+                      oninput="updateWalkinTotal()"
+                    />
+                  </td>
+                </tr>
+
+                <tr>
+                  <td>
+                    <input
+                      type="text"
+                      name="walkin_child_th_2"
+                      id="walkin_child_th_2"
+                      placeholder="0"
+                      oninput="updateWalkinTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="walkin_adult_th_2"
+                      id="walkin_adult_th_2"
+                      placeholder="0"
+                      oninput="updateWalkinTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="walkin_child_intl_2"
+                      id="walkin_child_intl_2"
+                      placeholder="0"
+                      oninput="updateWalkinTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="walkin_adult_intl_2"
+                      id="walkin_adult_intl_2"
+                      placeholder="0"
+                      oninput="updateWalkinTotal()"
+                    />
+                  </td>
+                </tr>
+
+                <tr>
+                  <td>
+                    <input
+                      type="text"
+                      name="walkin_child_th_3"
+                      id="walkin_child_th_3"
+                      placeholder="0"
+                      oninput="updateWalkinTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="walkin_adult_th_3"
+                      id="walkin_adult_th_3"
+                      placeholder="0"
+                      oninput="updateWalkinTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="walkin_child_intl_3"
+                      id="walkin_child_intl_3"
+                      placeholder="0"
+                      oninput="updateWalkinTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="walkin_adult_intl_3"
+                      id="walkin_adult_intl_3"
+                      placeholder="0"
+                      oninput="updateWalkinTotal()"
+                    />
+                  </td>
+                </tr>
+
+                <tr class="total">
+                  <td class="rowlabel">
+                    รวมเด็กไทย<br /><input
+                      type="text"
+                      id="walkin_child_th_total"
+                      readonly
+                      placeholder="0"
+                    />
+                  </td>
+                  <td class="rowlabel">
+                    รวมผู้ใหญ่ไทย<br /><input
+                      type="text"
+                      id="walkin_adult_th_total"
+                      readonly
+                      placeholder="0"
+                    />
+                  </td>
+                  <td class="rowlabel">
+                    รวมเด็กต่างชาติ<br /><input
+                      type="text"
+                      id="walkin_child_intl_total"
+                      readonly
+                      placeholder="0"
+                    />
+                  </td>
+                  <td class="rowlabel">
+                    รวมผู้ใหญ่ต่างชาติ<br /><input
+                      type="text"
+                      id="walkin_adult_intl_total"
+                      readonly
+                      placeholder="0"
+                    />
+                  </td>
+                </tr>
+                <tr class="total">
+                  <td class="rowlabel">ยอดรวม Walkin <st</td>
+                  <td class="rowlabel">
+                    ยอดรวมเด็ก Walkin<br /><input
+                      type="text"
+                      id="walkin_child_grand_total"
+                      readonly
+                      placeholder="0"
+                      style="font-size:15px; background-color:#faf2d0; text-align:center; margin:0 auto; display:block;"
+
+                    />
+                  </td>
+                  <td class="rowlabel">
+                    ยอดรวมผู้ใหญ่ Walkin<br /><input
+                      type="text"
+                      id="walkin_adult_grand_total"
+                      readonly
+                      placeholder="0"
+                      style="font-size:15px; background-color:#faf2d0;"
+                    />
+                  </td>
+                  <td class="rowlabel" colspan="2">
+                    ยอดรวม Walkin<br /><input
+                      type="text"
+                      id="walkin_grand_total"
+                      readonly
+                      placeholder="0"
+                      style="font-size:15px; background-color:#f9db54;"
+                    />
+                  </td>
+                </tr>
+              </table>
+            </div>
+
+            <div class="block sub-card-group">
+              <p class="block-label">หมู่คณะ</p>
+              <table>
+                <tr>
+                  <th class="rowlabel">จำนวนหมู่คณะ</th>
+                  <th>เด็ก</th>
+                  <th>ผู้ใหญ่</th>
+                </tr>
+                <tr>
+                  <td></td>
+
+                  <td>
+                    <input
+                      type="text"
+                      name="group_child_1"
+                      id="group_child_1"
+                      placeholder="0"
+                      oninput="updateGroupTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="group_adult_1"
+                      id="group_adult_1"
+                      placeholder="0"
+                      oninput="updateGroupTotal()"
+                    />
+                  </td>
+                </tr>
+
+                <tr>
+                  <td></td>
+                  <td>
+                    <input
+                      type="text"
+                      name="group_child_2"
+                      id="group_child_2"
+                      placeholder="0"
+                      oninput="updateGroupTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="group_adult_2"
+                      id="group_adult_2"
+                      placeholder="0"
+                      oninput="updateGroupTotal()"
+                    />
+                  </td>
+                </tr>
+
+                <tr>
+                  <td></td>
+                  <td>
+                    <input
+                      type="text"
+                      name="group_child_3"
+                      id="group_child_3"
+                      placeholder="0"
+                      oninput="updateGroupTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="group_adult_3"
+                      id="group_adult_3"
+                      placeholder="0"
+                      oninput="updateGroupTotal()"
+                    />
+                  </td>
+                </tr>
+
+                <tr>
+                  <td></td>
+                  <td>
+                    <input
+                      type="text"
+                      name="group_child_4"
+                      id="group_child_4"
+                      placeholder="0"
+                      oninput="updateGroupTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="group_adult_4"
+                      id="group_adult_4"
+                      placeholder="0"
+                      oninput="updateGroupTotal()"
+                    />
+                  </td>
+                </tr>
+
+                <tr>
+                  <td></td>
+                  <td>
+                    <input
+                      type="text"
+                      name="group_child_5"
+                      id="group_child_5"
+                      placeholder="0"
+                      oninput="updateGroupTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="group_adult_5"
+                      id="group_adult_5"
+                      placeholder="0"
+                      oninput="updateGroupTotal()"
+                    />
+                  </td>
+                </tr>
+                <tr>
+                  <td></td>
+                  <td>
+                    <input
+                      type="text"
+                      name="group_child_6"
+                      id="group_child_6"
+                      placeholder="0"
+                      oninput="updateGroupTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="group_adult_6"
+                      id="group_adult_6"
+                      placeholder="0"
+                      oninput="updateGroupTotal()"
+                    />
+                  </td>
+                </tr>
+                <tr>
+                  <td></td>
+                  <td>
+                    <input
+                      type="text"
+                      name="group_child_7"
+                      id="group_child_7"
+                      placeholder="0"
+                      oninput="updateGroupTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="group_adult_7"
+                      id="group_adult_7"
+                      placeholder="0"
+                      oninput="updateGroupTotal()"
+                    />
+                  </td>
+                </tr>
+                <tr>
+                  <td></td>
+                  <td>
+                    <input
+                      type="text"
+                      name="group_child_8"
+                      id="group_child_8"
+                      placeholder="0"
+                      oninput="updateGroupTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="group_adult_8"
+                      id="group_adult_8"
+                      placeholder="0"
+                      oninput="updateGroupTotal()"
+                    />
+                  </td>
+                </tr>
+                <tr>
+                  <td></td>
+                  <td>
+                    <input
+                      type="text"
+                      name="group_child_9"
+                      id="group_child_9"
+                      placeholder="0"
+                      oninput="updateGroupTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="group_adult_9"
+                      id="group_adult_9"
+                      placeholder="0"
+                      oninput="updateGroupTotal()"
+                    />
+                  </td>
+                </tr>
+                <tr>
+                  <td></td>
+                  <td>
+                    <input
+                      type="text"
+                      name="group_child_10"
+                      id="group_child_10"
+                      placeholder="0"
+                      oninput="updateGroupTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="group_adult_10"
+                      id="group_adult_10"
+                      placeholder="0"
+                      oninput="updateGroupTotal()"
+                    />
+                  </td>
+                </tr>
+                <tr>
+                  <td></td>
+                  <td>
+                    <input
+                      type="text"
+                      name="group_child_11"
+                      id="group_child_11"
+                      placeholder="0"
+                      oninput="updateGroupTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="group_adult_11"
+                      id="group_adult_11"
+                      placeholder="0"
+                      oninput="updateGroupTotal()"
+                    />
+                  </td>
+                </tr>
+
+                <tr class="total">
+                  <td class="rowlabel" style="text-align:center;">รวมยอด</td>
+                  <td>
+                    <input
+                      type="text"
+                      name="group_child_total"
+                      id="group_child_total"
+                      placeholder="0"
+                      readonly
+                      style="text-align:center;"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="group_adult_total"
+                      id="group_adult_total"
+                      placeholder="0"
+                      readonly
+                      style="text-align:center;"
+                    />
+                  </td>
+                </tr>
+                <tr class="total">
+                  <td class="rowlabel" style="text-align:center;">ยอดรวมหมู่คณะ</td>
+                  <td class="rowlabel" style="text-align:center;">
+                    ยอดรวมเด็กหมู่คณะ<br /><input
+                      type="text"
+                      id="group_child_grand_total"
+                      readonly
+                      placeholder="0"
+                      style="font-size:15px; background-color:#fff7d5; text-align:center;"
+                    />
+                  </td>
+                  <td class="rowlabel" style="text-align:center;">
+                    ยอดรวมผู้ใหญ่หมู่คณะ<br /><input
+                      type="text"
+                      id="group_adult_grand_total"
+                      readonly
+                      placeholder="0"
+                      style="font-size:15px; background-color:#fff7d5; text-align:center;"
+                    />
+                  </td>
+                </tr>
+                <tr class="total">
+                  <td class="rowlabel" colspan="3" style="text-align:center;">
+                    ยอดรวม Group<br /><input
+                      type="text"
+                      id="group_grand_total"
+                      readonly
+                      placeholder="0"
+                      style="font-size:15px; background-color:#f9db54; width:100%; text-align:center;"
+                    />
+                  </td>
+                </tr>
+              </table>
+            </div>
+
+            <div class="block">
+              <table>
+                <tr>
+                  <th class="rowlabel" style="text-align:center;">รวมยอดนิทรรศการ</th>
+                  <th>รวมเด็ก</th>
+                  <th>รวมผู้ใหญ่</th>
+                </tr>
+
+                <tr>
+                  <td></td>
+                  <td>
+                    <input 
+                    type="text" 
+                    id="exhibition_total_child" 
+                    readonly 
+                    style="font-size:15px; background-color:#fff7d5; text-align:center;"
+                    />
+                  </td>
+                  <td>
+                    <input type="text" 
+                    id="exhibition_total_adult" 
+                    readonly 
+                    style="font-size:15px; background-color:#fff7d5; text-align:center;"/>
+                  </td>
+                </tr>
+
+                <tr class="total">
+                  <td class="rowlabel" style="text-align:center;">รวมนิทรรศการทั้งหมด</td>
+                  <td colspan="2">
+                    <input
+                      type="text"
+                      id="exhibition_grand_total"
+                      readonly
+                      style="font-size:20px; background-color:#ff9d26; text-align:center; margin:0 auto; display:block;"/>
+                  </td>
+                </tr>
+              </table>
+            </div>
+          </div>
+          <!-- /bento-exhibit -->
+        <div class="stat notes-block">
+            <div class="lbl">หมายเหตุ</div>
+
+            <textarea
+              name="notes"
+              id="notes"
+              placeholder="ใส่หมายเหตุต่างๆ ที่นี่"
+            ></textarea>
+          </div>
+          
+        </div>
+
+        <!-- ================= RIGHT: กิจกรรม ================= -->
+        <div>
+          <p class="col-title">ส่วนกิจกรรม</p>
+          <div class="bento bento-activity">
+            <div class="bento-head">
+              <span class="dot"></span><span class="t">ส่วนกิจกรรม</span>
+            </div>
+
+            <div class="sub-bento">
+              <div class="lab-head">
+                <span class="name">Inspire Lab</span
+                ><span class="tag">กิจกรรม</span>
+              </div>
+              <table>
+                <tr>
+                  <th class="rowlabel">เรื่อง</th>
+                  <th class="rowlabel">ผู้ดำเนินกิจกรรม</th>
+                  <th>เด็กไทย</th>
+                  <th>ผู้ใหญ่ไทย</th>
+                  <th>เด็กต่างชาติ</th>
+                  <th>ผู้ใหญ่ต่างชาติ</th>
+                </tr>
+
+                <!-- ================= inspire1 ================= -->
+                <tr>
+                  <td>
+                    <select
+                      name="inspirelab_activity_1"
+                      id="inspirelab_activity_1"
+                      class="inspirelab-activity-select"
+                    >
+                      <option value="">เลือกกิจกรรมห้องแลป</option>
+                    </select>
+                  </td>
+                  <td>
+                    <select
+                      name="inspire_staff_1"
+                      id="inspire_staff_1"
+                      class="staff-select"
+                    >
+                      <option value="">-----</option>
+                    </select>
+                  </td>
+
+                  <td>
+                    <input
+                      type="text"
+                      name="inspire_child_th_1"
+                      id="inspire_child_th_1"
+                      placeholder="0"
+                      oninput="updateInspireTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="inspire_adult_th_1"
+                      id="inspire_adult_th_1"
+                      placeholder="0"
+                      oninput="updateInspireTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="inspire_child_intl_1"
+                      id="inspire_child_intl_1"
+                      placeholder="0"
+                      oninput="updateInspireTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="inspire_adult_intl_1"
+                      id="inspire_adult_intl_1"
+                      placeholder="0"
+                      oninput="updateInspireTotal()"
+                    />
+                  </td>
+                </tr>
+                <tr>
+                  <!-- ================= inspire2 ================= -->
+                  <td>
+                    <select
+                      name="inspirelab_activity_2"
+                      id="inspirelab_activity_2"
+                      class="inspirelab-activity-select"
+                    >
+                      <option value="">เลือกกิจกรรมห้องแลป</option>
+                    </select>
+                  </td>
+                  <td>
+                    <select
+                      name="inspire_staff_2"
+                      id="inspire_staff_2"
+                      class="staff-select"
+                    >
+                      <option value="">-----</option>
+                    </select>
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="inspire_child_th_2"
+                      id="inspire_child_th_2"
+                      placeholder="0"
+                      oninput="updateInspireTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="inspire_adult_th_2"
+                      id="inspire_adult_th_2"
+                      placeholder="0"
+                      oninput="updateInspireTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="inspire_child_intl_2"
+                      id="inspire_child_intl_2"
+                      placeholder="0"
+                      oninput="updateInspireTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="inspire_adult_intl_2"
+                      id="inspire_adult_intl_2"
+                      placeholder="0"
+                      oninput="updateInspireTotal()"
+                    />
+                  </td>
+                </tr>
+                <tr>
+                  <!-- ================= inspire3 ================= -->
+                  <td>
+                    <select
+                      name="inspirelab_activity_3"
+                      id="inspirelab_activity_3"
+                      class="inspirelab-activity-select"
+                    >
+                      <option value="">เลือกกิจกรรมห้องแลป</option>
+                    </select>
+                  </td>
+                  <td>
+                    <select
+                      name="inspire_staff_3"
+                      id="inspire_staff_3"
+                      class="staff-select"
+                    >
+                      <option value="">-----</option>
+                    </select>
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="inspire_child_th_3"
+                      id="inspire_child_th_3"
+                      placeholder="0"
+                      oninput="updateInspireTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="inspire_adult_th_3"
+                      id="inspire_adult_th_3"
+                      placeholder="0"
+                      oninput="updateInspireTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="inspire_child_intl_3"
+                      id="inspire_child_intl_3"
+                      placeholder="0"
+                      oninput="updateInspireTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="inspire_adult_intl_3"
+                      id="inspire_adult_intl_3"
+                      placeholder="0"
+                      oninput="updateInspireTotal()"
+                    />
+                  </td>
+                </tr>
+
+                <tr>
+                  <!-- ================= inspire4 ================= -->
+                  <td>
+                    <select
+                      name="inspirelab_activity_4"
+                      id="inspirelab_activity_4"
+                      class="inspirelab-activity-select"
+                    >
+                      <option value="">เลือกกิจกรรมห้องแลป</option>
+                    </select>
+                  </td>
+                  <td>
+                    <select
+                      name="inspire_staff_4"
+                      id="inspire_staff_4"
+                      class="staff-select"
+                    >
+                      <option value="">-----</option>
+                    </select>
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="inspire_child_th_4"
+                      id="inspire_child_th_4"
+                      placeholder="0"
+                      oninput="updateInspireTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="inspire_adult_th_4"
+                      id="inspire_adult_th_4"
+                      placeholder="0"
+                      oninput="updateInspireTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="inspire_child_intl_4"
+                      id="inspire_child_intl_4"
+                      placeholder="0"
+                      oninput="updateInspireTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="inspire_adult_intl_4"
+                      id="inspire_adult_intl_4"
+                      placeholder="0"
+                      oninput="updateInspireTotal()"
+                    />
+                  </td>
+                </tr>
+                <tr>
+                  <!-- ================= inspire5 ================= -->
+                  <td>
+                    <select
+                      name="inspirelab_activity_5"
+                      id="inspirelab_activity_5"
+                      class="inspirelab-activity-select"
+                    >
+                      <option value="">เลือกกิจกรรมห้องแลป</option>
+                    </select>
+                  </td>
+                  <td>
+                    <select
+                      name="inspire_staff_5"
+                      id="inspire_staff_5"
+                      class="staff-select"
+                    >
+                      <option value="">-----</option>
+                    </select>
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="inspire_child_th_5"
+                      id="inspire_child_th_5"
+                      placeholder="0"
+                      oninput="updateInspireTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="inspire_adult_th_5"
+                      id="inspire_adult_th_5"
+                      placeholder="0"
+                      oninput="updateInspireTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="inspire_child_intl_5"
+                      id="inspire_child_intl_5"
+                      placeholder="0"
+                      oninput="updateInspireTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="inspire_adult_intl_5"
+                      id="inspire_adult_intl_5"
+                      placeholder="0"
+                      oninput="updateInspireTotal()"
+                    />
+                  </td>
+                </tr>
+
+                <tr>
+                  <!-- ================= inspire6 ================= -->
+                  <td>
+                    <select
+                      name="inspirelab_activity_6"
+                      id="inspirelab_activity_6"
+                      class="inspirelab-activity-select"
+                    >
+                      <option value="">เลือกกิจกรรมห้องแลป</option>
+                    </select>
+                  </td>
+                  <td>
+                    <select
+                      name="inspire_staff_6"
+                      id="inspire_staff_6"
+                      class="staff-select"
+                    >
+                      <option value="">-----</option>
+                    </select>
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="inspire_child_th_6"
+                      id="inspire_child_th_6"
+                      placeholder="0"
+                      oninput="updateInspireTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="inspire_adult_th_6"
+                      id="inspire_adult_th_6"
+                      placeholder="0"
+                      oninput="updateInspireTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="inspire_child_intl_6"
+                      id="inspire_child_intl_6"
+                      placeholder="0"
+                      oninput="updateInspireTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="inspire_adult_intl_6"
+                      id="inspire_adult_intl_6"
+                      placeholder="0"
+                      oninput="updateInspireTotal()"
+                    />
+                  </td>
+                </tr>
+
+                <tr>
+                  <!-- ================= inspire7 ================= -->
+                  <td>
+                    <select
+                      name="inspirelab_activity_7"
+                      id="inspirelab_activity_7"
+                      class="inspirelab-activity-select"
+                    >
+                      <option value="">เลือกกิจกรรมห้องแลป</option>
+                    </select>
+                  </td>
+                  <td>
+                    <select
+                      name="inspire_staff_7"
+                      id="inspire_staff_7"
+                      class="staff-select"
+                    >
+                      <option value="">-----</option>
+                    </select>
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="inspire_child_th_7"
+                      id="inspire_child_th_7"
+                      placeholder="0"
+                      oninput="updateInspireTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="inspire_adult_th_7"
+                      id="inspire_adult_th_7"
+                      placeholder="0"
+                      oninput="updateInspireTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="inspire_child_intl_7"
+                      id="inspire_child_intl_7"
+                      placeholder="0"
+                      oninput="updateInspireTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="inspire_adult_intl_7"
+                      id="inspire_adult_intl_7"
+                      placeholder="0"
+                      oninput="updateInspireTotal()"
+                    />
+                  </td>
+                </tr>
+
+                <tr class="total">
+                  <td class="rowlabel">รวมยอด Lab</td>
+                  <td></td>
+
+                  <td class="rowlabel">รวมยอดเด็ก</td>
+                  <td>
+                    <input
+                      type="text"
+                      name="inspire_child_total"
+                      id="inspire_child_total"
+                      readonly
+                    />
+                  </td>
+
+                  <td class="rowlabel">รวมยอดผู้ใหญ่</td>
+                  <td>
+                    <input
+                      type="text"
+                      name="inspire_adult_total"
+                      id="inspire_adult_total"
+                      readonly
+                    />
+                  </td>
+
+                  <!-- ซ่อนไว้สำหรับใช้คำนวณ -->
+                  <td style="display: none">
+                    <input
+                      type="text"
+                      name="inspire_child_th_total"
+                      id="inspire_child_th_total"
+                      readonly
+                    />
+                  </td>
+
+                  <td style="display: none">
+                    <input
+                      type="text"
+                      name="inspire_adult_th_total"
+                      id="inspire_adult_th_total"
+                      readonly
+                    />
+                  </td>
+
+                  <td style="display: none">
+                    <input
+                      type="text"
+                      name="inspire_child_intl_total"
+                      id="inspire_child_intl_total"
+                      readonly
+                    />
+                  </td>
+
+                  <td style="display: none">
+                    <input
+                      type="text"
+                      name="inspire_adult_intl_total"
+                      id="inspire_adult_intl_total"
+                      readonly
+                    />
+                  </td>
+                </tr>
+
+                <tr class="total-room">
+                  <td class="rowlabel">รวมยอดห้อง Lab ทั้งหมด</td>
+                  <td colspan="5">
+                    <input
+                      type="text"
+                      name="inspire_rooms_total"
+                      id="inspire_rooms_total"
+                      readonly
+                      style="font-size:15px; background-color:#acdbff;"
+                    />
+                  </td>
+
+                  <td style="display: none"></td>
+                  <td style="display: none"></td>
+                  <td style="display: none"></td>
+                  <td style="display: none"></td>
+                </tr>
+              </table>
+            </div>
+
+            <div class="sub-bento">
+              <div class="lab-head">
+                <span class="name">Innovation Space</span
+                ><span class="tag">กิจกรรม</span>
+              </div>
+              <table>
+                <tr>
+                  <th class="rowlabel">เรื่อง</th>
+                  <th class="rowlabel">ผู้ดำเนินกิจกรรม</th>
+                  <th>เด็กไทย</th>
+                  <th>ผู้ใหญ่ไทย</th>
+                  <th>เด็กต่างชาติ</th>
+                  <th>ผู้ใหญ่ต่างชาติ</th>
+                </tr>
+                <!-- ================= Innovation1 ================= -->
+                <tr>
+                  <td>
+                    <select
+                      name="Innovation_activity_1"
+                      id="innovationspace_activity_1"
+                      class="innovationspace-activity-select"
+                    >
+                      <option value="">เลือกกิจกรรมห้อง Innovation</option>
+                    </select>
+                  </td>
+                  <td>
+                    <select
+                      name="innovation_staff_1"
+                      id="innovation_staff_1"
+                      class="staff-select"
+                    >
+                      <option value="">-----</option>
+                    </select>
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="innovation_child_th_1"
+                      id="innovation_child_th_1"
+                      placeholder="0"
+                      oninput="updateInnovationTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="innovation_adult_th_1"
+                      id="innovation_adult_th_1"
+                      placeholder="0"
+                      oninput="updateInnovationTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="innovation_child_intl_1"
+                      id="innovation_child_intl_1"
+                      placeholder="0"
+                      oninput="updateInnovationTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="innovation_adult_intl_1"
+                      id="innovation_adult_intl_1"
+                      placeholder="0"
+                      oninput="updateInnovationTotal()"
+                    />
+                  </td>
+                </tr>
+                <!-- ================= Innovation2 ================= -->
+                <tr>
+                  <td>
+                    <select
+                      name="Innovation_activity_2"
+                      id="innovationspace_activity_2"
+                      class="innovationspace-activity-select"
+                    >
+                      <option value="">เลือกกิจกรรมห้อง Innovation</option>
+                    </select>
+                  </td>
+                  <td>
+                    <select
+                      name="innovation_staff_2"
+                      id="innovation_staff_2"
+                      class="staff-select"
+                    >
+                      <option value="">-----</option>
+                    </select>
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="innovation_child_th_2"
+                      id="innovation_child_th_2"
+                      placeholder="0"
+                      oninput="updateInnovationTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="innovation_adult_th_2"
+                      id="innovation_adult_th_2"
+                      placeholder="0"
+                      oninput="updateInnovationTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="innovation_child_intl_2"
+                      id="innovation_child_intl_2"
+                      placeholder="0"
+                      oninput="updateInnovationTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="innovation_adult_intl_2"
+                      id="innovation_adult_intl_2"
+                      placeholder="0"
+                      oninput="updateInnovationTotal()"
+                    />
+                  </td>
+                </tr>
+                <!-- ================= Innovation3 ================= -->
+                <tr>
+                  <td>
+                    <select
+                      name="Innovation_activity_3"
+                      id="innovationspace_activity_3"
+                      class="innovationspace-activity-select"
+                    >
+                      <option value="">เลือกกิจกรรมห้อง Innovation</option>
+                    </select>
+                  </td>
+                  <td>
+                    <select
+                      name="innovation_staff_3"
+                      id="innovation_staff_3"
+                      class="staff-select"
+                    >
+                      <option value="">-----</option>
+                    </select>
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="innovation_child_th_3"
+                      id="innovation_child_th_3"
+                      placeholder="0"
+                      oninput="updateInnovationTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="innovation_adult_th_3"
+                      id="innovation_adult_th_3"
+                      placeholder="0"
+                      oninput="updateInnovationTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="innovation_child_intl_3"
+                      id="innovation_child_intl_3"
+                      placeholder="0"
+                      oninput="updateInnovationTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="innovation_adult_intl_3"
+                      id="innovation_adult_intl_3"
+                      placeholder="0"
+                      oninput="updateInnovationTotal()"
+                    />
+                  </td>
+                </tr>
+                <!-- ================= Innovation4 ================= -->
+                <tr>
+                  <td>
+                    <select
+                      name="Innovation_activity_4"
+                      id="innovationspace_activity_4"
+                      class="innovationspace-activity-select"
+                    >
+                      <option value="">เลือกกิจกรรมห้อง Innovation</option>
+                    </select>
+                  </td>
+                  <td>
+                    <select
+                      name="innovation_staff_4"
+                      id="innovation_staff_4"
+                      class="staff-select"
+                    >
+                      <option value="">-----</option>
+                    </select>
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="innovation_child_th_4"
+                      id="innovation_child_th_4"
+                      placeholder="0"
+                      oninput="updateInnovationTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="innovation_adult_th_4"
+                      id="innovation_adult_th_4"
+                      placeholder="0"
+                      oninput="updateInnovationTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="innovation_child_intl_4"
+                      id="innovation_child_intl_4"
+                      placeholder="0"
+                      oninput="updateInnovationTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="innovation_adult_intl_4"
+                      id="innovation_adult_intl_4"
+                      placeholder="0"
+                      oninput="updateInnovationTotal()"
+                    />
+                  </td>
+                </tr>
+                <!-- ================= Innovation5 ================= -->
+                <tr>
+                  <td>
+                    <select
+                      name="Innovation_activity_5"
+                      id="innovationspace_activity_5"
+                      class="innovationspace-activity-select"
+                    >
+                      <option value="">เลือกกิจกรรมห้อง Innovation</option>
+                    </select>
+                  </td>
+                  <td>
+                    <select
+                      name="innovation_staff_5"
+                      id="innovation_staff_5"
+                      class="staff-select"
+                    >
+                      <option value="">-----</option>
+                    </select>
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="innovation_child_th_5"
+                      id="innovation_child_th_5"
+                      placeholder="0"
+                      oninput="updateInnovationTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="innovation_adult_th_5"
+                      id="innovation_adult_th_5"
+                      placeholder="0"
+                      oninput="updateInnovationTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="innovation_child_intl_5"
+                      id="innovation_child_intl_5"
+                      placeholder="0"
+                      oninput="updateInnovationTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="innovation_adult_intl_5"
+                      id="innovation_adult_intl_5"
+                      placeholder="0"
+                      oninput="updateInnovationTotal()"
+                    />
+                  </td>
+                </tr>
+                <!-- ================= Innovation6 ================= -->
+                <tr>
+                  <td>
+                    <select
+                      name="Innovation_activity_6"
+                      id="innovationspace_activity_6"
+                      class="innovationspace-activity-select"
+                    >
+                      <option value="">เลือกกิจกรรมห้อง Innovation</option>
+                    </select>
+                  </td>
+                  <td>
+                    <select
+                      name="innovation_staff_6"
+                      id="innovation_staff_6"
+                      class="staff-select"
+                    >
+                      <option value="">-----</option>
+                    </select>
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="innovation_child_th_6"
+                      id="innovation_child_th_6"
+                      placeholder="0"
+                      oninput="updateInnovationTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="innovation_adult_th_6"
+                      id="innovation_adult_th_6"
+                      placeholder="0"
+                      oninput="updateInnovationTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="innovation_child_intl_6"
+                      id="innovation_child_intl_6"
+                      placeholder="0"
+                      oninput="updateInnovationTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="innovation_adult_intl_6"
+                      id="innovation_adult_intl_6"
+                      placeholder="0"
+                      oninput="updateInnovationTotal()"
+                    />
+                  </td>
+                </tr>
+                <!-- ================= Innovation7 ================= -->
+                <tr>
+                  <td>
+                    <select
+                      name="Innovation_activity_7"
+                      id="innovationspace_activity_7"
+                      class="innovationspace-activity-select"
+                    >
+                      <option value="">เลือกกิจกรรมห้อง Innovation</option>
+                    </select>
+                  </td>
+                  <td>
+                    <select
+                      name="innovation_staff_7"
+                      id="innovation_staff_7"
+                      class="staff-select"
+                    >
+                      <option value="">-----</option>
+                    </select>
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="innovation_child_th_7"
+                      id="innovation_child_th_7"
+                      placeholder="0"
+                      oninput="updateInnovationTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="innovation_adult_th_7"
+                      id="innovation_adult_th_7"
+                      placeholder="0"
+                      oninput="updateInnovationTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="innovation_child_intl_7"
+                      id="innovation_child_intl_7"
+                      placeholder="0"
+                      oninput="updateInnovationTotal()"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      name="innovation_adult_intl_7"
+                      id="innovation_adult_intl_7"
+                      placeholder="0"
+                      oninput="updateInnovationTotal()"
+                    />
+                  </td>
+                </tr>
+                <tr class="total">
+                  <td class="rowlabel">รวมยอด Inno</td>
+                  <td></td>
+
+                  <td class="rowlabel">รวมยอดเด็ก</td>
+                  <td>
+                    <input
+                      type="text"
+                      name="innovation_child_total"
+                      id="innovation_child_total"
+                      readonly
+                    />
+                  </td>
+
+                  <td class="rowlabel">รวมยอดผู้ใหญ่</td>
+                  <td>
+                    <input
+                      type="text"
+                      name="innovation_adult_total"
+                      id="innovation_adult_total"
+                      readonly
+                    />
+                  </td>
+
+                  <!-- ซ่อนไว้สำหรับใช้คำนวณ -->
+                  <td style="display: none">
+                    <input
+                      type="text"
+                      name="innovation_child_th_total"
+                      id="innovation_child_th_total"
+                      readonly
+                    />
+                  </td>
+
+                  <td style="display: none">
+                    <input
+                      type="text"
+                      name="innovation_adult_th_total"
+                      id="innovation_adult_th_total"
+                      readonly
+                    />
+                  </td>
+
+                  <td style="display: none">
+                    <input
+                      type="text"
+                      name="innovation_child_intl_total"
+                      id="innovation_child_intl_total"
+                      readonly
+                    />
+                  </td>
+
+                  <td style="display: none">
+                    <input
+                      type="text"
+                      name="innovation_adult_intl_total"
+                      id="innovation_adult_intl_total"
+                      readonly
+                    />
+                  </td>
+                </tr>
+
+                <tr class="total-room">
+                  <td class="rowlabel">รวมยอดห้อง Innovation ทั้งหมด</td>
+                  <td colspan="5">
+                    <input
+                      type="text"
+                      name="innovation_rooms_total"
+                      id="innovation_rooms_total"
+                      readonly
+                      style="font-size:15px; background-color:#acdbff;"
+
+                    />
+                  </td>
+
+                  <td style="display: none"></td>
+                  <td style="display: none"></td>
+                  <td style="display: none"></td>
+                  <td style="display: none"></td>
+                </tr>
+              </table>
+            </div>
+            <!-- /sub-bento innovation -->
+          </div>
+          <!-- /bento-activity -->
+          <!-- Styled notes block -->
+
+          
+          <div class="bento bento-pos">
+            <div class="bento-head">
+              <span class="dot"></span><span class="t">POS</span>
+            </div>
+            <div class="block">
+              <div class="pos-grid">
+                <div class="pos-col-activity">
+                  <table>
+                    <tr>
+                      <th class="rowlabel">กิจกรรม</th>
+                      <th>เด็ก</th>
+                      <th>ผู้ใหญ่</th>
+                    </tr>
+
+                    <tr>
+                      <td class="rowlabel">Walk Rally</td>
+                      <td>
+                        <input
+                          type="text"
+                          name="activity_walkrally_child"
+                          id="activity_walkrally_child"
+                          placeholder="0"
+                          oninput="updateExternalTotal()"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="text"
+                          name="activity_walkrally_adult"
+                          id="activity_walkrally_adult"
+                          placeholder="0"
+                          oninput="updateExternalTotal()"
+                        />
+                      </td>
+                    </tr>
+
+                    <tr>
+                      <td class="rowlabel">Mini Make and Play</td>
+                      <td>
+                        <input
+                          type="text"
+                          name="activity_miniplay_child"
+                          id="activity_miniplay_child"
+                          placeholder="0"
+                          oninput="updateExternalTotal()"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="text"
+                          name="activity_miniplay_adult"
+                          id="activity_miniplay_adult"
+                          placeholder="0"
+                          oninput="updateExternalTotal()"
+                        />
+                      </td>
+                    </tr>
+
+                    <tr>
+                      <td class="rowlabel">Don't Miss</td>
+                      <td>
+                        <input
+                          type="text"
+                          name="activity_other1_child"
+                          id="activity_other1_child"
+                          placeholder="0"
+                          oninput="updateExternalTotal()"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="text"
+                          name="activity_other1_adult"
+                          id="activity_other1_adult"
+                          placeholder="0"
+                          oninput="updateExternalTotal()"
+                        />
+                      </td>
+                    </tr>
+
+                    <tr>
+                      <td class="rowlabel">กิจกรรมอื่นๆ</td>
+                      <td>
+                        <input
+                          type="text"
+                          name="activity_other2_child"
+                          id="activity_other2_child"
+                          placeholder="0"
+                          oninput="updateExternalTotal()"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="text"
+                          name="activity_other2_adult"
+                          id="activity_other2_adult"
+                          placeholder="0"
+                          oninput="updateExternalTotal()"
+                        />
+                      </td>
+                    </tr>
+
+                    <!-- ยอดรวม External -->
+                    <tr class="total-room">
+                      <td class="rowlabel">รวมยอด External Activity</td>
+                      <td colspan="2">
+                        <input
+                          type="text"
+                          name="external_rooms_total"
+                          id="external_rooms_total"
+                          placeholder="0"
+                          readonly
+                          style="font-size:15px; background-color:#acdbff;"
+
+                        />
+                      </td>
+                    </tr>
+                  </table>
+                </div>
+                <!-- /pos-col-activity -->
+                <div class="pos-col-summary">
+                  <table>
+                    <tr>
+                      <th class="rowlabel">รายการ</th>
+                      <th>จำนวน</th>
+                    </tr>
+                    <tr>
+                      <td class="rowlabel">เด็กไทย (Walk-In)</td>
+                      <td>
+                        <input
+                          type="text"
+                          name="pos_child_th"
+                          id="pos_child_th"
+                          placeholder="0"
+                          readonly
+                        />
+                      </td>
+                    </tr>
+                    <tr>
+                      <td class="rowlabel">ผู้ใหญ่ไทย (Walk-In + กิจกรรม)</td>
+                      <td>
+                        <input
+                          type="text"
+                          name="pos_adult_th"
+                          id="pos_adult_th"
+                          placeholder="0"
+                          readonly
+                        />
+                      </td>
+                    </tr>
+                    <tr>
+                      <td class="rowlabel">เด็กต่างชาติ (Walk-In)</td>
+                      <td>
+                        <input
+                          type="text"
+                          name="pos_child_intl"
+                          id="pos_child_intl"
+                          placeholder="0"
+                          readonly
+                        />
+                      </td>
+                    </tr>
+                    <tr>
+                      <td class="rowlabel">
+                        ผู้ใหญ่ต่างชาติ (Walk-In + กิจกรรม)
+                      </td>
+                      <td>
+                        <input
+                          type="text"
+                          name="pos_adult_intl"
+                          id="pos_adult_intl"
+                          placeholder="0"
+                          readonly
+                        />
+                      </td>
+                    </tr>
+                  </table>
+                </div>
+                <!-- /pos-col-summary -->
+              </div>
+            </div>
+          </div>
+          <!-- /bento-pos -->
+        </div>
+        
+      </div>
+
+      <div class="summary" style="display:flex; justify-content:center; gap:24px; align-items:flex-start;">
+        <div class="stat">
+          <div class="lbl" style="font-size:12px;">รวมยอดการทำกิจกรรม</div>
+
+          <input
+            type="text"
+            name="summary_activity_total"
+            id="summary_activity_total"
+            readonly
+            placeholder="0"
+            style="font-size:25px; background-color:#60baff;"
+          />
+        </div>
+
+        <div class="stat">
+          <div class="lbl" style="font-size:12px;"> รวมยอดผู้เข้าร่วมกิจกรรมทั้งหมด (กิจกรรม+นิทรรศการ)
+          </div>
+
+          <input
+            type="text"
+            name="summary_AllDay_participants"
+            id="summary_AllDay_participants"
+            readonly
+            placeholder="0"
+            style="font-size:25px; background-color:#95ff23;"
+          />
+        </div>
+      </div>
+
+      <footer>จัสตุรัสวิทยาศาสตร์ อพวช. เชียงใหม่</footer>
+
+      <p></p>
+      <div style="text-align: center; margin: 16px 0">
+        <img
+          src="./Logo/NSMLOGO.png"
+          alt="Logo 1"
+          style="height: 64px; margin: 0 12px; vertical-align: middle"
+        />
+        <img
+          src="./Logo/InspireLAB.png"
+          alt="Logo 2"
+          style="height: 64px; margin: 0 12px; vertical-align: middle"
+        />
+        <img
+          src="./Logo/Innovationspace.png"
+          alt="Logo 3"
+          style="height: 64px; margin: 0 12px; vertical-align: middle"
+        />
+      </div>
+    </div>
+
+    <script>
+      const days = [
+        "วันอาทิตย์",
+        "วันจันทร์",
+        "วันอังคาร",
+        "วันพุธ",
+        "วันพฤหัสบดี",
+        "วันศุกร์",
+        "วันเสาร์",
+      ];
+
+      const months = [
+        "มกราคม",
+        "กุมภาพันธ์",
+        "มีนาคม",
+        "เมษายน",
+        "พฤษภาคม",
+        "มิถุนายน",
+        "กรกฎาคม",
+        "สิงหาคม",
+        "กันยายน",
+        "ตุลาคม",
+        "พฤศจิกายน",
+        "ธันวาคม",
+      ];
+
+      document
+        .getElementById("visitDate")
+        .addEventListener("change", function () {
+          const d = new Date(this.value);
+
+          document.getElementById("thaiDate").textContent =
+            `${days[d.getDay()]} ที่ ${d.getDate()} ${months[d.getMonth()]} พ.ศ. ${d.getFullYear() + 543}`;
+        });
+
+      function updateWalkinTotal() {
+        const groups = [
+          "walkin_child_th",
+          "walkin_adult_th",
+          "walkin_child_intl",
+          "walkin_adult_intl",
+        ];
+
+        groups.forEach((group) => {
+          let total = 0;
+          for (let i = 1; i <= 3; i++) {
+            total +=
+              parseInt(document.getElementById(group + "_" + i).value) || 0;
+          }
+          document.getElementById(group + "_total").value = total;
+        });
+
+        const childTotal =
+          (parseInt(document.getElementById("walkin_child_th_total").value) ||
+            0) +
+          (parseInt(document.getElementById("walkin_child_intl_total").value) ||
+            0);
+
+        const adultTotal =
+          (parseInt(document.getElementById("walkin_adult_th_total").value) ||
+            0) +
+          (parseInt(document.getElementById("walkin_adult_intl_total").value) ||
+            0);
+
+        document.getElementById("walkin_child_grand_total").value = childTotal;
+        document.getElementById("walkin_adult_grand_total").value = adultTotal;
+        document.getElementById("walkin_grand_total").value =
+          childTotal + adultTotal;
+
+        UpdateExhibition();
+        updatePOSTotal();
+      }
+
+      function updateGroupTotal() {
+        let childTotal = 0;
+        let adultTotal = 0;
+
+        for (let i = 1; i <= 5; i++) {
+          childTotal +=
+            parseInt(document.getElementById("group_child_" + i).value) || 0;
+          adultTotal +=
+            parseInt(document.getElementById("group_adult_" + i).value) || 0;
+        }
+
+        document.getElementById("group_child_total").value = childTotal;
+        document.getElementById("group_adult_total").value = adultTotal;
+
+        document.getElementById("group_child_grand_total").value = childTotal;
+        document.getElementById("group_adult_grand_total").value = adultTotal;
+        document.getElementById("group_grand_total").value =
+          childTotal + adultTotal;
+
+        UpdateExhibition();
+      }
+
+      // =====================
+      // รวมยอดนิทรรศการ
+      // =====================
+      function UpdateExhibition() {
+        const child =
+          (parseInt(document.getElementById("group_child_total").value) || 0) +
+          (parseInt(document.getElementById("walkin_child_th_total").value) ||
+            0) +
+          (parseInt(document.getElementById("walkin_child_intl_total").value) ||
+            0);
+
+        const adult =
+          (parseInt(document.getElementById("group_adult_total").value) || 0) +
+          (parseInt(document.getElementById("walkin_adult_th_total").value) ||
+            0) +
+          (parseInt(document.getElementById("walkin_adult_intl_total").value) ||
+            0);
+
+        document.getElementById("exhibition_total_child").value = child;
+        document.getElementById("exhibition_total_adult").value = adult;
+        document.getElementById("exhibition_grand_total").value = child + adult;
+
+        updateSummaryAllDay();
+      }
+
+      // =====================
+      // Inspire Lab Activities
+      // =====================
+      function updateInspireTotal() {
+        let childThTotal = 0;
+        let adultThTotal = 0;
+        let childIntlTotal = 0;
+        let adultIntlTotal = 0;
+
+        for (let i = 1; i <= 7; i++) {
+          childThTotal +=
+            parseInt(document.getElementById("inspire_child_th_" + i).value) ||
+            0;
+
+          adultThTotal +=
+            parseInt(document.getElementById("inspire_adult_th_" + i).value) ||
+            0;
+
+          childIntlTotal +=
+            parseInt(
+              document.getElementById("inspire_child_intl_" + i).value,
+            ) || 0;
+
+          adultIntlTotal +=
+            parseInt(
+              document.getElementById("inspire_adult_intl_" + i).value,
+            ) || 0;
+        }
+
+        const childTotal = childThTotal + childIntlTotal;
+        const adultTotal = adultThTotal + adultIntlTotal;
+        const total = childTotal + adultTotal;
+
+        document.getElementById("inspire_child_th_total").value = childThTotal;
+        document.getElementById("inspire_adult_th_total").value = adultThTotal;
+        document.getElementById("inspire_child_intl_total").value =
+          childIntlTotal;
+        document.getElementById("inspire_adult_intl_total").value =
+          adultIntlTotal;
+
+        document.getElementById("inspire_child_total").value = childTotal;
+        document.getElementById("inspire_adult_total").value = adultTotal;
+        document.getElementById("inspire_rooms_total").value = total;
+
+        // ส่งยอดไป Summary
+        updateSummaryActivityTotal();
+        updatePOSTotal();
+      }
+
+      // =====================
+      // Innovation Lab Activities
+      // =====================
+      function updateInnovationTotal() {
+        let childThTotal = 0;
+        let adultThTotal = 0;
+        let childIntlTotal = 0;
+        let adultIntlTotal = 0;
+
+        for (let i = 1; i <= 7; i++) {
+          childThTotal +=
+            parseInt(
+              document.getElementById("innovation_child_th_" + i).value,
+            ) || 0;
+
+          adultThTotal +=
+            parseInt(
+              document.getElementById("innovation_adult_th_" + i).value,
+            ) || 0;
+
+          childIntlTotal +=
+            parseInt(
+              document.getElementById("innovation_child_intl_" + i).value,
+            ) || 0;
+
+          adultIntlTotal +=
+            parseInt(
+              document.getElementById("innovation_adult_intl_" + i).value,
+            ) || 0;
+        }
+
+        const childTotal = childThTotal + childIntlTotal;
+        const adultTotal = adultThTotal + adultIntlTotal;
+        const total = childTotal + adultTotal;
+
+        document.getElementById("innovation_child_th_total").value =
+          childThTotal;
+        document.getElementById("innovation_adult_th_total").value =
+          adultThTotal;
+        document.getElementById("innovation_child_intl_total").value =
+          childIntlTotal;
+        document.getElementById("innovation_adult_intl_total").value =
+          adultIntlTotal;
+
+        document.getElementById("innovation_child_total").value = childTotal;
+        document.getElementById("innovation_adult_total").value = adultTotal;
+        document.getElementById("innovation_rooms_total").value = total;
+
+        // ส่งยอดไป Summary
+        updateSummaryActivityTotal();
+        updatePOSTotal();
+      }
+
+      const activityStaff = [
+        "นล",
+        "อิง",
+        "ยีน",
+        "แนน",
+        "แบม",
+        "เปรม",
+        "เอิร์น",
+        "หมอก",
+        "-------",
+        "เอิร์น",
+        "กระตุ้น",
+        "เฟิร์น",
+        "ป๊อกกี้",
+        "เฟิร์น ชาย",
+        "ฮาร์ทบีท",
+        "เกียร์",
+        "ออมสิน",
+        "ออม",
+        "นุ่น",
+        "ครีม",
+        "อาร์มมี่",
+        "ไนน์",
+        "ติณณ์",
+        "วรรณ",
+        "ติ้นโอ๊ค",
+        "กอเกียร์",
+        "น้ำฝน",
+        "บอล",
+        "พี่ปลา",
+        "พี่โต",
+      ];
+
+      function loadStaffDropdown() {
+        const selects = document.querySelectorAll(".staff-select");
+        selects.forEach((select) => {
+          activityStaff.forEach((staff) => {
+            const option = document.createElement("option");
+            option.value = staff;
+            option.textContent = staff;
+            select.appendChild(option);
+          });
+        });
+      }
+
+      loadStaffDropdown();
+
+      const inspireLabActivities = [
+        "ใสปิ๊งไม่ทิ้งเชื้อ",
+        "Bath Bomb",
+        "ค้นฟ้าคว้ารุ้ง",
+        "หอคอยหลากสีกับอัญมณีลึกลับ",
+        "ช่อกะเฌอ เฮอร์บาเรียม",
+        "ปั้นแป้ง แฝงวิทย์",
+        "สติ๊กเกอร์เปลี่ยนสี",
+        "ช็อกโกแลตฮาเฮ",
+        "เทียนแฟนซี",
+        "DIY สบู่ฝังลาย",
+        "เยลลี่ไข่ปลา",
+        "ไอศกรีมแสนอร่อย",
+        "The Skin ​ดูแลแคร์ผิว",
+        "ชวนกันคิดชวนกัน Code V.1",
+        "ชวนกันคิดชวนกัน Code V.2",
+        "ความลับของการซักผ้า",
+        "DNA กล้วยๆ",
+        "สถานีโยเกิร์ต",
+        "หิมะจำลองและผองเพื่อน",
+        "Trash to treasure จากขยะล้นโลก สู่ของโปรดชิ้นใหม่",
+      ];
+
+      function loadInspireLabActivities() {
+        const selects = document.querySelectorAll(
+          ".inspirelab-activity-select",
+        );
+        selects.forEach((select) => {
+          select.innerHTML = '<option value="">-----</option>';
+          inspireLabActivities.forEach((activity) => {
+            const option = document.createElement("option");
+            option.value = activity;
+            option.textContent = activity;
+            select.appendChild(option);
+          });
+        });
+      }
+
+      loadInspireLabActivities();
+
+      const InnovationSpaceActivities = [
+        "แขนกลไฮดรอลิก",
+        "บ้านต้านแผ่นดินไหว",
+        "ยานอวกาศพิชิตภารกิจ",
+        "Bug Battle Bot",
+        "สร้างสรรค์จากลังกระดาษ",
+        "ใบพัดจักรกล",
+        "ยานน้อยลอยลม",
+        "ปะติดปะต่อ ข้อต่อของฉัน",
+        "DIY My Zodiac",
+        "รหัสลับกับรถไฟ",
+        "ฉันส่งให้เธอ LEGO STEAM Park",
+        "Hydraulic Toy",
+        "LED Keychain",
+        "Gear Box",
+        "My Robot",
+        "Light Saber (ดาบแห่งแสง)",
+        "เรื่องของฟันเฟือง",
+        "Car racing",
+        "Spinning Drum",
+        "กังหันน้ำชัยพัฒนา",
+      ];
+
+      function loadInnovationSpaceActivities() {
+        const selects = document.querySelectorAll(
+          ".innovationspace-activity-select",
+        );
+        selects.forEach((select) => {
+          select.innerHTML = '<option value="">-----</option>';
+          InnovationSpaceActivities.forEach((activity) => {
+            const option = document.createElement("option");
+            option.value = activity;
+            option.textContent = activity;
+            select.appendChild(option);
+          });
+        });
+      }
+
+      loadInnovationSpaceActivities();
+
+      // =====================
+      // รวมยอดการทำกิจกรรมทั้งหมด
+      // =====================
+      function updateSummaryActivityTotal() {
+        const externalTotal =
+          parseInt(document.getElementById("external_rooms_total").value) || 0;
+        const innovationTotal =
+          parseInt(document.getElementById("innovation_rooms_total").value) ||
+          0;
+        const inspireTotal =
+          parseInt(document.getElementById("inspire_rooms_total").value) || 0;
+
+        const total = externalTotal + innovationTotal + inspireTotal;
+
+        document.getElementById("summary_activity_total").value = total;
+
+        updateSummaryAllDay();
+      }
+
+      function updateExternalTotal() {
+        let childTotal = 0;
+        let adultTotal = 0;
+
+        childTotal +=
+          parseInt(document.getElementById("activity_walkrally_child").value) ||
+          0;
+        adultTotal +=
+          parseInt(document.getElementById("activity_walkrally_adult").value) ||
+          0;
+
+        childTotal +=
+          parseInt(document.getElementById("activity_miniplay_child").value) ||
+          0;
+        adultTotal +=
+          parseInt(document.getElementById("activity_miniplay_adult").value) ||
+          0;
+
+        childTotal +=
+          parseInt(document.getElementById("activity_other1_child").value) || 0;
+        adultTotal +=
+          parseInt(document.getElementById("activity_other1_adult").value) || 0;
+
+        childTotal +=
+          parseInt(document.getElementById("activity_other2_child").value) || 0;
+        adultTotal +=
+          parseInt(document.getElementById("activity_other2_adult").value) || 0;
+
+        const total = childTotal + adultTotal;
+
+        document.getElementById("external_rooms_total").value = total;
+
+        updateSummaryActivityTotal();
+      }
+
+      // =====================
+      // POS Total
+      // =====================
+      function updatePOSTotal() {
+        // เด็กไทย
+        const childTh =
+          parseInt(document.getElementById("walkin_child_th_total").value) || 0;
+
+        // ผู้ใหญ่ไทย
+        const adultTh =
+          (parseInt(
+            document.getElementById("innovation_adult_th_total").value,
+          ) || 0) +
+          (parseInt(document.getElementById("inspire_adult_th_total").value) ||
+            0) +
+          (parseInt(document.getElementById("walkin_adult_th_total").value) ||
+            0);
+
+        // เด็กต่างชาติ
+        const childIntl =
+          parseInt(document.getElementById("walkin_child_intl_total").value) ||
+          0;
+
+        // ผู้ใหญ่ต่างชาติ
+        const adultIntl =
+          (parseInt(
+            document.getElementById("innovation_adult_intl_total").value,
+          ) || 0) +
+          (parseInt(
+            document.getElementById("inspire_adult_intl_total").value,
+          ) || 0) +
+          (parseInt(document.getElementById("walkin_adult_intl_total").value) ||
+            0);
+
+        // =====================
+        // แสดงผล POS
+        // =====================
+        document.getElementById("pos_child_th").value = childTh;
+        document.getElementById("pos_adult_th").value = adultTh;
+        document.getElementById("pos_child_intl").value = childIntl;
+        document.getElementById("pos_adult_intl").value = adultIntl;
+      }
+
+      // =====================
+      // รวมยอดผู้เข้าร่วมทั้งหมด (กิจกรรม + นิทรรศการ)
+      // =====================
+      function updateSummaryAllDay() {
+        const activityTotal =
+          parseInt(document.getElementById("summary_activity_total").value) ||
+          0;
+        const exhibitionTotal =
+          parseInt(document.getElementById("exhibition_grand_total").value) ||
+          0;
+
+        document.getElementById("summary_AllDay_participants").value =
+          activityTotal + exhibitionTotal;
+      }
+
+      // =====================
+      // โหลดครั้งแรก
+      // =====================
+      window.onload = function () {
+        updateWalkinTotal();
+        updateGroupTotal();
+        updateInspireTotal();
+        updateInnovationTotal();
+        updateExternalTotal();
+        UpdateExhibition();
+        updatePOSTotal();
+      };
+
+</script>
+</div>
+</body>
+</html>

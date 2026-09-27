@@ -1,0 +1,832 @@
+/* Form page (index.html). Tokens + reset live in base.css. */
+:root {
+  --radius: 14px;
+}
+body {
+  padding: 18px 20px 40px;
+}
+.page-title {
+  color: var(--ink);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+.sheet {
+  max-width: 1320px;
+  margin: 0 auto;
+  background: var(--panel);
+  border-radius: var(--radius);
+  padding: 20px 32px 22px;
+  border: 1px solid var(--line);
+}
+@media (min-width: 1500px) {
+  .sheet,
+  .toolbar {
+    max-width: 1840px;
+  }
+}
+
+/* ===== Toolbar ===== */
+.toolbar {
+  max-width: 1320px;
+  margin: 0 auto 10px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+#sheetStatus {
+  font-size: 12px;
+  color: var(--muted);
+  align-self: center;
+}
+.btn {
+  appearance: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 9px 16px;
+  border-radius: 8px;
+  transition:
+    opacity 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  letter-spacing: 0.01em;
+}
+.btn:active {
+  opacity: 0.8;
+}
+.btn-primary {
+  background: var(--ink);
+  color: #fff;
+}
+.btn-primary:hover {
+  background: #000000;
+}
+.btn-secondary {
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+}
+.btn-secondary:hover {
+  background: var(--bg);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+h1 {
+  text-align: center;
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 2px;
+}
+.subtitle {
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0 0 6px;
+  font-weight: 400;
+}
+/* เรียงลงมาทีละส่วนตามลำดับ: นิทรรศการ > กิจกรรม > กิจกรรมอื่นๆ > POS (อ่าน/กรอกง่ายกว่าดูทีละคอลัมน์) */
+.columns {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.col-title {
+  font-size: 12px;
+  color: var(--label);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin: 0 0 8px;
+}
+.block {
+  margin-bottom: 14px;
+}
+/* ===== Emphasized result values ===== */
+.val-md,
+.val-lg,
+.val-xl {
+  max-width: 140px !important;
+  width: 100% !important;
+  border-radius: 6px;
+  padding: 3px 2px !important;
+}
+.val-md {
+  font-size: 16px !important;
+  font-weight: 700 !important;
+}
+.val-lg {
+  font-size: 21px !important;
+  font-weight: 700 !important;
+}
+.val-xl {
+  font-size: 30px !important;
+  font-weight: 800 !important;
+}
+/* Computed value gets a soft tonal tint; hue escalates with importance (subtotal -> grand total) */
+.tag-gray {
+  background: #f1f2f4 !important;
+  color: #6b7280 !important;
+}
+.tag-yellow {
+  background: #fef3c7 !important;
+  color: #92400e !important;
+}
+.tag-orange {
+  background: #ffe4e6 !important;
+  color: #be123c !important;
+}
+.tag-blue {
+  background: #e0e7ff !important;
+  color: #3730a3 !important;
+}
+.tag-purple {
+  background: #ede9fe !important;
+  color: #6d28d9 !important;
+}
+.tag-green {
+  background: #d1fae5 !important;
+  color: #047857 !important;
+}
+
+/* ===== Bento cards: flat panels, no shadows/gradients ===== */
+.bento {
+  border-radius: 12px;
+  padding: 14px 16px 12px;
+  margin-bottom: 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+.bento .block:last-child {
+  margin-bottom: 0;
+}
+.bento-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.bento-head .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+}
+.bento-head .t {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.bento-exhibit .dot {
+  background: #4f46e5;
+}
+.bento-activity .dot {
+  background: #7c3aed;
+}
+.bento-pos .dot {
+  background: #059669;
+}
+.bento-external .dot {
+  background: #ea580c;
+}
+
+.sub-bento {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 10px 6px;
+  margin-bottom: 8px;
+}
+.sub-bento:last-child {
+  margin-bottom: 0;
+}
+.sub-bento .lab-head {
+  margin-bottom: 4px;
+}
+.block-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--label);
+  margin: 0 0 5px;
+}
+/* ===== Data grid: quiet hairlines, no outer frame ===== */
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+th,
+td {
+  border: none;
+  border-bottom: 1px solid var(--line);
+  padding: 4px 5px;
+  text-align: center;
+  font-size: 11.5px;
+  font-weight: 400;
+}
+th {
+  background: transparent;
+  font-weight: 600;
+  color: var(--label);
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--line-strong);
+}
+th.rowlabel,
+td.rowlabel {
+  text-align: left;
+  color: var(--label);
+  font-weight: 500;
+  font-size: 10.5px;
+}
+tr:hover td {
+  background: rgba(79, 70, 229, 0.04);
+}
+tr.total td {
+  font-weight: 600;
+  background: var(--bg);
+}
+tr.total-room td {
+  font-weight: 600;
+  background: #f1f1f5;
+}
+input[type="text"] {
+  width: 100%;
+  max-width: 56px;
+  border: none;
+  border-bottom: 1px solid transparent;
+  text-align: center;
+  background: transparent;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--ink);
+  padding: 1px 0;
+  border-radius: 0;
+}
+input[type="text"].wide {
+  max-width: none;
+  text-align: left;
+}
+/* ===== +/- stepper next to numeric cells ===== */
+.counter {
+  display: inline-flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 2px;
+  width: 100%;
+}
+.counter input[type="text"] {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 40px;
+}
+.counter-steps {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+}
+.counter-btn {
+  appearance: none;
+  border: 1px solid var(--line-strong);
+  background: #fff;
+  color: var(--label);
+  font-family: inherit;
+  font-size: 9px;
+  line-height: 1;
+  padding: 0;
+  width: 16px;
+  height: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.counter-btn:hover {
+  background: #f0f0f2;
+}
+.counter-btn:active {
+  background: #e2e2e6;
+}
+.counter-up {
+  border-radius: 3px 3px 0 0;
+  border-bottom: none;
+}
+.counter-down {
+  border-radius: 0 0 3px 3px;
+}
+input::placeholder {
+  color: #c7c7cc;
+  font-weight: 300;
+}
+input[type="text"]:focus {
+  outline: none;
+  border-bottom: 1px solid var(--accent);
+}
+.lab-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 5px;
+}
+.lab-head .name {
+  font-size: 13px;
+  font-weight: 600;
+}
+.lab-head .tag {
+  font-size: 9.5px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.summary {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line-strong);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+.summary .stat {
+  text-align: center;
+}
+.summary .stat .lbl {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--label);
+  margin-bottom: 4px;
+}
+.summary .stat input {
+  max-width: none;
+  width: 100%;
+  font-size: 19px;
+  font-weight: 300;
+  text-align: center;
+}
+.pos-col-activity,
+.pos-col-summary {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 10px 6px;
+}
+.sub-card-walkin {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 10px 6px;
+}
+.sub-card-group {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 10px 6px;
+}
+.logos {
+  text-align: center;
+  margin: 16px 0;
+}
+.logos img {
+  height: 64px;
+  margin: 0 12px;
+  vertical-align: middle;
+}
+footer {
+  text-align: center;
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 12px;
+}
+
+/* ===== Numpad กดตัวเลข (แทนคีย์บอร์ดเครื่อง) ===== */
+.numpad-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  background: var(--panel);
+  border-top: 1px solid var(--line-strong);
+  box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.15);
+  transform: translateY(100%);
+  transition: transform 0.2s ease;
+}
+.numpad-bar.is-open {
+  transform: translateY(0);
+}
+.numpad-head {
+  max-width: 320px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--label);
+}
+.numpad-x {
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+.numpad-x:hover {
+  background: var(--bg);
+}
+.numpad-grid {
+  max-width: 320px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  padding: 10px;
+}
+.numpad-btn {
+  padding: 12px 0;
+  border-radius: 10px;
+  border: 1px solid var(--line-strong);
+  background: var(--bg);
+  font-family: inherit;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+  user-select: none;
+}
+.numpad-btn:active {
+  background: #dbeafe;
+  border-color: var(--accent);
+}
+.numpad-wide {
+  grid-column: span 2;
+}
+.numpad-action {
+  background: #fef3c7;
+  border-color: #fde68a;
+  color: #92400e;
+  font-size: 15px;
+}
+.numpad-action:active {
+  background: #fde68a;
+}
+.numpad-done {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-size: 15px;
+}
+.numpad-done:active {
+  opacity: 0.85;
+}
+@media print {
+  .numpad-bar {
+    display: none !important;
+  }
+}
+@media (max-width: 900px) {
+  .summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.date-row {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  margin-bottom: 6px;
+}
+
+.calendar-btn {
+  position: relative;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11.5px;
+  line-height: 1;
+}
+
+.calendar-btn input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+#thaiDate {
+  font-size: 12px;
+  color: var(--label);
+  font-weight: 500;
+}
+
+.staff-select,
+.activity-select {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  font-size: 10.5px;
+  font-family: inherit;
+  text-align: center;
+  cursor: pointer;
+  color: var(--ink);
+}
+
+.staff-select::-ms-expand,
+.activity-select::-ms-expand {
+  display: none;
+}
+
+td.rowlabel input[readonly] {
+  max-width: none;
+  text-align: left;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+textarea#notes {
+  border: 1px solid var(--line-strong) !important;
+  border-radius: 10px;
+  font-family: inherit !important;
+}
+
+.notes-block {
+  display: block;
+  margin: 10px 0 0;
+}
+.notes-block .lbl {
+  font-weight: 600;
+  font-size: 12px;
+  margin-bottom: 5px;
+  color: var(--label);
+}
+.notes-block textarea {
+  width: 100%;
+  min-height: 90px;
+  padding: 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--panel);
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  resize: vertical;
+  transition: border-color 0.12s ease;
+}
+.notes-block textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* ===== Print: force everything onto one A4 page ===== */
+@media print {
+  @page {
+    size: A4 Landscape;
+    margin: 5mm;
+  }
+  /* Paper is static: kill every animation/transition (gradients, hover fx, etc.) */
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  html,
+  body {
+    width: 100%;
+    height: 100%;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: var(--bg) !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .toolbar {
+    display: none !important;
+  }
+  .sheet {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    padding: 0 !important;
+    transform-origin: top left;
+  }
+  h1,
+  .page-title {
+    font-size: 16px;
+    margin-bottom: 1.5px;
+    color: var(--ink) !important;
+  }
+  .subtitle {
+    font-size: 9.5px;
+    margin-bottom: 4px;
+  }
+  .col-title {
+    font-size: 11px;
+    margin-bottom: 3px;
+    padding-bottom: 1.5px;
+  }
+  .block {
+    margin-bottom: 4px;
+  }
+  .block-label {
+    font-size: 9px;
+    margin-bottom: 1.5px;
+  }
+  th,
+  td {
+    padding: 1.5px 3px;
+    font-size: 8.5px;
+  }
+  th {
+    font-size: 7.5px;
+    padding-bottom: 1.5px;
+  }
+  th.rowlabel,
+  td.rowlabel {
+    font-size: 8px;
+  }
+  input[type="text"] {
+    font-size: 8.5px;
+    padding: 0.7px 0;
+  }
+  /* Drop the +/- steppers on paper, back to a plain numeric cell */
+  .counter-steps {
+    display: none !important;
+  }
+  .counter {
+    width: auto !important;
+  }
+  .counter input[type="text"] {
+    max-width: none !important;
+  }
+  .staff-select,
+  .activity-select {
+    font-size: 7.5px;
+  }
+  .lab-head {
+    margin-bottom: 1.5px;
+  }
+  .lab-head .name {
+    font-size: 10px;
+  }
+  .lab-head .tag {
+    font-size: 7px;
+  }
+  /* จอแสดงเรียงลงมาทีละส่วนแล้ว (นิทรรศการ/กิจกรรม/กิจกรรมอื่นๆ/POS) แต่หน้าพิมพ์ยังคงบังคับให้
+     อยู่หน้าเดียว: 3 คอลัมน์ โดยคอลัมน์ 3 วาง "กิจกรรมอื่นๆ" ต่อด้วย "POS" ซ้อนกันลงมา
+     (ไม่ใช่ 4 คอลัมน์เรียงชิดกันแบบเดิม) ตัวอักษร/ระยะห่างขยายขึ้นให้เต็มพื้นที่หน้า A4 มากกว่าเดิม */
+  .columns {
+    display: grid;
+    gap: 7px;
+    grid-template-columns: 1fr 1.05fr 0.95fr;
+    grid-template-rows: auto auto;
+  }
+  .columns > div:nth-child(1) {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+  }
+  .columns > div:nth-child(2) {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+  .col-external {
+    grid-column: 3;
+    grid-row: 1;
+  }
+  .col-side {
+    grid-column: 3;
+    grid-row: 2;
+  }
+  .summary {
+    margin-top: 5px;
+    padding-top: 4px;
+    gap: 8px;
+  }
+  .summary .stat .lbl {
+    font-size: 8px;
+  }
+  footer {
+    font-size: 7px;
+    margin-top: 4px;
+  }
+  .date-row {
+    margin-bottom: 1.5px;
+  }
+  .date-row #thaiDate {
+    font-size: 9px;
+  }
+  .calendar-btn {
+    font-size: 9px;
+  }
+  .logos {
+    margin: 2.5px 0;
+  }
+  .logos img {
+    height: 22px;
+    margin: 0 5px;
+  }
+
+  .bento {
+    border-radius: 6px;
+    padding: 4px 6px 3px;
+    margin-bottom: 4px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Notes now lives in the narrow side column: keep it short so the page stays one A4 sheet */
+  .notes-block {
+    display: block;
+    margin: 4px 0 0;
+  }
+  .notes-block .lbl {
+    font-weight: 600;
+    margin-bottom: 1.5px;
+    font-size: 8.5px;
+    color: #333;
+  }
+  .notes-block textarea,
+  textarea#notes {
+    width: 100% !important;
+    min-height: 32px !important;
+    padding: 3px !important;
+    font-size: 8.5px;
+    border: 1px solid var(--line-strong) !important;
+    border-radius: 4px;
+    font-family: inherit !important;
+    resize: none;
+    overflow: hidden;
+  }
+
+  .bento-head {
+    margin-bottom: 3px;
+    gap: 4px;
+  }
+  .bento-head .dot {
+    width: 5px;
+    height: 5px;
+  }
+  .bento-head .t {
+    font-size: 9.5px;
+  }
+  .sub-bento {
+    padding: 4px 6px 3px;
+    margin-bottom: 4px;
+    border-radius: 6px;
+  }
+  .pos-col-activity {
+    padding: 4px 6px 3px;
+    border-radius: 6px;
+  }
+  .pos-col-summary {
+    padding: 4px 6px 3px;
+    border-radius: 6px;
+  }
+  .sub-card-walkin {
+    padding: 4px 6px 3px;
+    border-radius: 6px;
+  }
+  .sub-card-group {
+    padding: 4px 6px 3px;
+    border-radius: 6px;
+  }
+
+  /* Important totals stay big & bold on paper, even though data-entry cells are tiny */
+  .val-md,
+  .val-lg,
+  .val-xl {
+    max-width: 78px !important;
+    padding: 0.7px 1.5px !important;
+  }
+  .val-md {
+    font-size: 10.5px !important;
+  }
+  .val-lg {
+    font-size: 12px !important;
+    max-width: 90px !important;
+  }
+  .val-xl {
+    font-size: 16.5px !important;
+    max-width: 105px !important;
+  }
+}
