@@ -65,6 +65,16 @@ input[type=number]::-webkit-inner-spin-button{ -webkit-appearance: none; margin:
 select:focus, input:focus, textarea:focus { outline: none; box-shadow: 0 0 0 3px rgba(37,99,235,.15); border-color: #60a5fa !important; }
 
 /* Numpad กดตัวเลข: ปุ่มใหญ่กดง่ายทั้งเมาส์/นิ้ว */
+/* dropdown ใหญ่ขึ้น แตะง่าย — เฉพาะบนจอ (เอกสารพิมพ์ไม่เปลี่ยน) */
+@media screen {
+  select { min-height: 34px; cursor: pointer; }
+  .tap-select, td:has(> select) { cursor: pointer; }
+}
+@media screen and (pointer: coarse) {
+  /* นิ้ว: ช่องสูงขึ้น + ตัวหนังสือ 16px กัน iPhone ซูมเข้าเองตอนแตะ */
+  select, input[type=text], input:not([type]), textarea { font-size: 16px !important; }
+  select { min-height: 42px; }
+}
 .numpad-btn {
   padding: 12px 0; border-radius: 10px; border: 1px solid #e2e8f0; background: #f8fafc;
   font-size: 20px; font-weight: 600; color: #1e293b; user-select: none; -webkit-tap-highlight-color: transparent;

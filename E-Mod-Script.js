@@ -124,6 +124,38 @@ function setPath(obj, path, value) {
   cur[parts[parts.length - 1]] = value;
 }
 
+/* ---------------- dropdown helpers ---------------- */
+/** ใส่ตัวเลือกใหม่ให้ select โดยคงค่าที่เลือกไว้ — ถ้าคนกำลังเปิด dropdown นั้นอยู่ ให้รอจนปิดก่อน
+    (เดิมรายชื่อโหลดเสร็จแล้ววาดทับ ทำให้ dropdown ที่เปิดอยู่ปิดเอง/ค่าที่เพิ่งเลือกหาย) */
+function refillSelect(sel, html, cur) {
+  if (sel === document.activeElement) { sel._pendingOptions = html; return; }
+  sel._pendingOptions = null;
+  sel.innerHTML = html;
+  sel.value = cur;
+}
+document.addEventListener('focusout', e => {
+  const sel = e.target;
+  if (!(sel instanceof HTMLSelectElement) || !sel._pendingOptions) return;
+  const cur = sel.value;
+  setTimeout(() => refillSelect(sel, sel._pendingOptions, cur), 0);
+});
+// จำค่าที่ผู้ใช้เลือกไว้ใน data-value เสมอ ตัววาดตัวเลือกใหม่จะได้ไม่รีเซ็ตกลับเป็นค่าเก่า
+document.addEventListener('change', e => {
+  if (e.target instanceof HTMLSelectElement && 'value' in e.target.dataset) e.target.dataset.value = e.target.value;
+});
+/** แตะตรงไหนในช่องตาราง / กล่อง (.tap-select) ก็เปิด dropdown ในนั้นได้ ไม่ต้องเล็งตัว select */
+document.addEventListener('click', e => {
+  if (e.target.closest('select, input, textarea, button, a')) return;
+  const box = ['.tap-select', 'td', 'label'].map(q => e.target.closest(q))
+    .find(b => b && b.querySelectorAll('select').length === 1);
+  if (!box) return;
+  const sels = box.querySelectorAll('select');
+  if (sels[0].disabled) return;
+  e.preventDefault();
+  sels[0].focus();
+  try { sels[0].showPicker(); } catch (err) { /* browser เก่า: focus อย่างเดียว */ }
+});
+
 /* ---------------- staff dropdowns ---------------- */
 function parseCsvFirstColumn(text) {
   // คอลัมน์แรก (รองรับชื่อในเครื่องหมาย "..." ที่มี , อยู่ข้างใน) ตัดอักขระล่องหน (zero-width space) ทิ้ง
@@ -175,13 +207,11 @@ function activityOptionsHtml(room, current) {
 function renderRoundOptions() {
   document.querySelectorAll('select.leader-select').forEach(sel => {
     const cur = sel.value || sel.dataset.value || '';
-    sel.innerHTML = leaderOptionsHtml(cur);
-    sel.value = cur;
+    refillSelect(sel, leaderOptionsHtml(cur), cur);
   });
   document.querySelectorAll('select.activity-select').forEach(sel => {
     const cur = sel.value || sel.dataset.value || '';
-    sel.innerHTML = activityOptionsHtml(sel.dataset.room, cur);
-    sel.value = cur;
+    refillSelect(sel, activityOptionsHtml(sel.dataset.room, cur), cur);
   });
 }
 /** dropdown รายชื่ออาสา — ชื่อเดิมที่ไม่อยู่ในรายชื่อแล้ว (หรือพิมพ์ไว้ก่อนมี dropdown) ยังแสดงและบันทึกต่อได้ */
@@ -193,8 +223,7 @@ function volunteerOptionsHtml(current) {
 function renderVolunteerOptions() {
   document.querySelectorAll('select.vol-select').forEach(sel => {
     const cur = sel.value || sel.dataset.value || '';
-    sel.innerHTML = volunteerOptionsHtml(cur);
-    sel.value = cur;
+    refillSelect(sel, volunteerOptionsHtml(cur), cur);
   });
 }
 function staffOptionsHtml(placeholder, current) {
@@ -206,18 +235,14 @@ function renderStaffOptions() {
   ['p_mod', 'p_exhibition', 'p_education', 'p_visitorService'].forEach(id => {
     const el = document.getElementById(id);
     const cur = el.dataset.value || '';
-    el.innerHTML = staffOptionsHtml('- เลือก -', cur);
-    el.value = cur;
+    refillSelect(el, staffOptionsHtml('- เลือก -', cur), cur);
   });
   const rec = document.getElementById('f_recorder'), edt = document.getElementById('f_editor');
-  rec.innerHTML = staffOptionsHtml('- เลือกผู้บันทึก -', rec.dataset.value || '');
-  rec.value = rec.dataset.value || '';
-  edt.innerHTML = staffOptionsHtml(state.editingId ? '- เลือกผู้แก้ไข -' : '- (เฉพาะตอนแก้ไข) -', edt.dataset.value || '');
-  edt.value = edt.dataset.value || '';
+  refillSelect(rec, staffOptionsHtml('- เลือกผู้บันทึก -', rec.dataset.value || ''), rec.dataset.value || '');
+  refillSelect(edt, staffOptionsHtml(state.editingId ? '- เลือกผู้แก้ไข -' : '- (เฉพาะตอนแก้ไข) -', edt.dataset.value || ''), edt.dataset.value || '');
   const sig = document.getElementById('f_signer');
-  const sigCur = sig.value || sig.dataset.value || '';
-  sig.innerHTML = staffOptionsHtml('- เลือกผู้ลงชื่อ -', sigCur);
-  sig.value = sigCur;
+  const sigCur = sig.dataset.value || '';
+  refillSelect(sig, staffOptionsHtml('- เลือกผู้ลงชื่อ -', sigCur), sigCur);
 }
 
 /* ---------------- render: static form parts ---------------- */
