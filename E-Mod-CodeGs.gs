@@ -27,7 +27,8 @@ const EMOD_HEADERS = [
   'id', 'date', 'mod', 'mExhibition', 'mEducation', 'mVisitorService',
   'specialActivitiesJson', 'eveningJson', 'visitorCountsJson',
   'activityRoundsJson', 'otherActivitiesJson', 'revenueJson',
-  'recorder', 'editor', 'createdAt', 'updatedAt'
+  'recorder', 'editor', 'createdAt', 'updatedAt',
+  'signer' // ผู้ลงชื่อท้ายรายงาน (เพิ่มทีหลัง)
   // คอลัมน์ใหม่ต่อท้ายสุดเสมอ — ห้ามแทรกกลาง เพราะจะทำให้คอลัมน์ของแถวเก่าในชีตเลื่อนตำแหน่งผิด
 ];
 const EMOD_JSON_FIELDS = ['specialActivities', 'evening', 'visitorCounts', 'activityRounds', 'otherActivities', 'revenue'];
@@ -86,7 +87,7 @@ function emodEncode_(data) {
   Object.assign(record, {
     mod: data.mod || '', mExhibition: data.mExhibition || '', mEducation: data.mEducation || '',
     mVisitorService: data.mVisitorService || '', date: data.date || '',
-    recorder: data.recorder || '', editor: data.editor || ''
+    recorder: data.recorder || '', editor: data.editor || '', signer: data.signer || ''
   });
   EMOD_JSON_FIELDS.forEach(field => { record[field + 'Json'] = JSON.stringify(data[field] || null); });
   return record;

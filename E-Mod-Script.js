@@ -5,12 +5,17 @@
    - รายชื่อพนักงาน (ผู้บันทึก/ผู้แก้ไข) ดึงจากชีตอ้างอิงเดียวกับระบบจองห้อง (แท็บ Staff_Name)
    ========================================================= */
 const CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycbxxHvvPxXTIJ5DZmNz2rEmHpa5IR5ugIkOjbIpVYyfzga3YESmjnvouQsUhoV3QhgvOCw/exec', // <-- ใส่ URL ของ Google Apps Script Web App (จาก E-Mod-CodeGs.gs) ที่นี่
+  API_URL: 'https://script.google.com/macros/s/AKfycbzJMzKNqJxW5gdbDgOFTJEdZPTKnTgkoKmEx6LOQcYgPBk_bWvCStBVYJ-0Zpl7bipk6g/exec', // <-- ใส่ URL ของ Google Apps Script Web App (จาก E-Mod-CodeGs.gs) ที่นี่
   STAFF_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=1863604525&single=true&output=csv',
   // รายชื่ออาสา (แท็บ Volunteer_Name) สำหรับช่อง "รายชื่ออาสา" ของ Evening Briefing
   VOLUNTEER_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=320745201&single=true&output=csv',
   // รายชื่อโรงเรียน (แท็บ School_name) สำหรับช่องชื่อโรงเรียนของตารางกรุ๊ป
-  SCHOOLS_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=0&single=true&output=csv'
+  SCHOOLS_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=0&single=true&output=csv',
+  // รายชื่อกิจกรรมของแต่ละห้อง (แท็บ Inspirelab_ac / Innovation_ac — ชุดเดียวกับระบบจองห้อง) สำหรับตารางรอบกิจกรรม
+  ACTIVITY_CSV_URLS: {
+    inspireLab: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=1497609226&single=true&output=csv',
+    innovationSpace: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=116326658&single=true&output=csv'
+  }
 };
 
 /* ---------------- โครงสร้าง Zone ของ Evening Briefing ---------------- */
@@ -62,6 +67,7 @@ const MINI_BTN = 'inline-flex h-6 w-6 items-center justify-center rounded border
 let refStaff = [];
 let refVolunteers = [];
 let refSchools = [];
+let refActivities = { inspireLab: [], innovationSpace: [] };
 let state = { id: '', editingId: false };
 
 function todayStr() {
@@ -99,7 +105,7 @@ function blankReport() {
     },
     otherActivities: DEFAULT_OTHER_ACTIVITIES.map(emptyOtherActivity),
     revenue,
-    recorder: '', editor: '', createdAt: '', updatedAt: ''
+    recorder: '', editor: '', signer: '', createdAt: '', updatedAt: ''
   };
 }
 
@@ -120,7 +126,11 @@ function setPath(obj, path, value) {
 
 /* ---------------- staff dropdowns ---------------- */
 function parseCsvFirstColumn(text) {
-  return text.split(/\r?\n/).slice(1).map(l => l.split(',')[0].trim()).filter(Boolean);
+  // คอลัมน์แรก (รองรับชื่อในเครื่องหมาย "..." ที่มี , อยู่ข้างใน) ตัดอักขระล่องหน (zero-width space) ทิ้ง
+  return text.split(/\r?\n/).slice(1).map(l => {
+    const m = l.match(/^"((?:[^"]|"")*)"|^[^,]*/);
+    return (m[1] !== undefined ? m[1].replace(/""/g, '"') : m[0]).replace(/\u200b/g, '').trim();
+  }).filter(Boolean);
 }
 async function fetchCsvNames(url) {
   if (!url) return null;
@@ -130,15 +140,49 @@ async function fetchCsvNames(url) {
   } catch (err) { return null; } // คงรายการเดิมไว้
 }
 async function loadStaff() {
-  const [staff, volunteers, schools] = await Promise.all([
-    fetchCsvNames(CONFIG.STAFF_CSV_URL), fetchCsvNames(CONFIG.VOLUNTEER_CSV_URL), fetchCsvNames(CONFIG.SCHOOLS_CSV_URL)
+  const [staff, volunteers, schools, inspireActs, innoActs] = await Promise.all([
+    fetchCsvNames(CONFIG.STAFF_CSV_URL), fetchCsvNames(CONFIG.VOLUNTEER_CSV_URL), fetchCsvNames(CONFIG.SCHOOLS_CSV_URL),
+    fetchCsvNames(CONFIG.ACTIVITY_CSV_URLS.inspireLab), fetchCsvNames(CONFIG.ACTIVITY_CSV_URLS.innovationSpace)
   ]);
   if (staff) refStaff = staff;
   if (volunteers) refVolunteers = volunteers;
   if (schools) refSchools = schools;
+  if (inspireActs) refActivities.inspireLab = inspireActs;
+  if (innoActs) refActivities.innovationSpace = innoActs;
   renderStaffOptions();
   renderVolunteerOptions();
+  renderRoundOptions();
   document.getElementById('schoolList').innerHTML = refSchools.map(n => `<option value="${escapeHtml(n)}"></option>`).join('');
+}
+/** dropdown ผู้ดำเนินกิจกรรม: เจ้าหน้าที่ + อาสา แยกกลุ่ม; ชื่อเดิมที่ไม่อยู่ในรายชื่อยังแสดง/บันทึกได้ */
+function leaderOptionsHtml(current) {
+  const opt = n => `<option value="${escapeHtml(n)}" ${n === current ? 'selected' : ''}>${escapeHtml(n)}</option>`;
+  const vols = refVolunteers.filter(n => !refStaff.includes(n));
+  const known = refStaff.includes(current) || vols.includes(current);
+  return '<option value="">- เลือก -</option>' +
+    (refStaff.length ? `<optgroup label="เจ้าหน้าที่">${refStaff.map(opt).join('')}</optgroup>` : '') +
+    (vols.length ? `<optgroup label="อาสา">${vols.map(opt).join('')}</optgroup>` : '') +
+    (current && !known ? `<option value="${escapeHtml(current)}" selected>${escapeHtml(current)}</option>` : '');
+}
+/** dropdown ชื่อกิจกรรมของห้องนั้น (Inspire Lab / Innovation Space) */
+function activityOptionsHtml(room, current) {
+  const list = refActivities[room] || [];
+  return '<option value="">- เลือกกิจกรรม -</option>' +
+    list.map(n => `<option value="${escapeHtml(n)}" ${n === current ? 'selected' : ''}>${escapeHtml(n)}</option>`).join('') +
+    (current && !list.includes(current) ? `<option value="${escapeHtml(current)}" selected>${escapeHtml(current)}</option>` : '');
+}
+/** วาดตัวเลือกใหม่หลังโหลดรายชื่อเสร็จ โดยคงค่าที่เลือก/โหลดไว้ */
+function renderRoundOptions() {
+  document.querySelectorAll('select.leader-select').forEach(sel => {
+    const cur = sel.value || sel.dataset.value || '';
+    sel.innerHTML = leaderOptionsHtml(cur);
+    sel.value = cur;
+  });
+  document.querySelectorAll('select.activity-select').forEach(sel => {
+    const cur = sel.value || sel.dataset.value || '';
+    sel.innerHTML = activityOptionsHtml(sel.dataset.room, cur);
+    sel.value = cur;
+  });
 }
 /** dropdown รายชื่ออาสา — ชื่อเดิมที่ไม่อยู่ในรายชื่อแล้ว (หรือพิมพ์ไว้ก่อนมี dropdown) ยังแสดงและบันทึกต่อได้ */
 function volunteerOptionsHtml(current) {
@@ -170,6 +214,10 @@ function renderStaffOptions() {
   rec.value = rec.dataset.value || '';
   edt.innerHTML = staffOptionsHtml(state.editingId ? '- เลือกผู้แก้ไข -' : '- (เฉพาะตอนแก้ไข) -', edt.dataset.value || '');
   edt.value = edt.dataset.value || '';
+  const sig = document.getElementById('f_signer');
+  const sigCur = sig.value || sig.dataset.value || '';
+  sig.innerHTML = staffOptionsHtml('- เลือกผู้ลงชื่อ -', sigCur);
+  sig.value = sigCur;
 }
 
 /* ---------------- render: static form parts ---------------- */
@@ -293,8 +341,8 @@ function roundRowHtml(prefix, i, r) {
     <td class="${TD}"><input type="number" min="0" inputmode="none" class="${IN_NUM}" data-col="adultTh" data-path="activityRounds.${prefix}.${i}.adultTh" value="${r.adultTh || 0}"></td>
     <td class="${TD}"><input type="number" min="0" inputmode="none" class="${IN_NUM}" data-col="childFor" data-path="activityRounds.${prefix}.${i}.childFor" value="${r.childFor || 0}"></td>
     <td class="${TD}"><input type="number" min="0" inputmode="none" class="${IN_NUM}" data-col="adultFor" data-path="activityRounds.${prefix}.${i}.adultFor" value="${r.adultFor || 0}"></td>
-    <td class="${TD_TXT}"><input class="${IN_TXT}" data-path="activityRounds.${prefix}.${i}.leader" value="${escapeHtml(r.leader || '')}"></td>
-    <td class="${TD_TXT}"><input class="${IN_TXT}" data-path="activityRounds.${prefix}.${i}.activity" value="${escapeHtml(r.activity || '')}"></td>
+    <td class="${TD_TXT} min-w-[130px]"><select class="${IN_TXT} leader-select" data-path="activityRounds.${prefix}.${i}.leader" data-value="${escapeHtml(r.leader || '')}">${leaderOptionsHtml(r.leader || '')}</select></td>
+    <td class="${TD_TXT} min-w-[210px]"><select class="${IN_TXT} activity-select" data-room="${prefix}" data-path="activityRounds.${prefix}.${i}.activity" data-value="${escapeHtml(r.activity || '')}">${activityOptionsHtml(prefix, r.activity || '')}</select></td>
     <td class="${TD_TXT}"><input class="${IN_TXT}" data-path="activityRounds.${prefix}.${i}.school" value="${escapeHtml(r.school || '')}"></td>
   </tr>`;
 }
@@ -432,6 +480,9 @@ function populateForm(r) {
   });
   document.getElementById('f_recorder').dataset.value = r.recorder || '';
   document.getElementById('f_editor').dataset.value = '';
+  const sig = document.getElementById('f_signer');
+  sig.dataset.value = r.signer || '';
+  sig.value = '';
   renderStaffOptions();
 
   renderSpecialActivities(r.specialActivities && r.specialActivities.length ? r.specialActivities : ['']);

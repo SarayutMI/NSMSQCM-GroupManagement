@@ -74,6 +74,8 @@ select:focus, input:focus, textarea:focus { outline: none; box-shadow: 0 0 0 3px
 .numpad-action:active { background: #fde68a; }
 .numpad-done { background: #2563eb; border-color: #2563eb; color: #fff; font-size: 16px; }
 .numpad-done:active { background: #1d4ed8; }
+/* ปุ่มเมนู ☰ มุมขวาล่าง (nav-drawer.js) บังปุ่ม ✓ เสร็จ: ซ่อนไว้ระหว่างที่ numpad เปิด */
+body:has(#numpadBar:not(.hidden)) .nsmnav-btn { display: none !important; }
 
 /* ปุ่ม +/- ข้างช่องตัวเลขทุกช่อง (E-Mod-Script.js: addSteppers) — ตอนพิมพ์ซ่อนด้วย .print-hide */
 .cnt-step { display: flex; align-items: stretch; gap: 2px; min-width: 0; }

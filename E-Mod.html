@@ -24,7 +24,7 @@
 
 <!-- Toolbar -->
 <div class="print-hide sticky top-0 z-20 flex flex-wrap items-center gap-3 bg-navy px-4 py-2.5 text-white shadow-md">
-  <div class="mr-1 whitespace-nowrap text-base font-bold">📋 E-Mod</div>
+  <div class="mr-1 whitespace-nowrap text-base font-bold">E-Mod</div>
 
   <label class="flex flex-col gap-0.5 text-xs text-slate-300">
     วันที่
@@ -47,17 +47,17 @@
   <span class="text-xs text-slate-300" id="statusMsg"></span>
   <button id="newBtn" class="rounded border border-slate-500 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-slate-700">+ ใหม่</button>
   <button id="loadBtn" class="rounded border border-slate-500 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-slate-700">โหลดตามวันที่</button>
-  <button id="previewBtn" class="rounded border border-slate-500 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-slate-700">🔍 พรีวิว</button>
-  <button id="printBtn" class="rounded border border-slate-500 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-slate-700">🖨 พิมพ์</button>
+  <button id="previewBtn" class="rounded border border-slate-500 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-slate-700">พรีวิว</button>
+  <button id="printBtn" class="rounded border border-slate-500 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-slate-700">พิมพ์</button>
   <button id="saveBtn" class="rounded bg-blue-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">บันทึก</button>
 </div>
 
 <!-- Quick-nav: ข้ามไปกรอกแต่ละส่วนได้ทันที (ไม่ติดไปในเอกสารพิมพ์) -->
 <div class="print-hide sticky top-[52px] z-10 flex flex-wrap gap-2 border-b border-slate-200 bg-slate-100/95 px-4 py-2 backdrop-blur sm:px-6">
-  <a href="#sectionMorning" class="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-medium text-slate-600 hover:border-blue-400 hover:text-blue-600">🌅 Morning Briefing</a>
-  <a href="#sectionEvening" class="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-medium text-slate-600 hover:border-blue-400 hover:text-blue-600">🌆 Evening Briefing</a>
-  <a href="#sectionCounts" class="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-medium text-slate-600 hover:border-blue-400 hover:text-blue-600">👥 จำนวนผู้เข้าชม</a>
-  <a href="#sectionRevenue" class="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-medium text-slate-600 hover:border-blue-400 hover:text-blue-600">💰 รายได้</a>
+  <a href="#sectionMorning" class="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-medium text-slate-600 hover:border-blue-400 hover:text-blue-600">Morning Briefing</a>
+  <a href="#sectionEvening" class="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-medium text-slate-600 hover:border-blue-400 hover:text-blue-600">Evening Briefing</a>
+  <a href="#sectionCounts" class="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-medium text-slate-600 hover:border-blue-400 hover:text-blue-600">จำนวนผู้เข้าชม</a>
+  <a href="#sectionRevenue" class="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-medium text-slate-600 hover:border-blue-400 hover:text-blue-600">รายได้</a>
 </div>
 
 <!-- Page -->
@@ -65,7 +65,7 @@
   <div class="rounded-2xl bg-white p-4 shadow-md sm:p-8">
 
     <div class="mb-6 text-center">
-      <h1 class="text-lg font-bold text-navy sm:text-xl">รายงานประจำวัน MOD (Manager On Duty)</h1>
+      <h1 class="text-lg font-bold text-navy sm:text-xl">รายงานประจำวัน MOD</h1>
       <div class="text-xs text-slate-500" id="headSub">-</div>
     </div>
 
@@ -242,15 +242,16 @@
       </div>
     </section>
 
-    <!-- ============ Signatures ============ -->
-    <section class="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2">
-      <div class="text-center text-sm text-slate-600">
+    <!-- ============ Signature (ผู้ลงชื่อ 1 คน เลือกจากรายชื่อเจ้าหน้าที่ Staff_Name) ============ -->
+    <section class="mt-10 flex justify-center">
+      <div class="w-full max-w-xs text-center text-sm text-slate-600">
         <div class="mb-1.5 h-10 border-b border-dashed border-slate-300"></div>
-        ลงชื่อ MOD ………………………………………
-      </div>
-      <div class="text-center text-sm text-slate-600">
-        <div class="mb-1.5 h-10 border-b border-dashed border-slate-300"></div>
-        ลงชื่อ MOD ………………………………………
+        <div class="flex items-center justify-center gap-1.5">
+          <span>ลงชื่อ (</span>
+          <select id="f_signer" data-path="signer" class="min-w-0 max-w-[12rem] rounded border border-slate-300 bg-white px-1.5 py-1 text-center text-sm text-slate-800"></select>
+          <span>)</span>
+        </div>
+        <div class="mt-1">MOD</div>
       </div>
     </section>
 
