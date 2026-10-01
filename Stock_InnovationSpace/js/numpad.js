@@ -15,6 +15,8 @@ const StockNumpad = (() => {
     target = input;
     $("numpadLabel").textContent = label(input);
     bar.classList.add("is-open");
+    // numpad ขึ้นมาบังครึ่งล่างของจอ: เลื่อนช่องที่กำลังกรอกให้มองเห็น
+    setTimeout(() => input.scrollIntoView({ block: "center" }), 220);
   }
   function close() {
     bar.classList.remove("is-open");

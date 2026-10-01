@@ -26,6 +26,12 @@ function itemStatus(it) {
   if (min > 0 && q <= min) return "low";
   return "ok";
 }
+/** 2 กอง: Stock (เก็บในคลัง) + Standby (พร้อมใช้หน้างาน); qty = รวม */
+const piles = (it) => ({ stock: Math.round((it.qty - (it.standbyQty || 0)) * 100) / 100, standby: it.standbyQty || 0 });
+const pileText = (it) => {
+  const p = piles(it);
+  return `<span class="pile pile-stock">Stock ${fmtQty(p.stock)}</span><span class="pile pile-standby">Standby ${fmtQty(p.standby)}</span>`;
+};
 const STATUS_LABEL = { out: "หมด", low: "ใกล้หมด", ok: "ปกติ" };
 const statusPill = (s) => `<span class="pill pill-${s}">${STATUS_LABEL[s]}</span>`;
 const needsRefill = (it) => itemStatus(it) !== "ok";
@@ -79,13 +85,15 @@ function fillUsers(names) {
 
 // ---------- data ----------
 function applyState(data) {
-  ITEMS = (data.items || []).map((i) => Object.assign(i, { qty: Number(i.qty) || 0, minQty: Number(i.minQty) || 0 }));
+  ITEMS = (data.items || []).map((i) => {
+    const qty = Number(i.qty) || 0;
+    return Object.assign(i, { qty: qty, minQty: Number(i.minQty) || 0, standbyQty: Math.min(qty, Math.max(0, Number(i.standbyQty) || 0)) });
+  });
   ITEMS.sort((a, b) => String(a.name).localeCompare(String(b.name), "th"));
   LOCATIONS = (data.locations || []).slice().sort((a, b) => String(a.name).localeCompare(String(b.name), "th"));
   LOG = data.log || [];
   if (ui.selectedLocId && !locById(ui.selectedLocId)) ui.selectedLocId = null;
   if (ui.focusItemId && !itemById(ui.focusItemId)) ui.focusItemId = null;
-  $("categoryList").innerHTML = categories().map((c) => `<option value="${esc(c)}"></option>`).join("");
   render();
 }
 
@@ -137,6 +145,13 @@ function formValues() {
   return o;
 }
 
+// หมวดหมู่เป็น dropdown จริง (datalist ไม่แสดงบน iPhone/iPad) + ตัวเลือกเพิ่มหมวดใหม่
+const NEW_CATEGORY = "__new__";
+const categoryOptions = (selected) =>
+  '<option value="">- ไม่ระบุหมวด -</option>' +
+  categories().map((c) => `<option value="${esc(c)}"${c === selected ? " selected" : ""}>${esc(c)}</option>`).join("") +
+  `<option value="${NEW_CATEGORY}">＋ เพิ่มหมวดใหม่...</option>`;
+
 const locOptions = (selected, blankLabel) =>
   `<option value="">${esc(blankLabel || "- ไม่ระบุตำแหน่ง -")}</option>` +
   LOCATIONS.map((l) => `<option value="${esc(l.id)}"${l.id === selected ? " selected" : ""}>${esc(l.name)}${l.zone ? " · " + esc(l.zone) : ""}</option>`).join("");
@@ -144,24 +159,33 @@ const locOptions = (selected, blankLabel) =>
 // ---------- item actions ----------
 /** preset: ค่าตั้งต้นของรายการใหม่ เช่น {barcode} จากการสแกนที่ไม่พบในระบบ */
 function openItemForm(id, preset) {
-  const it = id ? itemById(id) : Object.assign({ name: "", category: "", unit: "ชิ้น", qty: 0, minQty: 0, locationId: ui.selectedLocId || "", locationNote: "", note: "", imageUrl: "", barcode: "", code: "" }, preset || {});
+  const it = id ? itemById(id) : Object.assign({ name: "", category: "", unit: "ชิ้น", qty: 0, minQty: 0, locationId: ui.selectedLocId || "", locationNote: "", note: "", imageUrl: "", barcode: "", code: "", standbyQty: 0 }, preset || {});
+  const p = piles(it);
   if (!it) return;
   openModal(
     id ? "แก้ไขรายการ" : "เพิ่มของใหม่",
-    `<label>รหัส<input name="code" maxlength="50" value="${esc(it.code || "")}" placeholder="เช่น IS-001" autocapitalize="characters"></label>
-     <label>ชื่อสิ่งของ *<input name="name" required maxlength="200" value="${esc(it.name)}"></label>
-     <label>หมวดหมู่<input name="category" list="categoryList" value="${esc(it.category)}" placeholder="เลือกหรือพิมพ์ใหม่"></label>
-     <label>หน่วย<input name="unit" value="${esc(it.unit)}" placeholder="ชิ้น / กล่อง / แพ็ค"></label>
-     <label>จำนวนคงเหลือ<input name="qty" type="text" inputmode="none" data-num autocomplete="off" value="${esc(it.qty)}"></label>
-     <label>จำนวนขั้นต่ำ (แจ้งเตือนเมื่อเหลือเท่านี้)<input name="minQty" type="text" inputmode="none" data-num autocomplete="off" value="${esc(it.minQty)}"></label>
-     <label>ตำแหน่งจัดเก็บ<select name="locationId">${locOptions(it.locationId)}</select></label>
-     <label>รายละเอียดตำแหน่ง<input name="locationNote" value="${esc(it.locationNote)}" placeholder="เช่น ชั้น 2 กล่องสีฟ้า"></label>
+    `<label class="f-full">ชื่อสิ่งของ *<input name="name" required maxlength="200" value="${esc(it.name)}"></label>
+     <label>รหัส<input name="code" maxlength="50" value="${esc(it.code || "")}" placeholder="เช่น IS-001" autocapitalize="characters"></label>
+     <label>หน่วย<input name="unit" value="${esc(it.unit)}" placeholder="ชิ้น / กล่อง"></label>
+     <label class="f-full">หมวดหมู่<select name="category" id="fCategorySel">${categoryOptions(it.category)}</select></label>
+     <label class="f-full" id="fCategoryNewBox" hidden>ชื่อหมวดหมู่ใหม่<input name="categoryNew" id="fCategoryNew" maxlength="100" placeholder="พิมพ์ชื่อหมวดหมู่ใหม่"></label>
+     <label>Stock (ในคลัง)<input name="stockQty" type="text" inputmode="none" data-num autocomplete="off" value="${esc(p.stock)}"></label>
+     <label>Standby (พร้อมใช้)<input name="standbyQty" type="text" inputmode="none" data-num autocomplete="off" value="${esc(p.standby)}"></label>
+     <label>ขั้นต่ำ (เตือนเมื่อรวมเหลือ)<input name="minQty" type="text" inputmode="none" data-num autocomplete="off" value="${esc(it.minQty)}"></label>
+     <p class="muted pile-sum">รวม <b id="fQtySum">${fmtQty(it.qty)}</b> ${esc(it.unit || "")}</p>
+     <label class="f-full">ตำแหน่งจัดเก็บ<select name="locationId">${locOptions(it.locationId)}</select></label>
+     <label class="f-full">รายละเอียดตำแหน่ง<input name="locationNote" value="${esc(it.locationNote)}" placeholder="เช่น ชั้น 2 กล่องสีฟ้า"></label>
      <label class="f-full">บาร์โค้ด (ถ้ามี)
        <span class="with-btn"><input name="barcode" id="fBarcode" inputmode="numeric" value="${esc(it.barcode || "")}" placeholder="สแกน / ยิง / พิมพ์เลข"><button type="button" class="btn" data-scan-into="fBarcode">📷 สแกน</button></span></label>
      <label class="f-full">ลิงก์รูป (ถ้ามี)<input name="imageUrl" type="url" value="${esc(it.imageUrl)}" placeholder="https://..."></label>
      <label class="f-full">หมายเหตุ<textarea name="note" rows="2">${esc(it.note)}</textarea></label>`,
     async (v) => {
       if (!v.name.trim()) return setStatus("กรุณาใส่ชื่อสิ่งของ", "warn");
+      if (v.category === NEW_CATEGORY) {
+        v.category = v.categoryNew.trim();
+        if (!v.category) return setStatus("กรุณาพิมพ์ชื่อหมวดหมู่ใหม่ (หรือเลือกหมวดที่มีอยู่)", "warn");
+      }
+      delete v.categoryNew;
       const ok = await run({ action: "saveItem", data: Object.assign(v, { id: id || "" }) }, "กำลังบันทึกรายการ...", id ? "แก้ไขรายการแล้ว" : "เพิ่มของใหม่แล้ว");
       if (ok) closeModal();
     },
@@ -185,18 +209,76 @@ function openAdjustForm(id) {
   if (!it) return;
   openModal(
     `รับเข้า / เบิกออก — ${it.name}`,
-    `<p class="f-full muted">คงเหลือในระบบ <b>${fmtQty(it.qty)} ${esc(it.unit)}</b></p>
+    `<p class="f-full muted">คงเหลือรวม <b>${fmtQty(it.qty)} ${esc(it.unit)}</b> ${pileText(it)}</p>
      <label>ประเภท<select name="type"><option value="out">เบิกออก (−)</option><option value="in">รับเข้า (+)</option></select></label>
+     <label>กอง<select name="pile"><option value="stock">Stock (ในคลัง)</option><option value="standby">Standby (พร้อมใช้)</option></select></label>
      <label>จำนวน<input name="amount" type="text" inputmode="none" data-num autocomplete="off" required></label>
      <label class="f-full">หมายเหตุ / ใช้กับกิจกรรมอะไร<input name="note" placeholder="เช่น กิจกรรม Gear Box รอบเช้า"></label>`,
     async (v) => {
       const amount = Number(v.amount);
       if (!(amount > 0)) return setStatus("กรุณาใส่จำนวนที่มากกว่า 0", "warn");
-      const ok = await run({ action: "adjust", id: id, delta: v.type === "in" ? amount : -amount, note: v.note }, "กำลังบันทึก...", v.type === "in" ? "รับเข้าแล้ว" : "เบิกออกแล้ว");
+      const p = piles(it);
+      if (v.type === "out" && amount > p[v.pile]) return setStatus(`ใน ${v.pile === "stock" ? "Stock" : "Standby"} มีแค่ ${fmtQty(p[v.pile])}`, "warn");
+      const ok = await run({ action: "adjust", id: id, delta: v.type === "in" ? amount : -amount, pile: v.pile, note: v.note }, "กำลังบันทึก...", v.type === "in" ? "รับเข้าแล้ว" : "เบิกออกแล้ว");
       if (ok) closeModal();
     },
   );
 }
+
+/** ย้ายจำนวนระหว่างกอง Stock ⇄ Standby (ยอดรวมเท่าเดิม) */
+function openMoveForm(id, to) {
+  const it = itemById(id);
+  if (!it) return;
+  const p = piles(it);
+  to = to || (p.stock > 0 ? "standby" : "stock");
+  openModal(
+    `ย้ายกอง Stock ⇄ Standby — ${it.name}`,
+    `<p class="f-full muted">${pileText(it)}</p>
+     <label class="f-full">ย้าย<select name="to">
+       <option value="standby"${to === "standby" ? " selected" : ""}>Stock → Standby (เอาออกมาพร้อมใช้)</option>
+       <option value="stock"${to === "stock" ? " selected" : ""}>Standby → Stock (เก็บกลับคลัง)</option></select></label>
+     <label>จำนวน<input name="amount" ${'type="text" inputmode="none" data-num autocomplete="off"'} required></label>
+     <label>หมายเหตุ<input name="note" placeholder="เช่น เตรียมกิจกรรมรอบบ่าย"></label>`,
+    async (v) => {
+      const amount = Number(v.amount);
+      if (!(amount > 0)) return setStatus("กรุณาใส่จำนวนที่มากกว่า 0", "warn");
+      const from = v.to === "standby" ? "stock" : "standby";
+      if (amount > p[from]) return setStatus(`ใน ${from === "stock" ? "Stock" : "Standby"} มีแค่ ${fmtQty(p[from])}`, "warn");
+      const ok = await run({ action: "move", id: id, amount: amount, to: v.to, note: v.note }, "กำลังย้ายกอง...", v.to === "standby" ? "ย้ายไป Standby แล้ว" : "ย้ายกลับ Stock แล้ว");
+      if (ok) closeModal();
+    },
+    "ย้าย",
+  );
+}
+
+/** ย้ายตำแหน่งจัดเก็บ */
+function openRelocateForm(id) {
+  const it = itemById(id);
+  if (!it) return;
+  openModal(
+    `ย้ายตำแหน่ง — ${it.name}`,
+    `<p class="f-full muted">ตอนนี้อยู่ที่ <b>${esc(locName(it.locationId) || "ไม่ระบุ")}</b>${it.locationNote ? " · " + esc(it.locationNote) : ""}</p>
+     <label class="f-full">ย้ายไปตำแหน่ง<select name="locationId">${locOptions(it.locationId)}</select></label>
+     <label class="f-full">รายละเอียดตำแหน่งใหม่<input name="locationNote" value="${esc(it.locationNote)}" placeholder="เช่น ชั้น 2 กล่องสีฟ้า"></label>`,
+    async (v) => {
+      if (v.locationId === (it.locationId || "") && v.locationNote === (it.locationNote || "")) return closeModal();
+      const ok = await run({ action: "relocate", id: id, locationId: v.locationId, locationNote: v.locationNote }, "กำลังย้ายตำแหน่ง...", `ย้าย "${it.name}" แล้ว`);
+      if (ok) {
+        closeModal();
+        if (ui.focusItemId === id) ui.selectedLocId = v.locationId || null;
+        if (ui.view === "plan") renderPlan();
+      }
+    },
+    "ย้าย",
+  );
+}
+
+/** เมนูจัดการ (การ์ดผลค้นหา / ผัง) */
+const manageButtons = (id) => `
+  <button class="btn btn-small" data-move="${esc(id)}">รับ / เบิก</button>
+  <button class="btn btn-small" data-pile-move="${esc(id)}">ย้าย Stock ⇄ Standby</button>
+  <button class="btn btn-small" data-relocate="${esc(id)}">📍 ย้ายตำแหน่ง</button>
+  <button class="btn btn-small" data-edit="${esc(id)}">แก้ไข</button>`;
 
 // ---------- location actions ----------
 /** preset: {x, y} เมื่อเพิ่มจากการคลิกบนผังตรงจุดนั้น */

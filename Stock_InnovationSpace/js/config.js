@@ -2,7 +2,7 @@
 
 const STOCK_CONFIG = {
   // URL /exec ของ Web App ที่ deploy จาก Code.gs ในโฟลเดอร์นี้
-  API_URL: "https://script.google.com/macros/s/AKfycbwE19wq7QUwWvV3GjIe45JeP7ysXf0XFp8ZgsncdFAntx5BY_mxpE6vV8VyXQtHix8H/exec",
+  API_URL: "https://script.google.com/macros/s/AKfycbzEuwZZ6oeNkQp60OYds2_TG4VtlfRMm2ZzmetVoLd-BG-GXKResvnYfD00O6dofiQ7/exec",
   // รูปผังห้อง (วางไฟล์ไว้ในโฟลเดอร์ Stock_InnovationSpace) — png / jpg / svg ก็ได้
   // ตำแหน่งบนผังเก็บเป็น % ของรูป เปลี่ยนรูปใหม่ที่สัดส่วนเดิมได้โดยจุดไม่เพี้ยน
   PLAN_IMAGE: "plan.png",

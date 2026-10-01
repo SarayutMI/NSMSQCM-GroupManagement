@@ -111,6 +111,14 @@
               <span class="hint" id="planHint">คลิกจุดเพื่อดูของในตำแหน่งนั้น</span>
             </div>
             <div id="placeBanner" class="place-banner" hidden></div>
+            <div class="plan-wrap">
+            <div class="plan-zoom" id="planZoom">
+              <button type="button" data-zoom="out" aria-label="ซูมออก">−</button>
+              <span class="lvl" id="planZoomLvl">100%</span>
+              <button type="button" data-zoom="in" aria-label="ซูมเข้า">+</button>
+              <button type="button" data-zoom="reset" aria-label="ขนาดพอดี" title="ขนาดพอดี">⤢</button>
+            </div>
+            <div class="plan-viewport" id="planViewport">
             <div class="plan" id="plan">
               <img id="planImg" alt="ผังห้อง Innovation Space" />
               <div class="plan-empty" id="planEmpty" hidden>
@@ -120,6 +128,8 @@
               </div>
               <div id="planMarkers"></div>
               <div class="marker ghost" id="planGhost" hidden><span class="dot"></span><span class="tag">ตำแหน่งใหม่</span></div>
+            </div>
+            </div>
             </div>
             <div id="focusCard"></div>
           </div>
@@ -147,6 +157,9 @@
             <option>รับเข้า</option>
             <option>เบิกออก</option>
             <option>ตรวจนับ</option>
+            <option>ย้ายไป Standby</option>
+            <option>ย้ายไป Stock</option>
+            <option>ย้ายตำแหน่ง</option>
             <option>ลบ</option>
           </select>
         </div>
@@ -171,7 +184,6 @@
         </div>
       </form>
     </div>
-    <datalist id="categoryList"></datalist>
 
     <!-- ===== Numpad (ช่องตัวเลขทุกช่อง) ===== -->
     <div id="numpadBar" class="numpad-bar">

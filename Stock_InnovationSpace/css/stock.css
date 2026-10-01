@@ -192,6 +192,15 @@ tr.group-row td { background: #f8fafc; font-weight: 600; color: var(--navy); }
 .pill-act-in { background: #e3f6ea; color: #13803d; }
 .pill-act-out { background: #fde8e7; color: var(--out); }
 .pill-act-count { background: #e8effc; color: var(--accent); }
+.pill-act-move { background: #f3e8ff; color: #7e22ce; }
+.pile { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 6px; margin: 2px 4px 0 0; white-space: nowrap; }
+.pile-stock { background: #e8effc; color: var(--accent); }
+.pile-standby { background: #fff3d6; color: #a86200; }
+.piles { margin-top: 3px; }
+.pile-sum { margin: 0; align-self: end; padding-bottom: 10px; }
+.count-cells { white-space: nowrap; }
+.count-cells .count-in { width: 84px; margin-right: 4px; }
+.focus-actions { flex-wrap: wrap; }
 .pill-act-edit { background: #f1f2f4; color: var(--label); }
 
 .stepper { display: inline-flex; align-items: center; gap: 6px; }
@@ -218,7 +227,15 @@ tr.group-row td { background: #f8fafc; font-weight: 600; color: var(--navy); }
 
 /* ===== plan ===== */
 .plan-layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 14px; align-items: start; }
-.plan { position: relative; width: 100%; border-radius: 10px; overflow: hidden; background: #f1f4f8; user-select: none; }
+/* ผังซูมได้: .plan กว้าง zoom×100% ภายในกรอบเลื่อน; จุดวางเป็น % จึงตามรูปเสมอ ขนาดจุดคงที่ */
+.plan-wrap { position: relative; }
+.plan-viewport { overflow: auto; border-radius: 10px; background: #f1f4f8; max-height: 75vh; touch-action: pan-x pan-y; overscroll-behavior: contain; }
+.plan { position: relative; width: 100%; background: #f1f4f8; user-select: none; -webkit-user-select: none; }
+.plan-zoom { position: absolute; top: 8px; right: 8px; z-index: 8; display: flex; align-items: center; gap: 2px; background: rgba(255, 255, 255, 0.94); border: 1px solid var(--line-strong); border-radius: 10px; padding: 3px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12); }
+.plan-zoom button { width: 32px; height: 30px; border: none; background: none; border-radius: 7px; font-size: 17px; font-weight: 700; cursor: pointer; color: var(--ink); touch-action: manipulation; }
+.plan-zoom button:hover { background: var(--sel); }
+.plan-zoom button:disabled { opacity: 0.3; cursor: default; }
+.plan-zoom .lvl { min-width: 44px; text-align: center; font-size: 12px; font-weight: 600; color: var(--label); }
 .plan img { display: block; width: 100%; height: auto; }
 .plan.no-image {
   aspect-ratio: 16 / 10;
@@ -242,26 +259,26 @@ tr.group-row td { background: #f8fafc; font-weight: 600; color: var(--navy); }
   gap: 2px;
   z-index: 2;
 }
-.marker .dot { width: 16px; height: 16px; border-radius: 50%; background: var(--accent); border: 3px solid #fff; box-shadow: 0 1px 5px rgba(0, 0, 0, 0.35); }
-.marker .tag { background: rgba(22, 24, 29, 0.82); color: #fff; font-size: 11px; padding: 1px 7px; border-radius: 6px; white-space: nowrap; }
+.marker .dot { width: 11px; height: 11px; border-radius: 50%; background: var(--accent); border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35); }
+.marker .tag { background: rgba(22, 24, 29, 0.82); color: #fff; font-size: 8px; line-height: 1.35; padding: 0 5px; border-radius: 4px; white-space: nowrap; }
 .marker .tag b { color: #ffd76a; }
 .marker.has-need .dot { background: var(--out); }
-.marker.selected .dot { width: 20px; height: 20px; background: var(--navy); }
+.marker.selected .dot { width: 14px; height: 14px; background: var(--navy); }
 .marker.selected .tag { background: var(--navy); }
 .marker.live { z-index: 5; }
 .marker.ghost { pointer-events: none; z-index: 6; }
-.marker.ghost .dot { width: 8px; height: 8px; border-width: 1.5px; background: #f59e0b; animation: ghost-pulse 1s ease-in-out infinite alternate; }
+.marker.ghost .dot { width: 6px; height: 6px; border-width: 1px; background: #f59e0b; animation: ghost-pulse 1s ease-in-out infinite alternate; }
 .marker.ghost .tag { background: #b45309; }
 @keyframes ghost-pulse { to { transform: scale(1.35); } }
 .plan:not(.placing) { cursor: copy; }
-.marker.live .dot { width: 22px; height: 22px; background: #ff3b30; position: relative; }
+.marker.live .dot { width: 15px; height: 15px; background: #ff3b30; position: relative; }
 .marker.live .dot::after,
 .live-dot::after {
   content: "";
   position: absolute;
-  inset: -3px;
+  inset: -2px;
   border-radius: 50%;
-  border: 3px solid #ff3b30;
+  border: 2px solid #ff3b30;
   animation: ping 1.3s ease-out infinite;
 }
 .marker.live .tag { background: #ff3b30; font-weight: 700; }
@@ -277,16 +294,19 @@ tr.group-row td { background: #f8fafc; font-weight: 600; color: var(--navy); }
 .loc-items li .num { margin-left: auto; font-variant-numeric: tabular-nums; }
 
 /* ===== modal ===== */
+/* หัว/ท้ายฟอร์มอยู่กับที่ เลื่อนเฉพาะเนื้อหา — ปุ่มบันทึกไม่หลุดจอ */
 .modal { position: fixed; inset: 0; z-index: 1000; background: rgba(15, 23, 42, 0.45); display: flex; align-items: center; justify-content: center; padding: 16px; }
-.modal-card { width: 100%; max-width: 560px; max-height: 92vh; overflow: auto; background: var(--panel); border-radius: 16px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3); }
+.modal-card { width: 100%; max-width: 560px; max-height: 92vh; max-height: 92dvh; display: flex; flex-direction: column; overflow: hidden; background: var(--panel); border-radius: 16px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3); }
+.modal-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.modal-head, .modal-foot { flex: none; }
 .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--line); }
 .modal-head h2 { margin: 0; font-size: 17px; }
 .modal-head .x { border: none; background: none; font-size: 18px; cursor: pointer; color: var(--muted); }
-.modal-body { padding: 16px 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.modal-body label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; font-weight: 600; color: var(--label); }
+.modal-body { padding: 16px 18px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; overflow-x: hidden; }
+.modal-body label { min-width: 0; display: flex; flex-direction: column; gap: 5px; font-size: 12px; font-weight: 600; color: var(--label); }
 .modal-body .f-full { grid-column: 1 / -1; }
 .modal-body p { margin: 0; }
-.modal-body input, .modal-body select, .modal-body textarea { border: 1px solid var(--line-strong); border-radius: 9px; padding: 9px 10px; font-weight: 400; color: var(--ink); }
+.modal-body input, .modal-body select, .modal-body textarea { width: 100%; min-width: 0; border: 1px solid var(--line-strong); border-radius: 9px; padding: 9px 10px; font-weight: 400; color: var(--ink); }
 .modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--line); }
 input:focus, select:focus, textarea:focus { outline: 2px solid rgba(42, 102, 196, 0.35); outline-offset: 0; border-color: var(--accent); }
 
@@ -307,6 +327,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid rgba(42, 102, 196
 }
 .with-btn { display: flex; gap: 6px; }
 .with-btn input { flex: 1; min-width: 0; }
+.with-btn .btn { flex: none; }
 .code { font-family: ui-monospace, Menlo, monospace; letter-spacing: 0.02em; }
 .item-code { font-size: 11px; background: #eef2f7; color: var(--navy); border-radius: 5px; padding: 1px 6px; }
 .scanner { position: fixed; inset: 0; z-index: 1500; background: rgba(15, 23, 42, 0.75); display: flex; align-items: center; justify-content: center; padding: 12px; }
@@ -340,8 +361,11 @@ input:focus, select:focus, textarea:focus { outline: 2px solid rgba(42, 102, 196
 .numpad-done { background: var(--accent); border-color: var(--accent); color: #fff; font-size: 15px; }
 .numpad-done:active { opacity: 0.85; }
 /* เปิด numpad ในฟอร์ม: ดันฟอร์มขึ้นให้ช่องที่กรอกไม่ถูกบัง */
-body:has(.numpad-bar.is-open) .modal { align-items: flex-start; padding-top: 4vh; }
-body:has(.numpad-bar.is-open) .modal-card { max-height: calc(96vh - 290px); }
+body:has(.numpad-bar.is-open) .modal { align-items: flex-start; padding-top: 12px; }
+body:has(.numpad-bar.is-open) .modal-card { max-height: calc(100vh - 300px); max-height: calc(100dvh - 300px); }
+/* ปุ่มเมนู ☰ ไม่ทับฟอร์ม / หน้าสแกน */
+body:has(.modal:not([hidden])) .nsmnav-btn,
+body:has(.scanner:not([hidden])) .nsmnav-btn { display: none !important; }
 body:has(.numpad-bar.is-open) .wrap { padding-bottom: 320px; }
 /* ปุ่มเมนู ☰ มุมขวาล่างบังปุ่ม ✓ เสร็จ: ซ่อนไว้ระหว่างกรอกตัวเลข */
 body:has(.numpad-bar.is-open) .nsmnav-btn { display: none !important; }
@@ -352,10 +376,29 @@ body:has(.numpad-bar.is-open) .nsmnav-btn { display: none !important; }
   .kpis { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 560px) {
-  .head { padding: 10px 14px; }
+  /* หัวเว็บสูงบนมือถือ: ไม่ติดค้างด้านบน จะได้เหลือพื้นที่ให้ตาราง/numpad */
+  .head { padding: 10px 14px; position: static; }
   .wrap { padding: 12px 14px 90px; }
   .search-box { max-width: none; flex-basis: 100%; order: 3; }
-  .modal-body { grid-template-columns: 1fr; }
+  /* ฟอร์มแบบ bottom sheet เต็มความกว้าง ช่องสั้นยังวางคู่กันได้ */
+  .modal { padding: 0; align-items: flex-end; }
+  .modal-card { max-width: none; max-height: 94vh; max-height: 94dvh; border-radius: 18px 18px 0 0; }
+  body:has(.numpad-bar.is-open) .modal { align-items: flex-start; padding: 0; }
+  body:has(.numpad-bar.is-open) .modal-card { border-radius: 0 0 18px 18px; }
+  .modal-head { padding: 12px 16px; }
+  .modal-body { padding: 14px 16px; gap: 10px; }
+  .modal-foot { padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); }
+  .modal-foot .btn { flex: 1; padding: 11px 14px; font-size: 15px; }
+  /* iPhone ซูมเข้าเองถ้าตัวหนังสือในช่องเล็กกว่า 16px */
+  input, select, textarea { font-size: 16px !important; }
+  .filters { display: grid; grid-template-columns: 1fr 1fr; }
+  .filters input[type="search"] { grid-column: 1 / -1; }
+  .filters .btn { width: 100%; }
+  .kpi .val { font-size: 24px; }
+  .user-pick select { max-width: 130px; }
+  /* ตรวจนับ: ช่อง Stock / Standby เรียงบนล่าง ไม่ล้นจอ */
+  .count-cells { white-space: normal; }
+  .count-cells .count-in { display: block; width: 92px; margin: 0 0 4px; }
   .tab { padding: 7px 10px; }
 }
 @media print {

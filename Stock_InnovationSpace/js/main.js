@@ -17,7 +17,7 @@ function bindEvents() {
 
   // ปุ่มที่อยู่ในตาราง/การ์ด (วาดใหม่ทุกครั้ง) ใช้ตัวจับเหตุการณ์ตัวเดียว
   document.addEventListener("click", (e) => {
-    const el = e.target.closest("[data-goto], [data-focus], [data-adjust], [data-move], [data-edit], [data-del], [data-loc], [data-place], [data-edit-loc], [data-del-loc], [data-add-here], [data-unfocus], [data-cancel-place], [data-close]");
+    const el = e.target.closest("[data-goto], [data-focus], [data-adjust], [data-move], [data-pile-move], [data-relocate], [data-edit], [data-del], [data-loc], [data-place], [data-edit-loc], [data-del-loc], [data-add-here], [data-unfocus], [data-cancel-place], [data-close]");
     if (!el) return;
     const d = el.dataset;
     if ("close" in d) return closeModal();
@@ -31,6 +31,8 @@ function bindEvents() {
     if ("focus" in d) return focusItem(d.focus);
     if ("adjust" in d) return quickAdjust(d.adjust, Number(d.delta));
     if ("move" in d) return openAdjustForm(d.move);
+    if ("pileMove" in d) return openMoveForm(d.pileMove);
+    if ("relocate" in d) return openRelocateForm(d.relocate);
     if ("edit" in d) return openItemForm(d.edit);
     if ("del" in d) return deleteItem(d.del);
     if ("place" in d) {
@@ -60,10 +62,25 @@ function bindEvents() {
   });
 
   $("plan").addEventListener("click", onPlanClick);
+  bindPlanZoom();
   $("addItemBtn").addEventListener("click", () => openItemForm(null));
   $("addLocBtn").addEventListener("click", () => openLocationForm(null));
 
   // modal
+  // หมวดหมู่: เลือก "เพิ่มหมวดใหม่" แล้วแสดงช่องพิมพ์ชื่อ
+  $("modalForm").addEventListener("change", (e) => {
+    if (e.target.id !== "fCategorySel") return;
+    const isNew = e.target.value === NEW_CATEGORY;
+    $("fCategoryNewBox").hidden = !isNew;
+    if (isNew) $("fCategoryNew").focus();
+  });
+  // ฟอร์มรายการ: แสดงยอดรวม Stock + Standby ทันทีที่กรอก
+  $("modalForm").addEventListener("input", (e) => {
+    if (!["stockQty", "standbyQty"].includes(e.target.name) || !$("fQtySum")) return;
+    const f = $("modalBody");
+    const sum = (Number(f.querySelector("[name=stockQty]").value) || 0) + (Number(f.querySelector("[name=standbyQty]").value) || 0);
+    $("fQtySum").textContent = fmtQty(sum);
+  });
   $("modalForm").addEventListener("submit", (e) => {
     e.preventDefault();
     if (modalSubmit) modalSubmit(formValues());
@@ -90,14 +107,16 @@ function bindEvents() {
   $("countTable").addEventListener("input", (e) => {
     const id = e.target.dataset.count;
     if (!id) return;
-    countDraft[id] = e.target.value;
+    countDraft[id] = Object.assign(countDraft[id] || {}, { [e.target.dataset.pile]: e.target.value });
     const cell = document.querySelector(`[data-diff="${CSS.escape(id)}"]`);
-    if (cell) cell.innerHTML = diffText(itemById(id), e.target.value);
+    if (cell) cell.innerHTML = diffText(itemById(id), countDraft[id]);
     updateCountButton();
   });
   $("countFillBtn").addEventListener("click", () => {
     document.querySelectorAll("#countTable [data-count]").forEach((el) => {
-      if (el.value === "") countDraft[el.dataset.count] = String(itemById(el.dataset.count).qty);
+      if (el.value !== "") return;
+      const d = (countDraft[el.dataset.count] = countDraft[el.dataset.count] || {});
+      d[el.dataset.pile] = String(piles(itemById(el.dataset.count))[el.dataset.pile]);
     });
     renderCount();
   });

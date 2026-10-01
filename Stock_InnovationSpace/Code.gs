@@ -2,7 +2,8 @@
  * Google Apps Script backend for ระบบสต๊อก Innovation Space.
  *
  * ใช้ Spreadsheet เดียวกับระบบ Group Management (จองห้อง) — เพิ่มแท็บของตัวเอง 3 แท็บ (สร้างให้อัตโนมัติ):
- *   Stock_Items      id | name | category | unit | qty | minQty | locationId | locationNote | note | imageUrl | createdAt | updatedAt | updatedBy | barcode | code
+ *   Stock_Items      id | name | category | unit | qty | minQty | locationId | locationNote | note | imageUrl | createdAt | updatedAt | updatedBy | barcode | code | standbyQty
+ *                    (qty = ยอดรวม, standbyQty = กอง Standby พร้อมใช้หน้างาน, Stock = qty - standbyQty)
  *   Stock_Locations  id | name | zone | x | y | note        (x, y = ตำแหน่งบนผังห้อง หน่วย % ของความกว้าง/สูงรูปผัง)
  *   Stock_Log        timestamp | itemId | itemName | action | delta | qtyAfter | by | note
  * ⚠ ต้องเป็นโปรเจกต์ Apps Script แยกจาก Code.gs ตัวอื่น (doGet/doPost ชนกันถ้าอยู่รวม)
@@ -27,12 +28,12 @@ const STOCK_TABS = {
   items: {
     name: "Stock_Items",
     // คอลัมน์ใหม่ต่อท้ายเสมอ (แท็บเดิมจะได้คอลัมน์ที่ขาดเพิ่มท้ายตารางให้อัตโนมัติ)
-    header: ["id", "name", "category", "unit", "qty", "minQty", "locationId", "locationNote", "note", "imageUrl", "createdAt", "updatedAt", "updatedBy", "barcode", "code"],
+    header: ["id", "name", "category", "unit", "qty", "minQty", "locationId", "locationNote", "note", "imageUrl", "createdAt", "updatedAt", "updatedBy", "barcode", "code", "standbyQty"],
   },
   locations: { name: "Stock_Locations", header: ["id", "name", "zone", "x", "y", "note"] },
   log: { name: "Stock_Log", header: ["timestamp", "itemId", "itemName", "action", "delta", "qtyAfter", "by", "note"] },
 };
-const NUMBER_FIELDS = ["qty", "minQty", "x", "y", "delta", "qtyAfter"];
+const NUMBER_FIELDS = ["qty", "minQty", "x", "y", "delta", "qtyAfter", "standbyQty"];
 
 let ssCache_ = null;
 function ss_() {
@@ -146,6 +147,15 @@ function state_() {
   };
 }
 
+const r2_ = (n) => Math.round(n * 100) / 100;
+/** {stock, standby} ของรายการ (standby ไม่เกินยอดรวม) */
+function piles_(it) {
+  const qty = Number(it.qty) || 0;
+  const standby = Math.min(qty, Math.max(0, Number(it.standbyQty) || 0));
+  return { stock: r2_(qty - standby), standby: standby };
+}
+const pileNote_ = (p) => "Stock " + p.stock + " / Standby " + p.standby;
+
 function requireBy_(by) {
   if (!String(by || "").trim()) throw new Error("กรุณาเลือกชื่อผู้ทำรายการ");
 }
@@ -178,20 +188,25 @@ function saveItem_(data, by) {
   const itemCode = fields.code.slice(1);
   const sameItemCode = itemCode && items.find((i) => String(i.code).toUpperCase() === itemCode && i.id !== data.id);
   if (sameItemCode) throw new Error("รหัส " + itemCode + " ใช้กับ \"" + sameItemCode.name + "\" อยู่แล้ว");
+  // จำนวน: ส่ง stockQty + standbyQty (ฟอร์มใหม่) หรือ qty อย่างเดียว (ทั้งหมดอยู่ใน Stock)
+  const standby = data.standbyQty == null || data.standbyQty === "" ? 0 : num_(data.standbyQty, 0);
+  const qtyIn = data.stockQty == null || data.stockQty === "" ? num_(data.qty, 0) - standby : num_(data.stockQty, 0);
+  const qty = r2_(Math.max(0, qtyIn) + standby);
+  fields.standbyQty = standby;
   if (data.id) {
     const cur = items.find((i) => i.id === data.id);
     if (!cur) throw new Error("ไม่พบรายการนี้ (อาจถูกลบไปแล้ว)");
-    const qty = num_(data.qty, 0);
     writeRow_("items", cur._row, Object.assign(fields, { qty: qty }));
-    const delta = Math.round((qty - (Number(cur.qty) || 0)) * 100) / 100;
-    log_({ id: cur.id, name: name, qty: qty }, "แก้ไข", delta, by, delta ? "แก้ไขข้อมูล (เปลี่ยนจำนวน)" : "แก้ไขข้อมูล");
+    const delta = r2_(qty - (Number(cur.qty) || 0));
+    const before = piles_(cur), after = piles_({ qty: qty, standbyQty: standby });
+    const changed = before.stock !== after.stock || before.standby !== after.standby;
+    log_({ id: cur.id, name: name, qty: qty }, "แก้ไข", delta, by, changed ? "แก้ไขจำนวน → " + pileNote_(after) : "แก้ไขข้อมูล");
   } else {
     const dup = items.find((i) => String(i.name).trim().toLowerCase() === name.toLowerCase() && String(i.locationId) === fields.locationId);
     if (dup) throw new Error("มี \"" + name + "\" ที่ตำแหน่งนี้อยู่แล้ว ใช้การแก้ไขแทน");
     const id = "IT-" + Utilities.getUuid().slice(0, 8).toUpperCase();
-    const qty = num_(data.qty, 0);
     writeRow_("items", 0, Object.assign(fields, { id: id, qty: qty, createdAt: now }));
-    log_({ id: id, name: name, qty: qty }, "เพิ่มใหม่", qty, by, "");
+    log_({ id: id, name: name, qty: qty }, "เพิ่มใหม่", qty, by, standby ? pileNote_(piles_({ qty: qty, standbyQty: standby })) : "");
   }
 }
 
@@ -204,18 +219,58 @@ function deleteItem_(id, by) {
 }
 
 /** +/- from the current Sheet value, so two people adjusting at once never overwrite each other. */
-function adjust_(id, delta, by, note) {
+/** รับเข้า/เบิกออกจากกอง pile ("stock" | "standby"; ไม่ระบุ = stock, เบิกเกินกอง stock จะตัดจาก standby ต่อ) */
+function adjust_(id, delta, by, note, pile) {
   requireBy_(by);
   delta = num_(delta);
   if (!delta) return;
   const cur = readTab_("items").find((i) => i.id === id);
   if (!cur) throw new Error("ไม่พบรายการนี้ (อาจถูกลบไปแล้ว)");
-  const qty = Math.max(0, Math.round(((Number(cur.qty) || 0) + delta) * 100) / 100);
-  writeRow_("items", cur._row, { qty: qty, updatedAt: new Date().toISOString(), updatedBy: text_(by, 100) });
-  log_(Object.assign({}, cur, { qty: qty }), delta > 0 ? "รับเข้า" : "เบิกออก", Math.round((qty - (Number(cur.qty) || 0)) * 100) / 100, by, note);
+  const p = piles_(cur);
+  if (pile === "standby") p.standby = Math.max(0, r2_(p.standby + delta));
+  else if (delta > 0 || p.stock + delta >= 0) p.stock = Math.max(0, r2_(p.stock + delta));
+  else {
+    p.standby = Math.max(0, r2_(p.standby + p.stock + delta));
+    p.stock = 0;
+  }
+  const qty = r2_(p.stock + p.standby);
+  writeRow_("items", cur._row, { qty: qty, standbyQty: p.standby, updatedAt: new Date().toISOString(), updatedBy: text_(by, 100) });
+  const label = (pile === "standby" ? " (Standby)" : "");
+  log_(Object.assign({}, cur, { qty: qty }), (delta > 0 ? "รับเข้า" : "เบิกออก"), r2_(qty - (Number(cur.qty) || 0)), by, [note, pileNote_(p) + label].filter(String).join(" · "));
 }
 
-/** Stock count: counts = [{id, qty}] -> set each item to the counted quantity. */
+/** ย้ายจำนวนระหว่างกอง: to = "standby" (Stock → Standby) | "stock" (Standby → Stock); ยอดรวมไม่เปลี่ยน */
+function move_(id, amount, to, by, note) {
+  requireBy_(by);
+  amount = num_(amount, 0);
+  if (!amount) throw new Error("กรุณาใส่จำนวนที่จะย้าย");
+  const cur = readTab_("items").find((i) => i.id === id);
+  if (!cur) throw new Error("ไม่พบรายการนี้ (อาจถูกลบไปแล้ว)");
+  const p = piles_(cur);
+  const from = to === "standby" ? "stock" : "standby";
+  if (amount > p[from]) throw new Error("ใน " + (from === "stock" ? "Stock" : "Standby") + " มีแค่ " + p[from]);
+  p[from] = r2_(p[from] - amount);
+  p[to === "standby" ? "standby" : "stock"] = r2_(p[to === "standby" ? "standby" : "stock"] + amount);
+  writeRow_("items", cur._row, { standbyQty: p.standby, updatedAt: new Date().toISOString(), updatedBy: text_(by, 100) });
+  log_(cur, to === "standby" ? "ย้ายไป Standby" : "ย้ายไป Stock", 0, by, [amount + " " + (cur.unit || ""), pileNote_(p), note].filter(String).join(" · "));
+}
+
+/** ย้ายตำแหน่งจัดเก็บของรายการ */
+function relocate_(id, locationId, locationNote, by) {
+  requireBy_(by);
+  const items = readTab_("items");
+  const cur = items.find((i) => i.id === id);
+  if (!cur) throw new Error("ไม่พบรายการนี้ (อาจถูกลบไปแล้ว)");
+  locationId = text_(locationId, 60);
+  const locs = readTab_("locations");
+  const to = locs.find((l) => l.id === locationId);
+  if (locationId && !to) throw new Error("ไม่พบตำแหน่งปลายทาง (อาจถูกลบไปแล้ว)");
+  const from = locs.find((l) => l.id === cur.locationId);
+  writeRow_("items", cur._row, { locationId: locationId, locationNote: text_(locationNote, 200), updatedAt: new Date().toISOString(), updatedBy: text_(by, 100) });
+  log_(cur, "ย้ายตำแหน่ง", 0, by, (from ? from.name : "ไม่ระบุ") + " → " + (to ? to.name : "ไม่ระบุ") + (locationNote ? " (" + text_(locationNote, 200) + ")" : ""));
+}
+
+/** ตรวจนับ: counts = [{id, stock?, standby?}] (กองที่ไม่ส่งมา = ไม่ได้นับ คงค่าเดิม; {id, qty} แบบเก่า = นับรวมเป็น Stock) */
 function count_(counts, by) {
   requireBy_(by);
   const items = readTab_("items");
@@ -223,10 +278,15 @@ function count_(counts, by) {
   (counts || []).forEach((c) => {
     const cur = items.find((i) => i.id === c.id);
     if (!cur) return;
-    const qty = num_(c.qty, 0);
-    const delta = Math.round((qty - (Number(cur.qty) || 0)) * 100) / 100;
-    writeRow_("items", cur._row, { qty: qty, updatedAt: now, updatedBy: text_(by, 100) });
-    log_(Object.assign({}, cur, { qty: qty }), "ตรวจนับ", delta, by, delta ? "ยอดนับต่างจากในระบบ" : "ตรงกับในระบบ");
+    const p = piles_(cur);
+    const has = (v) => v !== undefined && v !== null && v !== "";
+    if (has(c.standby)) p.standby = num_(c.standby, 0);
+    if (has(c.stock)) p.stock = num_(c.stock, 0);
+    else if (has(c.qty)) p.stock = Math.max(0, r2_(num_(c.qty, 0) - p.standby));
+    const qty = r2_(p.stock + p.standby);
+    const delta = r2_(qty - (Number(cur.qty) || 0));
+    writeRow_("items", cur._row, { qty: qty, standbyQty: p.standby, updatedAt: now, updatedBy: text_(by, 100) });
+    log_(Object.assign({}, cur, { qty: qty }), "ตรวจนับ", delta, by, (delta ? "ยอดนับต่างจากในระบบ" : "ตรงกับในระบบ") + " · " + pileNote_(p));
   });
 }
 
@@ -293,7 +353,9 @@ function doPost(e) {
     const a = body.action;
     if (a === "saveItem") saveItem_(body.data || {}, body.by);
     else if (a === "deleteItem") deleteItem_(body.id, body.by);
-    else if (a === "adjust") adjust_(body.id, body.delta, body.by, body.note);
+    else if (a === "adjust") adjust_(body.id, body.delta, body.by, body.note, body.pile);
+    else if (a === "move") move_(body.id, body.amount, body.to, body.by, body.note);
+    else if (a === "relocate") relocate_(body.id, body.locationId, body.locationNote, body.by);
     else if (a === "count") count_(body.counts, body.by);
     else if (a === "saveLocation") saveLocation_(body.data || {}, body.by);
     else if (a === "deleteLocation") deleteLocation_(body.id, body.by);

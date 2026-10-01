@@ -96,13 +96,15 @@ function renderItems() {
         <td class="qty-cell"><div class="stepper">
           <button class="step" data-adjust="${esc(it.id)}" data-delta="-1" ${it.qty <= 0 ? "disabled" : ""} aria-label="ลด 1">−</button>
           <span class="q">${fmtQty(it.qty)} <small>${esc(it.unit)}</small></span>
-          <button class="step" data-adjust="${esc(it.id)}" data-delta="1" aria-label="เพิ่ม 1">+</button></div></td>
+          <button class="step" data-adjust="${esc(it.id)}" data-delta="1" aria-label="เพิ่ม 1">+</button></div>
+          <div class="piles">${pileText(it)}</div></td>
         <td class="num">${fmtQty(it.minQty)}</td>
         <td>${statusPill(itemStatus(it))}</td>
         <td>${locLink(it)}</td>
         <td class="sub">${fmtTime(it.updatedAt)}<br>${esc(it.updatedBy || "")}</td>
         <td class="actions">
           <button class="btn btn-small" data-move="${esc(it.id)}" title="รับเข้า / เบิกออก หลายชิ้น">รับ/เบิก</button>
+          <button class="btn btn-small" data-pile-move="${esc(it.id)}" title="ย้ายจำนวนระหว่าง Stock กับ Standby">ย้ายกอง</button>
           <button class="btn btn-small" data-edit="${esc(it.id)}">แก้ไข</button>
           <button class="btn btn-small btn-danger" data-del="${esc(it.id)}">ลบ</button>
         </td></tr>`,
@@ -112,7 +114,7 @@ function renderItems() {
 }
 
 // ---------- ตรวจนับ ----------
-const countDraft = {}; // id -> ค่าที่กรอก (string) เก็บไว้แม้สลับแท็บ
+const countDraft = {}; // id -> {stock, standby} ที่กรอก (string) เก็บไว้แม้สลับแท็บ; ช่องว่าง = ยังไม่ได้นับ
 
 function renderCount() {
   fillFilterSelects();
@@ -129,12 +131,14 @@ function renderCount() {
   [...groups.keys()].sort((a, b) => a.localeCompare(b, "th")).forEach((k) => {
     rows.push(`<tr class="group-row"><td colspan="5">📍 ${esc(k)} <span class="sub">(${groups.get(k).length} รายการ)</span></td></tr>`);
     groups.get(k).forEach((it) => {
-      const v = countDraft[it.id] ?? "";
+      const d = countDraft[it.id] || {};
+      const p = piles(it);
+      const inp = (pile) => `<input class="count-in" type="text" inputmode="none" data-num autocomplete="off" data-count="${esc(it.id)}" data-pile="${pile}" value="${esc(d[pile] ?? "")}" placeholder="${pile === "stock" ? "Stock" : "Standby"}">`;
       rows.push(`<tr>
         <td>${it.code ? `<span class="code item-code">${esc(it.code)}</span> ` : ""}<b>${esc(it.name)}</b><div class="sub">${esc(it.locationNote || it.category || "")}</div></td>
-        <td class="num">${fmtQty(it.qty)} ${esc(it.unit)}</td>
-        <td><input class="count-in" type="text" inputmode="none" data-num autocomplete="off" data-count="${esc(it.id)}" value="${esc(v)}" placeholder="นับได้"></td>
-        <td class="num diff" data-diff="${esc(it.id)}">${diffText(it, v)}</td>
+        <td class="num">${fmtQty(it.qty)} ${esc(it.unit)}<div class="sub">S ${fmtQty(p.stock)} / SB ${fmtQty(p.standby)}</div></td>
+        <td class="count-cells">${inp("stock")}${inp("standby")}</td>
+        <td class="num diff" data-diff="${esc(it.id)}">${diffText(it, d)}</td>
         <td>${statusPill(itemStatus(it))}</td></tr>`);
     });
   });
@@ -142,16 +146,33 @@ function renderCount() {
   updateCountButton();
 }
 
-function diffText(it, v) {
-  if (v === "" || v == null) return '<span class="muted">–</span>';
-  const d = Math.round((Number(v) - it.qty) * 100) / 100;
-  if (!d) return '<span class="t-ok">ตรง</span>';
-  return `<span class="${d < 0 ? "t-out" : "t-in"}">${d > 0 ? "+" : ""}${fmtQty(d)}</span>`;
+const filled = (v) => v !== undefined && v !== null && v !== "";
+/** ยอดรวมหลังนับ: กองที่ไม่ได้กรอกใช้ค่าในระบบ */
+function countedTotal(it, d) {
+  const p = piles(it);
+  return (filled(d.stock) ? Number(d.stock) : p.stock) + (filled(d.standby) ? Number(d.standby) : p.standby);
+}
+function diffText(it, d) {
+  d = d || {};
+  if (!filled(d.stock) && !filled(d.standby)) return '<span class="muted">–</span>';
+  const v = countedTotal(it, d);
+  const p = piles(it);
+  const ds = filled(d.stock) ? Math.round((Number(d.stock) - p.stock) * 100) / 100 : 0;
+  const db = filled(d.standby) ? Math.round((Number(d.standby) - p.standby) * 100) / 100 : 0;
+  if (!ds && !db) return '<span class="t-ok">ตรง</span>';
+  if (Math.round((v - it.qty) * 100) === 0) return '<span class="t-low">รวมตรง สลับกอง</span>';
+  const d2 = Math.round((v - it.qty) * 100) / 100;
+  return `<span class="${d2 < 0 ? "t-out" : "t-in"}">${d2 > 0 ? "+" : ""}${fmtQty(d2)}</span>`;
 }
 function countEntries() {
   return Object.keys(countDraft)
-    .filter((id) => countDraft[id] !== "" && itemById(id))
-    .map((id) => ({ id: id, qty: Number(countDraft[id]) }));
+    .filter((id) => itemById(id) && (filled(countDraft[id].stock) || filled(countDraft[id].standby)))
+    .map((id) => {
+      const d = countDraft[id], e = { id: id };
+      if (filled(d.stock)) e.stock = Number(d.stock);
+      if (filled(d.standby)) e.standby = Number(d.standby);
+      return e;
+    });
 }
 function updateCountButton() {
   const n = countEntries().length;
@@ -161,7 +182,7 @@ function updateCountButton() {
 async function saveCount() {
   const counts = countEntries();
   if (!counts.length) return;
-  const changed = counts.filter((c) => Math.round((c.qty - itemById(c.id).qty) * 100) / 100 !== 0).length;
+  const changed = counts.filter((c) => Math.round((countedTotal(itemById(c.id), c) - itemById(c.id).qty) * 100) !== 0).length;
   if (!confirm(`บันทึกผลนับ ${counts.length} รายการ (ยอดต่างจากในระบบ ${changed} รายการ)?`)) return;
   const ok = await run({ action: "count", counts: counts }, "กำลังบันทึกผลนับ...", "บันทึกผลนับแล้ว");
   if (ok) {
@@ -171,7 +192,7 @@ async function saveCount() {
 }
 
 // ---------- ประวัติ ----------
-const ACTION_CLASS = { เพิ่มใหม่: "in", รับเข้า: "in", เบิกออก: "out", ลบ: "out", ตรวจนับ: "count", แก้ไข: "edit" };
+const ACTION_CLASS = { เพิ่มใหม่: "in", รับเข้า: "in", เบิกออก: "out", ลบ: "out", ตรวจนับ: "count", แก้ไข: "edit", "ย้ายไป Standby": "move", "ย้ายไป Stock": "move", ย้ายตำแหน่ง: "move" };
 const actionPill = (a) => `<span class="pill pill-act-${ACTION_CLASS[a] || "edit"}">${esc(a)}</span>`;
 function deltaText(d) {
   d = Number(d) || 0;
