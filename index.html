@@ -75,7 +75,7 @@
 
   /* ---------- ปุ่ม/การ์ดนำทาง 3 ปุ่ม ---------- */
   .nav-grid{
-    display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:22px; width:100%;
+    display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:22px; width:100%;
     margin-top:40px;
   }
   .nav-card{
@@ -88,6 +88,7 @@
   .nav-card:nth-child(1){animation-delay:.45s;}
   .nav-card:nth-child(2){animation-delay:.58s;}
   .nav-card:nth-child(3){animation-delay:.71s;}
+  .nav-card:nth-child(4){animation-delay:.84s;}
   @keyframes cardIn{to{opacity:1; transform:translateY(0);}}
   .nav-card::before{
     content:""; position:absolute; inset:0; border-radius:20px; padding:2px;
@@ -142,7 +143,6 @@
 
     <div class="nav-grid">
       <a class="nav-card" href="booking.html">
-        <div class="nav-icon">📅</div>
         <h2 class="nav-title">ระบบจองห้องกิจกรรม</h2>
         <p class="nav-desc">ปฏิทินจองห้อง Innovation Space · Inspire Lab · อื่นๆ พร้อมออกเอกสาร PDF/Word</p>
         <span class="nav-arrow">เข้าใช้งาน
@@ -151,7 +151,6 @@
       </a>
 
       <a class="nav-card" href="E-Mod.html">
-        <div class="nav-icon">📋</div>
         <h2 class="nav-title">E-Mod รายงานประจำวัน</h2>
         <p class="nav-desc">รายงาน Manager On Duty ประจำวัน บันทึกยอดผู้เข้าชมและรายได้</p>
         <span class="nav-arrow">เข้าใช้งาน
@@ -160,9 +159,17 @@
       </a>
 
       <a class="nav-card" href="Exhibition/index.html">
-        <div class="nav-icon">🖼️</div>
         <h2 class="nav-title">Exhibition Management</h2>
         <p class="nav-desc">บันทึกจำนวนผู้เข้าชมกิจกรรม พร้อม Dashboard สรุปข้อมูล</p>
+        <span class="nav-arrow">เข้าใช้งาน
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+      </a>
+
+      <a class="nav-card" href="Stock_InnovationSpace/index.html">
+        <div class="nav-icon">📦</div>
+        <h2 class="nav-title">Stock · Innovation Space</h2>
+        <p class="nav-desc">นับสต๊อก ของขาด/ใกล้หมด ตำแหน่งจัดเก็บ พร้อมผังห้องชี้จุดของที่ค้นหา</p>
         <span class="nav-arrow">เข้าใช้งาน
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </span>

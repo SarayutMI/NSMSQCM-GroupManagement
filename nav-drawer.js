@@ -16,7 +16,8 @@
     { href: BASE + 'booking.html', icon: '📅', label: 'ระบบจองห้องกิจกรรม', match: ['booking.html'] },
     { href: BASE + 'E-Mod.html', icon: '📋', label: 'E-Mod รายงานประจำวัน', match: ['e-mod.html'] },
     { href: BASE + 'Exhibition/index.html', icon: '🖼️', label: 'Exhibition · แบบบันทึกผู้เข้าชม', match: ['exhibition/index.html'] },
-    { href: BASE + 'Exhibition/dashboard.html', icon: '📊', label: 'Exhibition · Dashboard', match: ['exhibition/dashboard.html'] }
+    { href: BASE + 'Exhibition/dashboard.html', icon: '📊', label: 'Exhibition · Dashboard', match: ['exhibition/dashboard.html'] },
+    { href: BASE + 'Stock_InnovationSpace/index.html', icon: '📦', label: 'Stock · Innovation Space', match: ['stock_innovationspace/index.html'] }
   ];
 
   var css = '\n' +
@@ -65,10 +66,12 @@
 
   var path = (location.pathname.split('/').pop() || '').toLowerCase();
   var currentKey = path === '' || path === 'index.html' ? '' : path;
-  // หน้าใน Exhibition/ ให้ match ด้วย "exhibition/xxx.html"
-  if (location.pathname.toLowerCase().indexOf('/exhibition/') !== -1) {
-    currentKey = 'exhibition/' + currentKey;
-  }
+  // หน้าในโฟลเดอร์ย่อย ให้ match ด้วย "โฟลเดอร์/xxx.html" (index.html ของโฟลเดอร์ไม่ใช่หน้าแรกของ portal)
+  ['exhibition', 'stock_innovationspace'].forEach(function (dir) {
+    if (location.pathname.toLowerCase().indexOf('/' + dir + '/') !== -1) {
+      currentKey = dir + '/' + (path || 'index.html');
+    }
+  });
 
   var linksHtml = LINKS.map(function (l) {
     var active = l.match.indexOf(currentKey) !== -1;

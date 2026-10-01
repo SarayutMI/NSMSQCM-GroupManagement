@@ -424,6 +424,10 @@ footer {
 .numpad-bar.is-open {
   transform: translateY(0);
 }
+/* ปุ่มเมนู ☰ มุมขวาล่าง (nav-drawer.js) บังปุ่ม ✓ เสร็จ: ซ่อนไว้ระหว่างกรอกตัวเลข */
+body:has(.numpad-bar.is-open) .nsmnav-btn {
+  display: none !important;
+}
 .numpad-head {
   max-width: 320px;
   margin: 0 auto;

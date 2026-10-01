@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stock Innovation Space</title>
+    <link rel="icon" href="../LOGO/NSMSQCM.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/stock.css" />
+  </head>
+  <body>
+    <header class="head">
+      <span class="ic">📦</span>
+      <div class="head-title">
+        <div class="ti">Stock · Innovation Space</div>
+        <div class="su">จัตุรัสวิทยาศาสตร์ อพวช. เชียงใหม่ · ระบบนับสต๊อกและตำแหน่งจัดเก็บ</div>
+      </div>
+      <div class="search-box">
+        <input id="globalSearch" type="search" placeholder="🔍 ค้นหาของ / หมวด / ตำแหน่ง / บาร์โค้ด..." autocomplete="off" aria-label="ค้นหา" />
+        <button class="scan-btn" id="scanSearchBtn" type="button" title="สแกนบาร์โค้ดด้วยกล้อง" aria-label="สแกนบาร์โค้ด">📷</button>
+        <div id="searchResults" class="search-results" hidden></div>
+      </div>
+      <label class="user-pick">
+        ผู้ทำรายการ
+        <select id="userSelect"></select>
+      </label>
+      <button class="btn btn-ghost" id="refreshBtn" type="button" title="โหลดข้อมูลล่าสุดจาก Sheet">⟳</button>
+    </header>
+
+    <main class="wrap">
+      <nav class="tabs" id="viewTabs">
+        <button class="tab" data-view="overview">ภาพรวม</button>
+        <button class="tab" data-view="items">รายการทั้งหมด</button>
+        <button class="tab" data-view="count">ตรวจนับ</button>
+        <button class="tab" data-view="plan">ผังห้อง &amp; ตำแหน่ง</button>
+        <button class="tab" data-view="log">ประวัติ</button>
+      </nav>
+
+      <!-- ===== ภาพรวม ===== -->
+      <section class="view" id="view-overview">
+        <div class="kpis" id="kpis"></div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-head">
+              <span class="t">ของที่ต้องเติม <span class="n" id="needCount"></span></span>
+              <button class="btn btn-small" data-goto="items" data-status="low">ดูทั้งหมด</button>
+            </div>
+            <div class="table-scroll" id="needTable"></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><span class="t">ความเคลื่อนไหวล่าสุด</span></div>
+            <div id="recentLog"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><span class="t">สรุปตามหมวดหมู่</span></div>
+          <div class="table-scroll" id="catTable"></div>
+        </div>
+      </section>
+
+      <!-- ===== รายการทั้งหมด ===== -->
+      <section class="view" id="view-items" hidden>
+        <div class="filters">
+          <input id="fText" type="search" placeholder="ค้นหาในรายการ..." />
+          <select id="fCategory"></select>
+          <select id="fLocation"></select>
+          <select id="fStatus">
+            <option value="">ทุกสถานะ</option>
+            <option value="low">ต้องเติม (ใกล้หมด + หมด)</option>
+            <option value="out">หมด</option>
+            <option value="ok">ปกติ</option>
+          </select>
+          <button class="btn btn-primary" id="addItemBtn" type="button">＋ เพิ่มของ</button>
+        </div>
+        <div class="card">
+          <div class="card-head"><span class="t">รายการของ <span class="n" id="itemsCount"></span></span></div>
+          <div class="table-scroll" id="itemsTable"></div>
+        </div>
+      </section>
+
+      <!-- ===== ตรวจนับ ===== -->
+      <section class="view" id="view-count" hidden>
+        <div class="card">
+          <div class="card-head">
+            <span class="t">ตรวจนับสต๊อก</span>
+            <span class="hint">กรอกจำนวนที่นับได้จริง เฉพาะช่องที่กรอกจะถูกบันทึก (ช่องว่าง = ยังไม่ได้นับ)</span>
+          </div>
+          <div class="filters">
+            <select id="cLocation"></select>
+            <input id="cText" type="search" placeholder="ค้นหา / ยิงบาร์โค้ด..." />
+            <button class="btn" id="countScanBtn" type="button">📷 สแกนเพื่อนับ</button>
+            <button class="btn" id="countFillBtn" type="button" title="ใส่จำนวนในระบบลงทุกช่องที่ยังว่าง">เติมตามระบบ</button>
+            <button class="btn" id="countClearBtn" type="button">ล้างที่กรอก</button>
+            <button class="btn btn-primary" id="countSaveBtn" type="button">บันทึกผลนับ</button>
+          </div>
+          <div class="table-scroll" id="countTable"></div>
+        </div>
+      </section>
+
+      <!-- ===== ผังห้อง & ตำแหน่ง ===== -->
+      <section class="view" id="view-plan" hidden>
+        <div class="plan-layout">
+          <div class="card plan-card">
+            <div class="card-head">
+              <span class="t">ผังห้อง Innovation Space</span>
+              <span class="hint" id="planHint">คลิกจุดเพื่อดูของในตำแหน่งนั้น</span>
+            </div>
+            <div id="placeBanner" class="place-banner" hidden></div>
+            <div class="plan" id="plan">
+              <img id="planImg" alt="ผังห้อง Innovation Space" />
+              <div class="plan-empty" id="planEmpty" hidden>
+                <b>ยังไม่มีไฟล์ผังห้อง</b><br />
+                วางรูปชื่อ <code>plan.png</code> ในโฟลเดอร์ Stock_InnovationSpace<br />
+                (ระหว่างนี้วางจุดตำแหน่งบนตารางนี้ไปก่อนได้ จุดจะอยู่ที่เดิมเมื่อใส่รูปจริง ถ้าสัดส่วนรูปใกล้เคียงกัน)
+              </div>
+              <div id="planMarkers"></div>
+              <div class="marker ghost" id="planGhost" hidden><span class="dot"></span><span class="tag">ตำแหน่งใหม่</span></div>
+            </div>
+            <div id="focusCard"></div>
+          </div>
+          <div class="side">
+            <div class="card">
+              <div class="card-head">
+                <span class="t">ตำแหน่งจัดเก็บ <span class="n" id="locCount"></span></span>
+                <button class="btn btn-primary btn-small" id="addLocBtn" type="button">＋ เพิ่มตำแหน่ง</button>
+              </div>
+              <div class="table-scroll" id="locTable"></div>
+            </div>
+            <div class="card" id="locDetail" hidden></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== ประวัติ ===== -->
+      <section class="view" id="view-log" hidden>
+        <div class="filters">
+          <input id="lText" type="search" placeholder="ค้นหาชื่อของ / ผู้ทำรายการ / หมายเหตุ..." />
+          <select id="lAction">
+            <option value="">ทุกประเภท</option>
+            <option>เพิ่มใหม่</option>
+            <option>แก้ไข</option>
+            <option>รับเข้า</option>
+            <option>เบิกออก</option>
+            <option>ตรวจนับ</option>
+            <option>ลบ</option>
+          </select>
+        </div>
+        <div class="card">
+          <div class="card-head"><span class="t">ประวัติการเปลี่ยนแปลง <span class="n">(ล่าสุด 300 รายการ)</span></span></div>
+          <div class="table-scroll" id="logTable"></div>
+        </div>
+      </section>
+    </main>
+
+    <!-- ===== Modal (ฟอร์มเพิ่ม/แก้ไข) ===== -->
+    <div class="modal" id="modal" hidden>
+      <form class="modal-card" id="modalForm" autocomplete="off">
+        <div class="modal-head">
+          <h2 id="modalTitle"></h2>
+          <button type="button" class="x" data-close aria-label="ปิด">✕</button>
+        </div>
+        <div class="modal-body" id="modalBody"></div>
+        <div class="modal-foot">
+          <button type="button" class="btn" data-close>ยกเลิก</button>
+          <button type="submit" class="btn btn-primary" id="modalSubmit">บันทึก</button>
+        </div>
+      </form>
+    </div>
+    <datalist id="categoryList"></datalist>
+
+    <!-- ===== Numpad (ช่องตัวเลขทุกช่อง) ===== -->
+    <div id="numpadBar" class="numpad-bar">
+      <div class="numpad-head">
+        <span id="numpadLabel">กรอกตัวเลข</span>
+        <button type="button" id="numpadCloseX" class="numpad-x" aria-label="ปิด">✕</button>
+      </div>
+      <div class="numpad-grid">
+        <button type="button" class="numpad-btn" data-k="7">7</button>
+        <button type="button" class="numpad-btn" data-k="8">8</button>
+        <button type="button" class="numpad-btn" data-k="9">9</button>
+        <button type="button" class="numpad-btn numpad-action" data-k="back">⌫</button>
+        <button type="button" class="numpad-btn" data-k="4">4</button>
+        <button type="button" class="numpad-btn" data-k="5">5</button>
+        <button type="button" class="numpad-btn" data-k="6">6</button>
+        <button type="button" class="numpad-btn numpad-action" data-k="clear">C</button>
+        <button type="button" class="numpad-btn" data-k="1">1</button>
+        <button type="button" class="numpad-btn" data-k="2">2</button>
+        <button type="button" class="numpad-btn" data-k="3">3</button>
+        <button type="button" class="numpad-btn" data-k=".">.</button>
+        <button type="button" class="numpad-btn numpad-wide" data-k="0">0</button>
+        <button type="button" class="numpad-btn numpad-done numpad-wide" data-k="done">✓ เสร็จ</button>
+      </div>
+    </div>
+
+    <script src="../notify-popup.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/views.js"></script>
+    <script src="js/plan.js"></script>
+    <script src="js/scanner.js"></script>
+    <script src="js/numpad.js"></script>
+    <script src="js/main.js"></script>
+    <script>window.NSM_NAV_BASE = "../";</script>
+    <script src="../nav-drawer.js"></script>
+  </body>
+</html>
