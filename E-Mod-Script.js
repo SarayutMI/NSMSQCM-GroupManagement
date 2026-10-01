@@ -814,6 +814,22 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
 
 document.getElementById('f_date').addEventListener('change', () => document.getElementById('loadBtn').click());
 
+/* ---------------- เมนูลัดติดใต้แถบเครื่องมือเสมอ ----------------
+   แถบเครื่องมือสูงไม่คงที่ (ขยาย 40% / จอแคบตัดบรรทัด) จึงคำนวณระยะ sticky จากความสูงจริง
+   (ค่า top อยู่ในหน่วยที่ถูก zoom แล้ว จึงหารด้วย zoom ของเมนูลัด) */
+(function keepQuickNavBelowToolbar() {
+  const bar = document.querySelector('.emod-zoom.sticky.top-0');
+  const nav = document.querySelector('.emod-zoom.sticky:not(.top-0)');
+  if (!bar || !nav) return;
+  const fit = () => {
+    const z = parseFloat(getComputedStyle(nav).zoom) || 1;
+    nav.style.top = (bar.getBoundingClientRect().height / z) + 'px';
+  };
+  if (window.ResizeObserver) new ResizeObserver(fit).observe(bar);
+  window.addEventListener('resize', fit);
+  fit();
+})();
+
 /* ---------------- init ---------------- */
 (async function init() {
   document.getElementById('f_date').value = todayStr();

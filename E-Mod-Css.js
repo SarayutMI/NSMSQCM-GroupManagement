@@ -53,7 +53,8 @@
   window.EMOD_PRINT_RULES = printRules;
 
   var css = `
-html, body { overflow-x: hidden; }
+/* clip (ไม่ใช่ hidden): hidden ทำให้ body เป็นกล่องเลื่อนเอง แถบเครื่องมือ sticky เลยไม่ติดด้านบน */
+html, body { overflow-x: hidden; overflow-x: clip; }
 input[type=number]{ -moz-appearance: textfield; }
 input[type=number]::-webkit-outer-spin-button,
 input[type=number]::-webkit-inner-spin-button{ -webkit-appearance: none; margin: 0; }
@@ -65,6 +66,15 @@ input[type=number]::-webkit-inner-spin-button{ -webkit-appearance: none; margin:
 select:focus, input:focus, textarea:focus { outline: none; box-shadow: 0 0 0 3px rgba(37,99,235,.15); border-color: #60a5fa !important; }
 
 /* Numpad กดตัวเลข: ปุ่มใหญ่กดง่ายทั้งเมาส์/นิ้ว */
+/* ทุกอย่างบนจอใหญ่ขึ้น 40% (แถบเครื่องมือ, เมนูลัด, ตัวรายงาน, numpad) — ตารางกว้างเกินจอให้เลื่อนดูได้
+   เฉพาะ @media screen: ตอนพิมพ์/Export และหน้าพรีวิวยังเป็น A4 2 แผ่นตามกติกา print ด้านบนเหมือนเดิม */
+@media screen {
+  .emod-zoom { zoom: 1.4; }
+}
+/* จอแคบ (มือถือ): แถบเครื่องมือขยายแล้วสูงเกินครึ่งจอ จึงไม่ให้ติดค้างด้านบน */
+@media screen and (max-width: 640px) {
+  .emod-zoom.sticky { position: static; }
+}
 /* dropdown ใหญ่ขึ้น แตะง่าย — เฉพาะบนจอ (เอกสารพิมพ์ไม่เปลี่ยน) */
 @media screen {
   select { min-height: 34px; cursor: pointer; }
