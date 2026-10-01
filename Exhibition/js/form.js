@@ -42,7 +42,9 @@ let shownDate = "";
 async function loadDay(date) {
   if (!date) return;
   const seq = ++loadDay.seq;
-  setStatus("กำลังโหลดข้อมูลวันที่เลือกจาก Sheet...");
+  const btn = $("loadDayBtn");
+  btn.disabled = true;
+  setStatus(`กำลังโหลดข้อมูลวันที่ ${date} จาก Sheet...`);
   try {
     const res = await fetchDay(date);
     if (seq !== loadDay.seq) return; // a newer date was picked meanwhile
@@ -61,20 +63,42 @@ async function loadDay(date) {
     dirty = false;
     shownDate = date;
   } catch (err) {
-    if (seq === loadDay.seq) setStatus("โหลดข้อมูลวันที่นี้ไม่ได้: " + err.message);
+    if (seq === loadDay.seq) setStatus("โหลดข้อมูลวันที่นี้ไม่ได้: " + err.message + " (กดปุ่มโหลดข้อมูลเพื่อลองใหม่)");
+  } finally {
+    if (seq === loadDay.seq) btn.disabled = false;
   }
 }
 loadDay.seq = 0;
 
+const UNSAVED_MSG = "ข้อมูลที่กรอกไว้ยังไม่ได้บันทึก จะถูกแทนที่ด้วยข้อมูลจาก Sheet ต้องการทำต่อหรือไม่?";
+
+// Some browsers fire only "input" (or only "change") for a date picker: handle both, once per value.
 function onDateChange() {
   const date = $("visitDate").value;
-  if (dirty && shownDate && date !== shownDate && !confirm("ข้อมูลที่กรอกไว้ยังไม่ได้บันทึก ต้องการเปลี่ยนวันที่และโหลดข้อมูลวันใหม่หรือไม่?")) {
+  updateThaiDate();
+  if (!date || date === shownDate) return;
+  if (dirty && shownDate && !confirm(UNSAVED_MSG)) {
     $("visitDate").value = shownDate;
     updateThaiDate();
     return;
   }
-  updateThaiDate();
+  shownDate = date;
+  updateLoadLabel();
   loadDay(date);
+}
+
+/** Load button: always fetches again, even for the date already shown. */
+function onLoadClick() {
+  const date = $("visitDate").value;
+  if (!date) return;
+  if (dirty && !confirm(UNSAVED_MSG)) return;
+  shownDate = date;
+  loadDay(date);
+}
+
+function updateLoadLabel() {
+  const date = $("visitDate").value;
+  $("loadDayBtn").textContent = date === todayStr_() ? "⟳ โหลดข้อมูลวันนี้จาก Sheet" : "⟳ โหลดข้อมูลวันที่เลือกจาก Sheet";
 }
 
 async function saveToSheet() {
@@ -157,7 +181,8 @@ function todayStr_() {
 function bindEvents() {
   // any numeric edit (typed, or +/- button) recalculates everything
   document.querySelector(".sheet").addEventListener("input", (e) => {
-    if (e.target.id !== "visitDate") dirty = true;
+    if (e.target.id === "visitDate") return onDateChange();
+    dirty = true;
     if (e.target.matches("[data-calc]")) recalcAll();
   });
   document.querySelector(".sheet").addEventListener("change", (e) => {
@@ -165,6 +190,7 @@ function bindEvents() {
   });
   $("saveBtn").addEventListener("click", saveToSheet);
   $("visitDate").addEventListener("change", onDateChange);
+  $("loadDayBtn").addEventListener("click", onLoadClick);
 }
 
 window.addEventListener("DOMContentLoaded", () => {
@@ -175,6 +201,7 @@ window.addEventListener("DOMContentLoaded", () => {
   // ตั้งวันที่เป็นวันนี้ให้อัตโนมัติ (ถ้ามีร่างที่เคยกรอกค้างไว้ในเครื่อง จะถูกทับด้วยวันที่ในร่างอีกที)
   $("visitDate").value = todayStr_();
   updateThaiDate();
+  updateLoadLabel();
 
   // draw straight from the last good copy so the kiosk isn't blank while the Sheet answers
   const cached = readCache();
@@ -182,5 +209,6 @@ window.addEventListener("DOMContentLoaded", () => {
   updateThaiDate();
   recalcAll();
   // rooms first (their fields must exist), then whatever was already saved for today
-  loadConfig().then(() => loadDay($("visitDate").value));
+  shownDate = $("visitDate").value;
+  loadConfig().then(() => loadDay(shownDate));
 });

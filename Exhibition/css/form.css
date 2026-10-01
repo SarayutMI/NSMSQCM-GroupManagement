@@ -528,6 +528,19 @@ footer {
   width: 100%;
   height: 100%;
 }
+.btn-load {
+  font-size: 12px;
+  padding: 5px 11px;
+}
+.btn-load:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+@media print {
+  .btn-load {
+    display: none !important;
+  }
+}
 #thaiDate {
   font-size: 12px;
   color: var(--label);

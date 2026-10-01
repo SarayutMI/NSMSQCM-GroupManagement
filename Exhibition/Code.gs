@@ -480,10 +480,23 @@ function toDateString_(record) {
   // visitDate comes from <input type="date"> as "YYYY-MM-DD" string, but the
   // Sheet may also store it as a real Date if Sheets auto-converted it.
   // Format in the spreadsheet's timezone (the one Sheets used to convert it) so the day never shifts.
+  // Also accepts text typed straight into the Sheet: 2026-9-30, 30/9/2026, 30/09/2569 (พ.ศ.).
   const v = record.visitDate;
   if (!v) return null;
-  if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.trim())) return v.trim();
-  const d = v instanceof Date ? v : new Date(v);
+  const pad = (n) => String(n).padStart(2, "0");
+  const ce = (y) => (y > 2400 ? y - 543 : y); // พ.ศ. -> ค.ศ.
+  if (v instanceof Date) {
+    if (isNaN(v.getTime())) return null;
+    const out = Utilities.formatDate(v, ss_().getSpreadsheetTimeZone(), "yyyy-MM-dd");
+    const y = Number(out.slice(0, 4));
+    return y > 2400 ? ce(y) + out.slice(4) : out;
+  }
+  const t = String(v).trim();
+  let m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) return `${ce(+m[1])}-${pad(m[2])}-${pad(m[3])}`;
+  m = t.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);
+  if (m) return `${ce(+m[3])}-${pad(m[2])}-${pad(m[1])}`;
+  const d = new Date(t);
   if (isNaN(d.getTime())) return null;
   return Utilities.formatDate(d, ss_().getSpreadsheetTimeZone(), "yyyy-MM-dd");
 }
