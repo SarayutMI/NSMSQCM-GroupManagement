@@ -52,7 +52,7 @@ function renderPlan() {
   if (focusItem) {
     const loc = locById(focusItem.locationId);
     $("focusCard").innerHTML = `<div class="focus">
-      <div><span class="live-dot"></span> <b>${esc(focusItem.name)}</b> ${statusPill(itemStatus(focusItem))} คงเหลือรวม ${fmtQty(focusItem.qty)} ${esc(focusItem.unit)}</div>
+      <div><span class="live-dot"></span> <b>${esc(focusItem.name)}</b> ${statusPill(itemStatus(focusItem))} Stock ${fmtQty(stockOf(focusItem))} ${esc(focusItem.unit)} <span class="sub">(ทั้งหมด ${fmtQty(focusItem.qty)})</span></div>
       <div>${pileText(focusItem)}</div>
       <div class="sub">${loc ? `อยู่ที่ <b>${esc(loc.name)}</b>${loc.zone ? " · " + esc(loc.zone) : ""}${focusItem.locationNote ? " · " + esc(focusItem.locationNote) : ""}${isPlaced(loc) ? "" : " — ⚠ ตำแหน่งนี้ยังไม่ได้วางบนผัง"}` : "⚠ ยังไม่ได้ระบุตำแหน่งจัดเก็บ (กดแก้ไขเพื่อเลือกตำแหน่ง)"}</div>
       <div class="focus-actions">${manageButtons(focusItem.id)}<button class="btn btn-small" data-unfocus>ปิด</button></div></div>`;
@@ -81,7 +81,7 @@ function renderPlan() {
     $("locDetail").innerHTML = `<div class="card-head"><span class="t">📍 ${esc(sel.name)} <span class="n">${items.length} รายการ</span></span>
         <button class="btn btn-primary btn-small" data-add-here>＋ เพิ่มของที่นี่</button></div>
       ${sel.note ? `<p class="sub">${esc(sel.note)}</p>` : ""}
-      ${items.length ? `<ul class="loc-items">${items.map((it) => `<li class="${ui.focusItemId === it.id ? "picked" : ""}"><button class="link" data-focus="${esc(it.id)}">${esc(it.name)}</button> ${statusPill(itemStatus(it))}<span class="num">${fmtQty(it.qty)} ${esc(it.unit)}<span class="sub"> (S ${fmtQty(piles(it).stock)} / SB ${fmtQty(piles(it).standby)})</span></span></li>`).join("")}</ul>` : '<div class="empty">ยังไม่มีของในตำแหน่งนี้</div>'}`;
+      ${items.length ? `<ul class="loc-items">${items.map((it) => `<li class="${ui.focusItemId === it.id ? "picked" : ""}"><button class="link" data-focus="${esc(it.id)}">${esc(it.name)}</button> ${statusPill(itemStatus(it))}<span class="num">${fmtQty(stockOf(it))} ${esc(it.unit)}<span class="sub"> (Ready ${fmtQty(piles(it).standby)})</span></span></li>`).join("")}</ul>` : '<div class="empty">ยังไม่มีของในตำแหน่งนี้</div>'}`;
   }
 
   // พาไปดูจุด live ถ้ามองไม่เห็น

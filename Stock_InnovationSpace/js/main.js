@@ -74,7 +74,7 @@ function bindEvents() {
     $("fCategoryNewBox").hidden = !isNew;
     if (isNew) $("fCategoryNew").focus();
   });
-  // ฟอร์มรายการ: แสดงยอดรวม Stock + Standby ทันทีที่กรอก
+  // ฟอร์มรายการ: แสดงทั้งหมด (Stock + Ready) ทันทีที่กรอก
   $("modalForm").addEventListener("input", (e) => {
     if (!["stockQty", "standbyQty"].includes(e.target.name) || !$("fQtySum")) return;
     const f = $("modalBody");
@@ -161,7 +161,7 @@ function bindSearch() {
     const hits = ITEMS.filter((it) => matchText(it, q)).slice(0, 12);
     const locHits = LOCATIONS.filter((l) => [l.name, l.zone, l.note].join(" ").toLowerCase().includes(q.toLowerCase())).slice(0, 5);
     $("searchResults").innerHTML =
-      hits.map((it) => `<button class="hit" data-focus="${esc(it.id)}">${it.code ? `<span class="code item-code">${esc(it.code)}</span> ` : ""}<b>${esc(it.name)}</b> ${statusPill(itemStatus(it))}<span class="sub">📍 ${esc(locName(it.locationId) || "ไม่ระบุตำแหน่ง")} · คงเหลือ ${fmtQty(it.qty)} ${esc(it.unit)}</span></button>`).join("") +
+      hits.map((it) => `<button class="hit" data-focus="${esc(it.id)}">${it.code ? `<span class="code item-code">${esc(it.code)}</span> ` : ""}<b>${esc(it.name)}</b> ${statusPill(itemStatus(it))}<span class="sub">📍 ${esc(locName(it.locationId) || "ไม่ระบุตำแหน่ง")} · Stock ${fmtQty(stockOf(it))} · Ready ${fmtQty(piles(it).standby)} ${esc(it.unit)}</span></button>`).join("") +
       locHits.map((l) => `<button class="hit" data-loc-hit="${esc(l.id)}"><b>📍 ${esc(l.name)}</b><span class="sub">ตำแหน่งจัดเก็บ${l.zone ? " · " + esc(l.zone) : ""}</span></button>`).join("") ||
       '<div class="empty">ไม่พบ</div>';
     $("searchResults").hidden = false;

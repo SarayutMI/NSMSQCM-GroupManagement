@@ -19,18 +19,24 @@ const itemByBarcode = (code) => {
 };
 
 /** "out" = หมด, "low" = ใกล้หมด (ถึงขั้นต่ำ), "ok" = ปกติ */
+/** สถานะดูจาก Stock (ของที่มีจริงในคลัง) — Ready คือส่วนที่ดึงออกไปแล้ว ไม่นับเป็นของในคลัง */
 function itemStatus(it) {
-  const q = Number(it.qty) || 0;
+  const q = piles(it).stock;
   const min = Number(it.minQty) || 0;
   if (q <= 0) return "out";
   if (min > 0 && q <= min) return "low";
   return "ok";
 }
-/** 2 กอง: Stock (เก็บในคลัง) + Standby (พร้อมใช้หน้างาน); qty = รวม */
-const piles = (it) => ({ stock: Math.round((it.qty - (it.standbyQty || 0)) * 100) / 100, standby: it.standbyQty || 0 });
+/** 2 กอง: Stock = ของที่มีจริงในคลัง, Ready = ดึงออกจาก Stock ไปเตรียมใช้แล้ว (เก็บในคอลัมน์ standbyQty)
+    qty ใน Sheet = Stock + Ready */
+const piles = (it) => ({ stock: Math.round(((Number(it.qty) || 0) - (it.standbyQty || 0)) * 100) / 100, standby: it.standbyQty || 0 });
+const stockOf = (it) => piles(it).stock;
+const PILE_NAME = { stock: "Stock", standby: "Ready" };
+/** ข้อความจาก Sheet (log เก่า/ใหม่) ใช้ชื่อ Standby — แสดงเป็น Ready */
+const readyText = (s) => String(s == null ? "" : s).replace(/ย้ายไป Standby/g, "ดึงออกไป Ready").replace(/ย้ายไป Stock/g, "คืนเข้า Stock").replace(/Standby/g, "Ready");
 const pileText = (it) => {
   const p = piles(it);
-  return `<span class="pile pile-stock">Stock ${fmtQty(p.stock)}</span><span class="pile pile-standby">Standby ${fmtQty(p.standby)}</span>`;
+  return `<span class="pile pile-stock">Stock ${fmtQty(p.stock)}</span><span class="pile pile-standby">Ready ${fmtQty(p.standby)}</span>`;
 };
 const STATUS_LABEL = { out: "หมด", low: "ใกล้หมด", ok: "ปกติ" };
 const statusPill = (s) => `<span class="pill pill-${s}">${STATUS_LABEL[s]}</span>`;
@@ -169,10 +175,10 @@ function openItemForm(id, preset) {
      <label>หน่วย<input name="unit" value="${esc(it.unit)}" placeholder="ชิ้น / กล่อง"></label>
      <label class="f-full">หมวดหมู่<select name="category" id="fCategorySel">${categoryOptions(it.category)}</select></label>
      <label class="f-full" id="fCategoryNewBox" hidden>ชื่อหมวดหมู่ใหม่<input name="categoryNew" id="fCategoryNew" maxlength="100" placeholder="พิมพ์ชื่อหมวดหมู่ใหม่"></label>
-     <label>Stock (ในคลัง)<input name="stockQty" type="text" inputmode="none" data-num autocomplete="off" value="${esc(p.stock)}"></label>
-     <label>Standby (พร้อมใช้)<input name="standbyQty" type="text" inputmode="none" data-num autocomplete="off" value="${esc(p.standby)}"></label>
-     <label>ขั้นต่ำ (เตือนเมื่อรวมเหลือ)<input name="minQty" type="text" inputmode="none" data-num autocomplete="off" value="${esc(it.minQty)}"></label>
-     <p class="muted pile-sum">รวม <b id="fQtySum">${fmtQty(it.qty)}</b> ${esc(it.unit || "")}</p>
+     <label>Stock (มีจริงในคลัง)<input name="stockQty" type="text" inputmode="none" data-num autocomplete="off" value="${esc(p.stock)}"></label>
+     <label>Ready (ดึงออกจาก Stock)<input name="standbyQty" type="text" inputmode="none" data-num autocomplete="off" value="${esc(p.standby)}"></label>
+     <label>ขั้นต่ำ (เตือนเมื่อ Stock เหลือ)<input name="minQty" type="text" inputmode="none" data-num autocomplete="off" value="${esc(it.minQty)}"></label>
+     <p class="muted pile-sum">ทั้งหมด (Stock + Ready) <b id="fQtySum">${fmtQty(it.qty)}</b> ${esc(it.unit || "")}</p>
      <label class="f-full">ตำแหน่งจัดเก็บ<select name="locationId">${locOptions(it.locationId)}</select></label>
      <label class="f-full">รายละเอียดตำแหน่ง<input name="locationNote" value="${esc(it.locationNote)}" placeholder="เช่น ชั้น 2 กล่องสีฟ้า"></label>
      <label class="f-full">บาร์โค้ด (ถ้ามี)
@@ -209,42 +215,42 @@ function openAdjustForm(id) {
   if (!it) return;
   openModal(
     `รับเข้า / เบิกออก — ${it.name}`,
-    `<p class="f-full muted">คงเหลือรวม <b>${fmtQty(it.qty)} ${esc(it.unit)}</b> ${pileText(it)}</p>
+    `<p class="f-full muted">${pileText(it)} <span class="sub">ทั้งหมด ${fmtQty(it.qty)} ${esc(it.unit)}</span></p>
      <label>ประเภท<select name="type"><option value="out">เบิกออก (−)</option><option value="in">รับเข้า (+)</option></select></label>
-     <label>กอง<select name="pile"><option value="stock">Stock (ในคลัง)</option><option value="standby">Standby (พร้อมใช้)</option></select></label>
+     <label>กอง<select name="pile"><option value="stock">Stock (ในคลัง)</option><option value="standby">Ready (ที่ดึงออกไป)</option></select></label>
      <label>จำนวน<input name="amount" type="text" inputmode="none" data-num autocomplete="off" required></label>
      <label class="f-full">หมายเหตุ / ใช้กับกิจกรรมอะไร<input name="note" placeholder="เช่น กิจกรรม Gear Box รอบเช้า"></label>`,
     async (v) => {
       const amount = Number(v.amount);
       if (!(amount > 0)) return setStatus("กรุณาใส่จำนวนที่มากกว่า 0", "warn");
       const p = piles(it);
-      if (v.type === "out" && amount > p[v.pile]) return setStatus(`ใน ${v.pile === "stock" ? "Stock" : "Standby"} มีแค่ ${fmtQty(p[v.pile])}`, "warn");
+      if (v.type === "out" && amount > p[v.pile]) return setStatus(`ใน ${PILE_NAME[v.pile]} มีแค่ ${fmtQty(p[v.pile])}`, "warn");
       const ok = await run({ action: "adjust", id: id, delta: v.type === "in" ? amount : -amount, pile: v.pile, note: v.note }, "กำลังบันทึก...", v.type === "in" ? "รับเข้าแล้ว" : "เบิกออกแล้ว");
       if (ok) closeModal();
     },
   );
 }
 
-/** ย้ายจำนวนระหว่างกอง Stock ⇄ Standby (ยอดรวมเท่าเดิม) */
+/** ดึงออกจาก Stock ไป Ready / คืน Ready เข้า Stock (ทั้งหมดเท่าเดิม) */
 function openMoveForm(id, to) {
   const it = itemById(id);
   if (!it) return;
   const p = piles(it);
   to = to || (p.stock > 0 ? "standby" : "stock");
   openModal(
-    `ย้ายกอง Stock ⇄ Standby — ${it.name}`,
+    `ดึงออก / คืน Stock — ${it.name}`,
     `<p class="f-full muted">${pileText(it)}</p>
      <label class="f-full">ย้าย<select name="to">
-       <option value="standby"${to === "standby" ? " selected" : ""}>Stock → Standby (เอาออกมาพร้อมใช้)</option>
-       <option value="stock"${to === "stock" ? " selected" : ""}>Standby → Stock (เก็บกลับคลัง)</option></select></label>
+       <option value="standby"${to === "standby" ? " selected" : ""}>ดึงออกจาก Stock → Ready</option>
+       <option value="stock"${to === "stock" ? " selected" : ""}>คืน Ready → เข้า Stock</option></select></label>
      <label>จำนวน<input name="amount" ${'type="text" inputmode="none" data-num autocomplete="off"'} required></label>
      <label>หมายเหตุ<input name="note" placeholder="เช่น เตรียมกิจกรรมรอบบ่าย"></label>`,
     async (v) => {
       const amount = Number(v.amount);
       if (!(amount > 0)) return setStatus("กรุณาใส่จำนวนที่มากกว่า 0", "warn");
       const from = v.to === "standby" ? "stock" : "standby";
-      if (amount > p[from]) return setStatus(`ใน ${from === "stock" ? "Stock" : "Standby"} มีแค่ ${fmtQty(p[from])}`, "warn");
-      const ok = await run({ action: "move", id: id, amount: amount, to: v.to, note: v.note }, "กำลังย้ายกอง...", v.to === "standby" ? "ย้ายไป Standby แล้ว" : "ย้ายกลับ Stock แล้ว");
+      if (amount > p[from]) return setStatus(`ใน ${PILE_NAME[from]} มีแค่ ${fmtQty(p[from])}`, "warn");
+      const ok = await run({ action: "move", id: id, amount: amount, to: v.to, note: v.note }, "กำลังบันทึก...", v.to === "standby" ? "ดึงออกไป Ready แล้ว" : "คืนเข้า Stock แล้ว");
       if (ok) closeModal();
     },
     "ย้าย",
@@ -276,7 +282,7 @@ function openRelocateForm(id) {
 /** เมนูจัดการ (การ์ดผลค้นหา / ผัง) */
 const manageButtons = (id) => `
   <button class="btn btn-small" data-move="${esc(id)}">รับ / เบิก</button>
-  <button class="btn btn-small" data-pile-move="${esc(id)}">ย้าย Stock ⇄ Standby</button>
+  <button class="btn btn-small" data-pile-move="${esc(id)}">ดึงออก / คืน Stock</button>
   <button class="btn btn-small" data-relocate="${esc(id)}">📍 ย้ายตำแหน่ง</button>
   <button class="btn btn-small" data-edit="${esc(id)}">แก้ไข</button>`;
 
@@ -320,7 +326,7 @@ function openByBarcode(code) {
   const it = itemByBarcode(code);
   if (it) {
     focusItem(it.id);
-    setStatus(`พบ "${it.name}" คงเหลือ ${fmtQty(it.qty)} ${it.unit || ""}`, "success");
+    setStatus(`พบ "${it.name}" Stock ${fmtQty(stockOf(it))} · Ready ${fmtQty(piles(it).standby)} ${it.unit || ""}`, "success");
     return;
   }
   if (confirm(`ไม่พบบาร์โค้ด ${code} ในระบบ\nต้องการเพิ่มเป็นของใหม่หรือไม่?`)) openItemForm(null, { barcode: code });

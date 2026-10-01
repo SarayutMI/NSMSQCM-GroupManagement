@@ -18,8 +18,8 @@ function renderOverview() {
   const placed = LOCATIONS.filter((l) => l.x !== "" && l.x != null).length;
   $("kpis").innerHTML = [
     { lbl: "รายการทั้งหมด", val: ITEMS.length, sub: `${categories().filter((c) => ITEMS.some((i) => i.category === c)).length} หมวดหมู่`, go: "" },
-    { lbl: "หมด", val: out.length, cls: "kpi-out", sub: "คงเหลือ 0", go: "out" },
-    { lbl: "ใกล้หมด", val: low.length, cls: "kpi-low", sub: "เหลือถึงจำนวนขั้นต่ำ", go: "low" },
+    { lbl: "หมด", val: out.length, cls: "kpi-out", sub: "Stock เหลือ 0", go: "out" },
+    { lbl: "ใกล้หมด", val: low.length, cls: "kpi-low", sub: "Stock เหลือถึงขั้นต่ำ", go: "low" },
     { lbl: "ตำแหน่งจัดเก็บ", val: LOCATIONS.length, sub: `วางบนผังแล้ว ${placed}`, plan: true },
   ]
     .map(
@@ -31,12 +31,12 @@ function renderOverview() {
   const need = out.concat(low);
   $("needCount").textContent = need.length ? `(${need.length})` : "";
   $("needTable").innerHTML = table(
-    ["สิ่งของ", "คงเหลือ / ขั้นต่ำ", "ต้องเติมอย่างน้อย", "ตำแหน่ง"],
+    ["สิ่งของ", "Stock / ขั้นต่ำ", "ต้องเติมอย่างน้อย", "ตำแหน่ง"],
     need.map(
       (it) => `<tr>
         <td><b>${esc(it.name)}</b><div class="sub">${esc(it.category)}</div></td>
-        <td class="num">${statusPill(itemStatus(it))} ${fmtQty(it.qty)} / ${fmtQty(it.minQty)} ${esc(it.unit)}</td>
-        <td class="num">${fmtQty(Math.max((Number(it.minQty) || 0) - it.qty, it.qty <= 0 ? 1 : 0))} ${esc(it.unit)}</td>
+        <td class="num">${statusPill(itemStatus(it))} ${fmtQty(stockOf(it))} / ${fmtQty(it.minQty)} ${esc(it.unit)}${piles(it).standby ? `<div class="sub">Ready ${fmtQty(piles(it).standby)}</div>` : ""}</td>
+        <td class="num">${fmtQty(Math.max((Number(it.minQty) || 0) - stockOf(it), stockOf(it) <= 0 ? 1 : 0))} ${esc(it.unit)}</td>
         <td>${locLink(it)}</td></tr>`,
     ),
     "ไม่มีของที่ต้องเติม 🎉",
@@ -89,22 +89,22 @@ function renderItems() {
   const list = filteredItems();
   $("itemsCount").textContent = `(${list.length} จาก ${ITEMS.length})`;
   $("itemsTable").innerHTML = table(
-    ["สิ่งของ", "คงเหลือ", "ขั้นต่ำ", "สถานะ", "ตำแหน่ง", "อัปเดตล่าสุด", ""],
+    ["สิ่งของ", "Stock (มีจริง)", "ขั้นต่ำ", "สถานะ", "ตำแหน่ง", "อัปเดตล่าสุด", ""],
     list.map(
       (it) => `<tr class="${ui.focusItemId === it.id ? "picked" : ""}">
         <td>${it.code ? `<span class="code item-code">${esc(it.code)}</span> ` : ""}<b>${esc(it.name)}</b><div class="sub">${esc(it.category || "")}${it.barcode ? ` · <span class="code">▮ ${esc(it.barcode)}</span>` : ""}${it.note ? " · " + esc(it.note) : ""}</div></td>
         <td class="qty-cell"><div class="stepper">
-          <button class="step" data-adjust="${esc(it.id)}" data-delta="-1" ${it.qty <= 0 ? "disabled" : ""} aria-label="ลด 1">−</button>
-          <span class="q">${fmtQty(it.qty)} <small>${esc(it.unit)}</small></span>
+          <button class="step" data-adjust="${esc(it.id)}" data-delta="-1" ${stockOf(it) <= 0 ? "disabled" : ""} aria-label="ลด Stock 1">−</button>
+          <span class="q">${fmtQty(stockOf(it))} <small>${esc(it.unit)}</small></span>
           <button class="step" data-adjust="${esc(it.id)}" data-delta="1" aria-label="เพิ่ม 1">+</button></div>
-          <div class="piles">${pileText(it)}</div></td>
+          <div class="piles"><span class="pile pile-standby">Ready ${fmtQty(piles(it).standby)}</span><span class="sub">ทั้งหมด ${fmtQty(it.qty)}</span></div></td>
         <td class="num">${fmtQty(it.minQty)}</td>
         <td>${statusPill(itemStatus(it))}</td>
         <td>${locLink(it)}</td>
         <td class="sub">${fmtTime(it.updatedAt)}<br>${esc(it.updatedBy || "")}</td>
         <td class="actions">
           <button class="btn btn-small" data-move="${esc(it.id)}" title="รับเข้า / เบิกออก หลายชิ้น">รับ/เบิก</button>
-          <button class="btn btn-small" data-pile-move="${esc(it.id)}" title="ย้ายจำนวนระหว่าง Stock กับ Standby">ย้ายกอง</button>
+          <button class="btn btn-small" data-pile-move="${esc(it.id)}" title="ดึงออกจาก Stock ไป Ready / คืนเข้า Stock">ดึงออก/คืน</button>
           <button class="btn btn-small" data-edit="${esc(it.id)}">แก้ไข</button>
           <button class="btn btn-small btn-danger" data-del="${esc(it.id)}">ลบ</button>
         </td></tr>`,
@@ -133,10 +133,10 @@ function renderCount() {
     groups.get(k).forEach((it) => {
       const d = countDraft[it.id] || {};
       const p = piles(it);
-      const inp = (pile) => `<input class="count-in" type="text" inputmode="none" data-num autocomplete="off" data-count="${esc(it.id)}" data-pile="${pile}" value="${esc(d[pile] ?? "")}" placeholder="${pile === "stock" ? "Stock" : "Standby"}">`;
+      const inp = (pile) => `<input class="count-in" type="text" inputmode="none" data-num autocomplete="off" data-count="${esc(it.id)}" data-pile="${pile}" value="${esc(d[pile] ?? "")}" placeholder="${PILE_NAME[pile]}">`;
       rows.push(`<tr>
         <td>${it.code ? `<span class="code item-code">${esc(it.code)}</span> ` : ""}<b>${esc(it.name)}</b><div class="sub">${esc(it.locationNote || it.category || "")}</div></td>
-        <td class="num">${fmtQty(it.qty)} ${esc(it.unit)}<div class="sub">S ${fmtQty(p.stock)} / SB ${fmtQty(p.standby)}</div></td>
+        <td class="num">Stock ${fmtQty(p.stock)} ${esc(it.unit)}<div class="sub">Ready ${fmtQty(p.standby)}</div></td>
         <td class="count-cells">${inp("stock")}${inp("standby")}</td>
         <td class="num diff" data-diff="${esc(it.id)}">${diffText(it, d)}</td>
         <td>${statusPill(itemStatus(it))}</td></tr>`);
@@ -160,7 +160,7 @@ function diffText(it, d) {
   const ds = filled(d.stock) ? Math.round((Number(d.stock) - p.stock) * 100) / 100 : 0;
   const db = filled(d.standby) ? Math.round((Number(d.standby) - p.standby) * 100) / 100 : 0;
   if (!ds && !db) return '<span class="t-ok">ตรง</span>';
-  if (Math.round((v - it.qty) * 100) === 0) return '<span class="t-low">รวมตรง สลับกอง</span>';
+  if (Math.round((v - it.qty) * 100) === 0) return '<span class="t-low">ทั้งหมดตรง แต่ Stock/Ready ต่าง</span>';
   const d2 = Math.round((v - it.qty) * 100) / 100;
   return `<span class="${d2 < 0 ? "t-out" : "t-in"}">${d2 > 0 ? "+" : ""}${fmtQty(d2)}</span>`;
 }
@@ -193,7 +193,7 @@ async function saveCount() {
 
 // ---------- ประวัติ ----------
 const ACTION_CLASS = { เพิ่มใหม่: "in", รับเข้า: "in", เบิกออก: "out", ลบ: "out", ตรวจนับ: "count", แก้ไข: "edit", "ย้ายไป Standby": "move", "ย้ายไป Stock": "move", ย้ายตำแหน่ง: "move" };
-const actionPill = (a) => `<span class="pill pill-act-${ACTION_CLASS[a] || "edit"}">${esc(a)}</span>`;
+const actionPill = (a) => `<span class="pill pill-act-${ACTION_CLASS[a] || "edit"}">${esc(readyText(a))}</span>`;
 function deltaText(d) {
   d = Number(d) || 0;
   if (!d) return "";
@@ -204,12 +204,12 @@ function renderLog() {
   const q = $("lText").value.trim().toLowerCase(), act = $("lAction").value;
   const list = LOG.filter((l) => (!act || l.action === act) && (!q || [l.itemName, l.by, l.note, l.itemId].join(" ").toLowerCase().includes(q)));
   $("logTable").innerHTML = table(
-    ["เวลา", "สิ่งของ", "ประเภท", "เปลี่ยน", "คงเหลือหลังทำรายการ", "ผู้ทำรายการ", "หมายเหตุ"],
+    ["เวลา", "สิ่งของ", "ประเภท", "เปลี่ยน", "ทั้งหมดหลังทำรายการ", "ผู้ทำรายการ", "หมายเหตุ"],
     list.map(
       (l) => `<tr><td class="sub">${fmtTime(l.timestamp)}</td>
         <td>${itemById(l.itemId) ? `<button class="link" data-focus="${esc(l.itemId)}">${esc(l.itemName)}</button>` : esc(l.itemName)}</td>
         <td>${actionPill(l.action)}</td><td class="num">${deltaText(l.delta) || "–"}</td><td class="num">${fmtQty(l.qtyAfter)}</td>
-        <td>${esc(l.by)}</td><td class="sub">${esc(l.note)}</td></tr>`,
+        <td>${esc(l.by)}</td><td class="sub">${esc(readyText(l.note))}</td></tr>`,
     ),
     "ยังไม่มีประวัติ",
   );

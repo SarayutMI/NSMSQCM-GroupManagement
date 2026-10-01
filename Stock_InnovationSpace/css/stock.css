@@ -396,7 +396,7 @@ body:has(.numpad-bar.is-open) .nsmnav-btn { display: none !important; }
   .filters .btn { width: 100%; }
   .kpi .val { font-size: 24px; }
   .user-pick select { max-width: 130px; }
-  /* ตรวจนับ: ช่อง Stock / Standby เรียงบนล่าง ไม่ล้นจอ */
+  /* ตรวจนับ: ช่อง Stock / Ready เรียงบนล่าง ไม่ล้นจอ */
   .count-cells { white-space: normal; }
   .count-cells .count-in { display: block; width: 92px; margin: 0 0 4px; }
   .tab { padding: 7px 10px; }
