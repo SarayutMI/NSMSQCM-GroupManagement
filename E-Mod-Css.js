@@ -74,6 +74,19 @@ select:focus, input:focus, textarea:focus { outline: none; box-shadow: 0 0 0 3px
 .numpad-action:active { background: #fde68a; }
 .numpad-done { background: #2563eb; border-color: #2563eb; color: #fff; font-size: 16px; }
 .numpad-done:active { background: #1d4ed8; }
+
+/* ปุ่ม +/- ข้างช่องตัวเลขทุกช่อง (E-Mod-Script.js: addSteppers) — ตอนพิมพ์ซ่อนด้วย .print-hide */
+.cnt-step { display: flex; align-items: stretch; gap: 2px; min-width: 0; }
+.cnt-step > input { flex: 1 1 auto; min-width: 0; }
+.cnt-step-btns { display: flex; flex-direction: column; gap: 2px; flex: none; }
+.cnt-step-btns button {
+  width: 24px; flex: 1 1 0; min-height: 13px; padding: 0; border: 1px solid #cbd5e1; border-radius: 4px;
+  background: #f8fafc; color: #475569; font-size: 12px; font-weight: 700; line-height: 1; cursor: pointer;
+  user-select: none; -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+.cnt-step-btns button:hover { border-color: #60a5fa; color: #2563eb; }
+.cnt-step-btns button:active { background: #dbeafe; }
+.cnt-step input[readonly] + .cnt-step-btns { visibility: hidden; }
 @media print {
 ${printRules}
 }

@@ -141,9 +141,20 @@
         </div>
         <div class="min-w-0 rounded-lg border border-slate-200 p-3">
           <h4 class="mb-2 text-xs font-semibold text-navy">Group</h4>
+          <div class="mb-2 flex flex-wrap items-center gap-2" id="groupCountBox"></div>
           <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5" id="exGroupFields"></div>
         </div>
       </div>
+      <div id="groupTableWrap" class="mt-3 hidden overflow-x-auto rounded-lg border border-slate-200">
+        <table class="w-full min-w-[760px] border-collapse text-xs sm:text-sm">
+          <thead>
+            <tr class="bg-slate-50 text-slate-500" id="groupHeadRow"></tr>
+          </thead>
+          <tbody id="groupBody"></tbody>
+          <tfoot><tr class="bg-slate-50 font-semibold" id="groupTotal"></tr></tfoot>
+        </table>
+      </div>
+      <datalist id="schoolList"></datalist>
       <div class="mt-3 text-xs leading-relaxed text-slate-600" id="exSummary"></div>
 
       <h3 class="mb-2 mt-5 text-sm font-semibold text-slate-600">Inspire Lab</h3>
@@ -287,6 +298,7 @@
   </div>
 </div>
 
+<script src="notify-popup.js"></script>
 <script src="E-Mod-Script.js"></script>
 <script>window.NSM_NAV_BASE = '';</script>
 <script src="nav-drawer.js"></script>

@@ -76,8 +76,10 @@ function visitorSeries() {
   ];
 }
 
-function setStatus(msg) {
+// ข้อความสถานะ: แสดงมุมขวาบน และเป็น popup กลางจอ (../notify-popup.js) — type ไม่ระบุ = เดาจากข้อความ
+function setStatus(msg, type) {
   $("status").textContent = msg;
+  if (window.NsmPopup) NsmPopup.show(msg, type);
 }
 
 // ---------- dates (UTC math so the browser time zone never shifts a day) ----------

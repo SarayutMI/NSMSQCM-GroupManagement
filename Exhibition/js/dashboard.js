@@ -156,9 +156,9 @@ async function loadData() {
     const dates = allDates();
     state.anchor = dates.length ? dates[dates.length - 1] : new Date().toISOString().slice(0, 10);
     render();
-    setStatus("อัปเดตล่าสุด " + new Date().toLocaleTimeString("th-TH"));
+    setStatus("อัปเดตล่าสุด " + new Date().toLocaleTimeString("th-TH"), "success");
   } catch (err) {
-    setStatus(err.message);
+    setStatus(err.message, "error");
   }
 }
 

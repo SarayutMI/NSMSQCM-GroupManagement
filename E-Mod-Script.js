@@ -6,7 +6,11 @@
    ========================================================= */
 const CONFIG = {
   API_URL: 'https://script.google.com/macros/s/AKfycbxxHvvPxXTIJ5DZmNz2rEmHpa5IR5ugIkOjbIpVYyfzga3YESmjnvouQsUhoV3QhgvOCw/exec', // <-- ใส่ URL ของ Google Apps Script Web App (จาก E-Mod-CodeGs.gs) ที่นี่
-  STAFF_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=1863604525&single=true&output=csv'
+  STAFF_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=1863604525&single=true&output=csv',
+  // รายชื่ออาสา (แท็บ Volunteer_Name) สำหรับช่อง "รายชื่ออาสา" ของ Evening Briefing
+  VOLUNTEER_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=320745201&single=true&output=csv',
+  // รายชื่อโรงเรียน (แท็บ School_name) สำหรับช่องชื่อโรงเรียนของตารางกรุ๊ป
+  SCHOOLS_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=0&single=true&output=csv'
 };
 
 /* ---------------- โครงสร้าง Zone ของ Evening Briefing ---------------- */
@@ -44,6 +48,7 @@ const REVENUE_ROWS = [
   { key: 'groupOnsite', label: 'Group : On-site' }, { key: 'groupOnline', label: 'Group : Online' }
 ];
 const DEFAULT_OTHER_ACTIVITIES = ['Walk Rally', "Don't Miss", 'I-Scream', '', ''];
+const MAX_GROUPS = 50;
 
 /* ---------------- Tailwind class ก้อนที่ใช้ซ้ำ ---------------- */
 const TD = 'border border-slate-200 px-2 py-1.5 align-middle';
@@ -55,6 +60,8 @@ const MINI_BTN = 'inline-flex h-6 w-6 items-center justify-center rounded border
 
 /* ---------------- state ---------------- */
 let refStaff = [];
+let refVolunteers = [];
+let refSchools = [];
 let state = { id: '', editingId: false };
 
 function todayStr() {
@@ -65,6 +72,7 @@ function escapeHtml(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 function emptyRound() { return { childTh: 0, adultTh: 0, childFor: 0, adultFor: 0, leader: '', activity: '', school: '' }; }
+function emptyGroup() { return { school: '', childTh: 0, adultTh: 0, childFor: 0, adultFor: 0, senior: 0 }; }
 function emptyOtherActivity(name) {
   return { name: name || '', w_childTh: 0, w_adultTh: 0, w_childFor: 0, w_adultFor: 0, g_childTh: 0, g_adultTh: 0, g_childFor: 0, g_adultFor: 0, school: '' };
 }
@@ -80,7 +88,10 @@ function blankReport() {
     evening,
     visitorCounts: {
       exWalkin: { childTh: 0, adultTh: 0, childFor: 0, adultFor: 0, senior: 0 },
-      exGroup: { childTh: 0, adultTh: 0, childFor: 0, adultFor: 0, senior: 0 }
+      exGroup: { childTh: 0, adultTh: 0, childFor: 0, adultFor: 0, senior: 0 },
+      // แยกรายกรุ๊ป: ถ้า groupCount > 0 ยอด exGroup คำนวณจากตารางนี้ให้อัตโนมัติ
+      groupCount: 0,
+      groups: []
     },
     activityRounds: {
       inspireLab: Array.from({ length: 8 }, emptyRound),
@@ -111,13 +122,36 @@ function setPath(obj, path, value) {
 function parseCsvFirstColumn(text) {
   return text.split(/\r?\n/).slice(1).map(l => l.split(',')[0].trim()).filter(Boolean);
 }
-async function loadStaff() {
-  if (!CONFIG.STAFF_CSV_URL) return;
+async function fetchCsvNames(url) {
+  if (!url) return null;
   try {
-    const res = await fetch(CONFIG.STAFF_CSV_URL);
-    refStaff = [...new Set(parseCsvFirstColumn(await res.text()))];
-  } catch (err) { /* คงรายการเดิมไว้ */ }
+    const res = await fetch(url);
+    return [...new Set(parseCsvFirstColumn(await res.text()))];
+  } catch (err) { return null; } // คงรายการเดิมไว้
+}
+async function loadStaff() {
+  const [staff, volunteers, schools] = await Promise.all([
+    fetchCsvNames(CONFIG.STAFF_CSV_URL), fetchCsvNames(CONFIG.VOLUNTEER_CSV_URL), fetchCsvNames(CONFIG.SCHOOLS_CSV_URL)
+  ]);
+  if (staff) refStaff = staff;
+  if (volunteers) refVolunteers = volunteers;
+  if (schools) refSchools = schools;
   renderStaffOptions();
+  renderVolunteerOptions();
+  document.getElementById('schoolList').innerHTML = refSchools.map(n => `<option value="${escapeHtml(n)}"></option>`).join('');
+}
+/** dropdown รายชื่ออาสา — ชื่อเดิมที่ไม่อยู่ในรายชื่อแล้ว (หรือพิมพ์ไว้ก่อนมี dropdown) ยังแสดงและบันทึกต่อได้ */
+function volunteerOptionsHtml(current) {
+  const extra = current && !refVolunteers.includes(current) ? `<option value="${escapeHtml(current)}" selected>${escapeHtml(current)}</option>` : '';
+  return '<option value="">- เลือกอาสา -</option>' +
+    refVolunteers.map(n => `<option value="${escapeHtml(n)}" ${n === current ? 'selected' : ''}>${escapeHtml(n)}</option>`).join('') + extra;
+}
+function renderVolunteerOptions() {
+  document.querySelectorAll('select.vol-select').forEach(sel => {
+    const cur = sel.value || sel.dataset.value || '';
+    sel.innerHTML = volunteerOptionsHtml(cur);
+    sel.value = cur;
+  });
 }
 function staffOptionsHtml(placeholder, current) {
   const extra = current && !refStaff.includes(current) ? `<option value="${escapeHtml(current)}" selected>${escapeHtml(current)}</option>` : '';
@@ -174,13 +208,82 @@ function renderEvening(evening) {
       html += `<tr>
         <td class="${TD_TXT} whitespace-nowrap">${nameCell}</td>
         <td class="${TD_TXT} whitespace-nowrap">${dutyCell}</td>
-        <td class="${TD_TXT}"><input class="${IN_TXT}" data-path="evening.${z.id}.volunteers" value="${escapeHtml(v.volunteers || '')}"></td>
+        <td class="${TD_TXT}"><select class="${IN_TXT} vol-select" data-path="evening.${z.id}.volunteers" data-value="${escapeHtml(v.volunteers || '')}">${volunteerOptionsHtml(v.volunteers || '')}</select></td>
         <td class="${TD_TXT}"><input class="${IN_TXT}" data-path="evening.${z.id}.issues" value="${escapeHtml(v.issues || '')}"></td>
         <td class="${TD_TXT}"><input class="${IN_TXT}" data-path="evening.${z.id}.notes" value="${escapeHtml(v.notes || '')}"></td>
       </tr>`;
     });
   });
   document.getElementById('eveningBody').innerHTML = html;
+}
+
+/* ---------------- Group: แยกรายกรุ๊ป ---------------- */
+function renderGroupCountBox(count) {
+  document.getElementById('groupCountBox').innerHTML = `
+    <label for="groupCount" class="text-[11px] text-slate-500">จำนวนกรุ๊ป</label>
+    <input id="groupCount" type="number" min="0" max="${MAX_GROUPS}" inputmode="none" class="${IN_NUM} !w-20" data-path="visitorCounts.groupCount" value="${count || 0}">
+    <span class="text-[11px] text-slate-400">ใส่จำนวนแล้วกรอกแต่ละกรุ๊ปในตารางด้านล่าง ยอด Group รวมให้อัตโนมัติ</span>`;
+}
+function groupRowHtml(g, i) {
+  const school = g.school || '';
+  const tip = escapeHtml(school ? `กรุ๊ป ${i + 1}: ${school}` : `กรุ๊ป ${i + 1}: ยังไม่ได้ใส่ชื่อโรงเรียน`);
+  return `<tr class="group-row hover:bg-blue-50" title="${tip}">
+    <td class="${TD} whitespace-nowrap text-center font-medium text-slate-500" title="${tip}">กรุ๊ป ${i + 1}</td>
+    <td class="${TD_TXT} min-w-[240px]"><input class="${IN_TXT} group-school" list="schoolList" placeholder="ชื่อโรงเรียน / หน่วยงาน" title="${escapeHtml(school)}" data-path="visitorCounts.groups.${i}.school" value="${escapeHtml(school)}"></td>
+    ${EX_COUNT_FIELDS.map(f => `<td class="${TD}"><input type="number" min="0" inputmode="none" class="${IN_NUM}" data-gcol="${f.key}" data-path="visitorCounts.groups.${i}.${f.key}" value="${g[f.key] || 0}"></td>`).join('')}
+    <td class="${TD} text-center font-semibold" data-gtotal>0</td>
+  </tr>`;
+}
+/** วาดตารางให้มี count แถว (เก็บค่าที่กรอกไว้แล้วของแถวที่ยังอยู่) */
+function renderGroups(count, groups) {
+  count = Math.max(0, Math.min(MAX_GROUPS, Math.floor(Number(count) || 0)));
+  const list = Array.from({ length: count }, (_, i) => Object.assign(emptyGroup(), (groups || [])[i] || {}));
+  const TH = 'border border-slate-200 px-2 py-2 font-semibold whitespace-nowrap';
+  document.getElementById('groupHeadRow').innerHTML =
+    `<th class="${TH}">กรุ๊ป</th><th class="${TH} text-left">ชื่อโรงเรียน / หน่วยงาน</th>` +
+    EX_COUNT_FIELDS.map(f => `<th class="${TH}">${f.label}</th>`).join('') + `<th class="${TH}">รวม</th>`;
+  document.getElementById('groupBody').innerHTML = list.map(groupRowHtml).join('');
+  document.getElementById('groupTotal').innerHTML = `<td class="${TD} text-center" colspan="2">รวม ${count} กรุ๊ป</td>` +
+    EX_COUNT_FIELDS.map(f => `<td class="${TD} text-center" id="groupTotal_${f.key}">0</td>`).join('') +
+    `<td class="${TD} text-center" id="groupTotal_all">0</td>`;
+  document.getElementById('groupTableWrap').classList.toggle('hidden', !count);
+  // มีตารางรายกรุ๊ปแล้ว ช่องยอด Group ด้านบนเป็นผลรวมอัตโนมัติ (แก้เองไม่ได้)
+  document.querySelectorAll('[data-path^="visitorCounts.exGroup."]').forEach(el => {
+    el.readOnly = count > 0;
+    el.classList.toggle('bg-slate-100', count > 0);
+  });
+}
+function recomputeGroups() {
+  const rows = document.querySelectorAll('#groupBody .group-row');
+  if (!rows.length) return;
+  let all = 0;
+  rows.forEach(tr => {
+    let s = 0;
+    tr.querySelectorAll('[data-gcol]').forEach(el => s += Number(el.value) || 0);
+    tr.querySelector('[data-gtotal]').textContent = s;
+    all += s;
+  });
+  EX_COUNT_FIELDS.forEach(f => {
+    const s = sumInputs(`#groupBody [data-gcol="${f.key}"]`);
+    document.getElementById(`groupTotal_${f.key}`).textContent = s;
+    document.querySelector(`[data-path="visitorCounts.exGroup.${f.key}"]`).value = s;
+  });
+  document.getElementById('groupTotal_all').textContent = all;
+}
+function groupHasData(g) {
+  return !!(g && (String(g.school || '').trim() || EX_COUNT_FIELDS.some(f => Number(g[f.key]))));
+}
+function onGroupCountInput(input) {
+  const r = serializeReport();
+  const shown = document.querySelectorAll('#groupBody .group-row').length;
+  const next = Math.max(0, Math.min(MAX_GROUPS, Math.floor(Number(input.value) || 0)));
+  const dropped = r.visitorCounts.groups.slice(next, shown).filter(groupHasData).length;
+  if (dropped && !confirm(`จะลบข้อมูลของ ${dropped} กรุ๊ปท้ายตาราง ต้องการลดจำนวนกรุ๊ปหรือไม่?`)) {
+    input.value = shown;
+    return;
+  }
+  renderGroups(next, r.visitorCounts.groups);
+  recomputeAll();
 }
 
 function roundRowHtml(prefix, i, r) {
@@ -247,6 +350,7 @@ function sumInputs(selector) {
   return sum;
 }
 function recomputeExhibition() {
+  recomputeGroups();
   const w = {}, g = {};
   EX_COUNT_FIELDS.forEach(f => {
     w[f.key] = Number(document.querySelector(`[data-path="visitorCounts.exWalkin.${f.key}"]`).value) || 0;
@@ -334,6 +438,10 @@ function populateForm(r) {
   renderEvening(r.evening);
   document.getElementById('exWalkinFields').innerHTML = countFieldsHtml('visitorCounts.exWalkin', EX_COUNT_FIELDS, r.visitorCounts.exWalkin);
   document.getElementById('exGroupFields').innerHTML = countFieldsHtml('visitorCounts.exGroup', EX_COUNT_FIELDS, r.visitorCounts.exGroup);
+  const groups = Array.isArray(r.visitorCounts.groups) ? r.visitorCounts.groups : [];
+  const groupCount = Number(r.visitorCounts.groupCount) || groups.length;
+  renderGroupCountBox(groupCount);
+  renderGroups(groupCount, groups);
   renderRoundsTable('inspireLab', r.activityRounds.inspireLab);
   renderRoundsTable('innovationSpace', r.activityRounds.innovationSpace);
   renderOtherActivities(r.otherActivities);
@@ -372,8 +480,45 @@ document.getElementById('otherActivitiesBody').addEventListener('click', e => {
 });
 
 document.addEventListener('input', e => {
-  if (e.target.matches('.cnt')) recomputeAll();
+  if (e.target.id === 'groupCount') onGroupCountInput(e.target);
+  else if (e.target.matches('.cnt')) recomputeAll();
+  if (e.target.matches('.group-school')) {
+    const tr = e.target.closest('tr');
+    const tip = `${tr.cells[0].textContent.trim()}: ${e.target.value || 'ยังไม่ได้ใส่ชื่อโรงเรียน'}`;
+    tr.title = tip; tr.cells[0].title = tip; e.target.title = e.target.value;
+  }
   scheduleAutosave();
+});
+
+/* ---------------- ปุ่ม +/- ข้างช่องตัวเลขทุกช่อง (input.cnt) ----------------
+   ใส่ให้อัตโนมัติทุกครั้งที่มีช่องตัวเลขใหม่ถูกวาด (ตาราง/แถวที่เพิ่มทีหลัง) ผ่าน MutationObserver */
+function addSteppers(root) {
+  root.querySelectorAll('input.cnt').forEach(inp => {
+    if (inp.parentElement.classList.contains('cnt-step')) return;
+    const wrap = document.createElement('div');
+    wrap.className = 'cnt-step';
+    inp.parentNode.insertBefore(wrap, inp);
+    wrap.appendChild(inp);
+    wrap.insertAdjacentHTML('beforeend',
+      '<div class="cnt-step-btns print-hide">' +
+      '<button type="button" tabindex="-1" data-step="1" aria-label="เพิ่ม 1">+</button>' +
+      '<button type="button" tabindex="-1" data-step="-1" aria-label="ลด 1">−</button></div>');
+  });
+}
+addSteppers(document.body);
+new MutationObserver(muts => {
+  if (muts.some(m => m.addedNodes.length)) addSteppers(document.body);
+}).observe(document.body, { childList: true, subtree: true });
+// กดปุ่มแล้วไม่ย้าย focus (ไม่เปิด/ปิด numpad และไม่เด้งคีย์บอร์ด)
+document.addEventListener('mousedown', e => { if (e.target.closest('.cnt-step-btns')) e.preventDefault(); });
+document.addEventListener('click', e => {
+  const btn = e.target.closest('.cnt-step-btns button');
+  if (!btn) return;
+  const inp = btn.closest('.cnt-step').querySelector('input.cnt');
+  if (inp.readOnly) return;
+  const max = inp.max !== '' ? Number(inp.max) : Infinity;
+  inp.value = Math.min(max, Math.max(0, (Number(inp.value) || 0) + Number(btn.dataset.step)));
+  inp.dispatchEvent(new Event('input', { bubbles: true })); // คำนวณยอดรวม + autosave + จำนวนกรุ๊ป เหมือนพิมพ์เอง
 });
 
 /* ---------------- Numpad กดตัวเลข (แทนคีย์บอร์ดเครื่อง ให้กรอกได้แบบเดียวกันทั้ง Browser/มือถือ) ---------------- */
@@ -398,7 +543,7 @@ function closeNumpad() {
   numpadTarget = null;
 }
 document.addEventListener('focusin', e => {
-  if (e.target.matches('input.cnt')) openNumpad(e.target);
+  if (e.target.matches('input.cnt') && !e.target.readOnly) openNumpad(e.target);
   else if (numpadTarget && !numpadBar.contains(e.target)) closeNumpad();
 });
 numpadBar.addEventListener('mousedown', e => e.preventDefault()); // กันไม่ให้ input เสีย focus ก่อนกดปุ่มติด
@@ -426,7 +571,11 @@ function scheduleAutosave() {
 }
 
 /* ---------------- load / save (backend หรือ localStorage) ---------------- */
-function setStatus(msg) { document.getElementById('statusMsg').textContent = msg; }
+// ข้อความสถานะ: แสดงทั้งบนแถบด้านบน และเป็น popup กลางจอ (notify-popup.js) — type ไม่ระบุ = เดาจากข้อความ
+function setStatus(msg, type) {
+  document.getElementById('statusMsg').textContent = msg;
+  if (window.NsmPopup) NsmPopup.show(msg, type);
+}
 
 async function loadByDate(date) {
   if (CONFIG.API_URL) {

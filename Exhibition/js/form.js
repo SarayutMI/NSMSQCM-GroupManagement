@@ -3,7 +3,11 @@
 
 const CONFIG_CACHE_KEY = "exhibition.config.v1";
 
-const setStatus = (msg) => ($("sheetStatus").textContent = msg);
+// ข้อความสถานะ: แสดงบนแถบเครื่องมือ และเป็น popup กลางจอ (../notify-popup.js) — type ไม่ระบุ = เดาจากข้อความ
+function setStatus(msg, type) {
+  $("sheetStatus").textContent = msg;
+  if (window.NsmPopup) NsmPopup.show(msg, type);
+}
 
 // ---------- form data ----------
 
@@ -109,7 +113,7 @@ async function saveToSheet() {
     shownDate = $("visitDate").value;
     setStatus("บันทึกลง Sheet แล้ว ✓");
   } catch (err) {
-    setStatus("บันทึกไม่สำเร็จ: " + err.message);
+    setStatus("บันทึกไม่สำเร็จ: " + err.message, "error");
   }
 }
 
