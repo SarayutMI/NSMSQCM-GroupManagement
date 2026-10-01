@@ -34,7 +34,10 @@
  *   Add a user by typing a username and a PIN in "PIN ใหม่". The next login (or running
  *   hashPendingPins() from the editor) replaces it with salt + SHA-256 hash and clears the PIN.
  *   To reset a PIN, type a new one in "PIN ใหม่" again. Set สถานะ to "ระงับ" to block a user.
- *   The dashboard data (action=dashboard) needs a valid token; the form (config + save) does not.
+ *   The dashboard data (action=dashboard) needs a valid token; the form (config, getByDate, save) does not.
+ *
+ * Exhibition_Data keeps one row per visitDate: saving a date that already has a row overwrites
+ * that row, so a past day can be loaded back into the form (action=getByDate), fixed and saved.
  *
  * Finance tab of the dashboard reads the "EMod" tab (written by E-Mod-CodeGs.gs) of the same spreadsheet.
  *
@@ -400,10 +403,16 @@ function doPost(e) {
       header = header.concat(missing);
     }
 
-    const row = header.map((key) =>
-      key === "timestamp" ? new Date() : data[key] !== undefined ? data[key] : "",
-    );
-    sheet.appendRow(row);
+    // one row per visitDate: saving a day that already has a row overwrites it (the latest one)
+    const target = findDayRow_(sheet, header, data.visitDate);
+    const existing = target === -1 ? [] : sheet.getRange(target, 1, 1, header.length).getValues()[0];
+    const row = header.map((key, i) => {
+      if (key === "timestamp") return new Date();
+      if (data[key] !== undefined) return data[key];
+      return existing[i] !== undefined ? existing[i] : ""; // e.g. a room hidden since: keep its old numbers
+    });
+    if (target === -1) sheet.appendRow(row);
+    else sheet.getRange(target, 1, 1, row.length).setValues([row]);
   } finally {
     lock.releaseLock();
   }
@@ -411,7 +420,45 @@ function doPost(e) {
   return json_({ ok: true });
 }
 
+/** Sheet row number of the latest Data row saved for `date` (YYYY-MM-DD), or -1. */
+function findDayRow_(sheet, header, date) {
+  const want = toDateString_({ visitDate: date });
+  const col = header.indexOf("visitDate");
+  if (!want || col === -1 || sheet.getLastRow() < 2) return -1;
+  const values = sheet.getRange(2, col + 1, sheet.getLastRow() - 1, 1).getValues();
+  for (let i = values.length - 1; i >= 0; i--) {
+    if (toDateString_({ visitDate: values[i][0] }) === want) return i + 2;
+  }
+  return -1;
+}
+
 // ---------- GET ----------
+
+/** The saved form of one day, as {field id: text} for the form to fill back in. */
+function readDay_(date) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ""))) return { error: "วันที่ไม่ถูกต้อง" };
+  const { header, rows } = readAllRows_();
+  const col = header.indexOf("visitDate");
+  const matches = col === -1 ? [] : rows.filter((r) => toDateString_({ visitDate: r[col] }) === date);
+  if (!matches.length) return { data: null, count: 0 };
+
+  const row = matches[matches.length - 1];
+  const tz = ss_().getSpreadsheetTimeZone();
+  const data = {};
+  let savedAt = "";
+  header.forEach((key, i) => {
+    if (!key) return;
+    let v = row[i];
+    if (key === "timestamp") {
+      savedAt = v instanceof Date ? Utilities.formatDate(v, tz, "yyyy-MM-dd HH:mm") : String(v);
+      return;
+    }
+    if (key === "visitDate") v = date;
+    else if (v instanceof Date) v = Utilities.formatDate(v, tz, "yyyy-MM-dd");
+    data[key] = v === null || v === undefined ? "" : String(v);
+  });
+  return { data: data, count: matches.length, savedAt: savedAt };
+}
 
 function readAllRows_() {
   const sheet = getSheet_();
@@ -598,6 +645,7 @@ function doGet(e) {
   const callback = /^[A-Za-z_$][\w$.]{0,63}$/.test(params.callback || "") ? params.callback : null;
   try {
     if (params.action === "config") return json_(buildConfig_(), callback);
+    if (params.action === "getByDate") return json_(readDay_(params.date), callback);
     if (!verifyToken_(params.token)) return json_({ error: "unauthorized" }, callback);
     return json_(buildDashboard_(), callback);
   } catch (err) {

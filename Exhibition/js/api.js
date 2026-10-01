@@ -33,6 +33,11 @@ function fetchConfig() {
   return jsonp({ action: "config" });
 }
 
+/** The form saved for one date: {data: {field id: value} | null, count, savedAt}. */
+function fetchDay(date) {
+  return jsonp({ action: "getByDate", date: date });
+}
+
 /** Rooms, daily totals, sessions, staff and E-Mod revenue for the dashboard. Needs a login token. */
 function fetchDashboard(token) {
   return jsonp({ action: "dashboard", token: token || "" }, 30000);

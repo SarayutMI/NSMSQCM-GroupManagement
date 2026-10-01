@@ -26,10 +26,63 @@ function restoreFormData(data) {
   });
 }
 
+/** Empties every field the user fills in (totals are recalculated, the date stays). */
+function clearForm() {
+  document.querySelectorAll(".sheet input[id], .sheet select[id], .sheet textarea[id]").forEach((el) => {
+    if (el.id === "visitDate" || el.readOnly) return;
+    el.value = "";
+  });
+}
+
+// true once something is typed after the last load / save, so a date change can't silently drop it
+let dirty = false;
+let shownDate = "";
+
+/** Loads what was saved for the chosen date (if anything) into the form. */
+async function loadDay(date) {
+  if (!date) return;
+  const seq = ++loadDay.seq;
+  setStatus("กำลังโหลดข้อมูลวันที่เลือกจาก Sheet...");
+  try {
+    const res = await fetchDay(date);
+    if (seq !== loadDay.seq) return; // a newer date was picked meanwhile
+    if (res.error) throw new Error(res.error);
+    clearForm();
+    if (res.data) {
+      restoreFormData(res.data);
+      setStatus(
+        `โหลดข้อมูลที่บันทึกไว้แล้ว (บันทึกล่าสุด ${res.savedAt || "-"}) แก้ไขแล้วกดบันทึกเพื่ออัปเดต` +
+          (res.count > 1 ? ` · ⚠ วันที่นี้มี ${res.count} แถวใน Sheet ระบบจะแก้แถวล่าสุด` : ""),
+      );
+    } else {
+      setStatus("ยังไม่มีข้อมูลของวันที่นี้ใน Sheet");
+    }
+    recalcAll();
+    dirty = false;
+    shownDate = date;
+  } catch (err) {
+    if (seq === loadDay.seq) setStatus("โหลดข้อมูลวันที่นี้ไม่ได้: " + err.message);
+  }
+}
+loadDay.seq = 0;
+
+function onDateChange() {
+  const date = $("visitDate").value;
+  if (dirty && shownDate && date !== shownDate && !confirm("ข้อมูลที่กรอกไว้ยังไม่ได้บันทึก ต้องการเปลี่ยนวันที่และโหลดข้อมูลวันใหม่หรือไม่?")) {
+    $("visitDate").value = shownDate;
+    updateThaiDate();
+    return;
+  }
+  updateThaiDate();
+  loadDay(date);
+}
+
 async function saveToSheet() {
   setStatus("กำลังบันทึก...");
   try {
     await postForm(collectFormData());
+    dirty = false;
+    shownDate = $("visitDate").value;
     setStatus("บันทึกลง Sheet แล้ว ✓");
   } catch (err) {
     setStatus("บันทึกไม่สำเร็จ: " + err.message);
@@ -104,10 +157,14 @@ function todayStr_() {
 function bindEvents() {
   // any numeric edit (typed, or +/- button) recalculates everything
   document.querySelector(".sheet").addEventListener("input", (e) => {
+    if (e.target.id !== "visitDate") dirty = true;
     if (e.target.matches("[data-calc]")) recalcAll();
   });
+  document.querySelector(".sheet").addEventListener("change", (e) => {
+    if (e.target.matches("select")) dirty = true;
+  });
   $("saveBtn").addEventListener("click", saveToSheet);
-  $("visitDate").addEventListener("change", updateThaiDate);
+  $("visitDate").addEventListener("change", onDateChange);
 }
 
 window.addEventListener("DOMContentLoaded", () => {
@@ -124,5 +181,6 @@ window.addEventListener("DOMContentLoaded", () => {
   if (cached) applyConfig(cached);
   updateThaiDate();
   recalcAll();
-  loadConfig();
+  // rooms first (their fields must exist), then whatever was already saved for today
+  loadConfig().then(() => loadDay($("visitDate").value));
 });
