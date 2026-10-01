@@ -11,14 +11,32 @@ const ROLE_SERIES = [
 ];
 const ROLE_COLOR = Object.fromEntries(ROLE_SERIES.map((r) => [r.role, r.color]));
 const TREND_LIMIT = { day: 31, week: 16, month: 12, year: 10 };
-const BASE_FIELDS = ["walkin_grand_total", "group_grand_total", "exhibition_grand_total", "external_rooms_total", "summary_activity_total", "summary_AllDay_participants"];
+const BASE_FIELDS = [
+  "walkin_grand_total", "group_grand_total", "exhibition_grand_total", "external_rooms_total", "summary_activity_total", "summary_AllDay_participants",
+  "walkin_child_th_total", "walkin_adult_th_total", "walkin_child_intl_total", "walkin_adult_intl_total",
+  "group_child_grand_total", "group_adult_grand_total", "exhibition_total_child", "exhibition_total_adult",
+  "external_child", "external_adult",
+];
+// Count categories of the form (same suffixes as Code.gs COUNT_SUFFIXES). Groups and external
+// activities only record child / adult, so their nationality split is unknown.
+const NAT_COLS = [
+  { key: "child_th", label: "เด็กไทย" },
+  { key: "child_intl", label: "เด็กต่างชาติ" },
+  { key: "adult_th", label: "ผู้ใหญ่ไทย" },
+  { key: "adult_intl", label: "ผู้ใหญ่ต่างชาติ" },
+];
+const AGE_SERIES = [
+  { key: "child", label: "เด็ก", color: "#e8a33d" },
+  { key: "adult", label: "ผู้ใหญ่", color: "#2a78d6" },
+];
 
 // ---------- state ----------
 let DAILY = [];
 let SESSIONS = [];
 let STAFF = [];
 let ROOMS = []; // [{key, label, color, active}] from the Rooms tab
-const state = { view: "visitors", gran: "day", anchor: null, role: "all", room: "all", person: null };
+let FINANCE = []; // [{date, revenue: {channel: {section: amount}}}] from the E-Mod tab
+const state = { view: "visitors", gran: "day", anchor: null, role: "all", room: "all", person: null, vmode: "area" };
 
 // ---------- helpers ----------
 const fmt = (n) => Math.round(n || 0).toLocaleString("th-TH");
@@ -29,7 +47,26 @@ const roomLabel = (key) => (ROOMS.find((r) => r.key === key) || {}).label || key
 const roomColor = (key) => (ROOMS.find((r) => r.key === key) || {}).color || "#9aa1ac";
 const roomPill = (key) => `<span class="pill"><i style="background:${esc(roomColor(key))}"></i>${esc(roomLabel(key))}</span>`;
 const emptyRoomCounts = () => Object.fromEntries(ROOMS.map((r) => [r.key, 0]));
-const fields = () => BASE_FIELDS.concat(ROOMS.map((r) => roomField(r.key)));
+const fields = () => BASE_FIELDS.concat(...ROOMS.map((r) => [roomField(r.key), ...NAT_COLS.map((c) => `${r.key}_${c.key}_total`)]));
+
+/** {child_th, child_intl, adult_th, adult_intl} of a room in an aggregated bucket. */
+const roomNat = (b, key) => Object.fromEntries(NAT_COLS.map((c) => [c.key, b[`${key}_${c.key}_total`] || 0]));
+const natChild = (n) => (n.child_th || 0) + (n.child_intl || 0);
+const natAdult = (n) => (n.adult_th || 0) + (n.adult_intl || 0);
+const walkinNat = (b) => Object.fromEntries(NAT_COLS.map((c) => [c.key, b[`walkin_${c.key}_total`] || 0]));
+
+/** Child / adult over everything counted in a bucket: exhibition + every room + external. */
+function ageTotals(b) {
+  let child = (b.exhibition_total_child || 0) + (b.external_child || 0);
+  let adult = (b.exhibition_total_adult || 0) + (b.external_adult || 0);
+  ROOMS.forEach((r) => {
+    const n = roomNat(b, r.key);
+    child += natChild(n);
+    adult += natAdult(n);
+  });
+  return { child, adult };
+}
+const ageSub = (child, adult) => `เด็ก ${fmt(child)} · ผู้ใหญ่ ${fmt(adult)}`;
 
 function visitorSeries() {
   return [
@@ -97,7 +134,7 @@ function inPeriod(dateStr) {
   return state.gran === "all" || bucketKey(dateStr, state.gran) === periodKey();
 }
 function allDates() {
-  return [...new Set(DAILY.map((r) => r.date).concat(SESSIONS.map((s) => s.date)))].sort();
+  return [...new Set(DAILY.map((r) => r.date).concat(SESSIONS.map((s) => s.date), FINANCE.map((f) => f.date)))].sort();
 }
 function latestDateIn(key, g) {
   const ds = allDates().filter((d) => bucketKey(d, g) === key);
@@ -219,6 +256,65 @@ function renderStacked(mount, buckets, series, selKey, unit) {
 
   mount.innerHTML = `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="กราฟแท่ง">${grid}${cols}</svg>`;
   mount.scrollLeft = mount.scrollWidth; // newest period is on the right
+  mount.querySelectorAll(".bar-col").forEach((el) => {
+    el.addEventListener("mousemove", (e) => {
+      const lines = el.dataset.tip.split("|").map((l) => esc(l)).join("<br>");
+      showTooltip(e, esc(el.dataset.label), `${lines}<br><span class="v">รวม ${fmt(el.dataset.total)} ${unit}</span>`);
+    });
+    el.addEventListener("mouseleave", hideTooltip);
+    el.addEventListener("click", () => pickBucket(el.dataset.key));
+  });
+}
+
+/** Same input as renderStacked, but one bar per series side by side (easier to compare). */
+function renderGrouped(mount, buckets, series, selKey, unit) {
+  if (!buckets.length || buckets.every((b) => !b.total)) {
+    mount.innerHTML = '<div class="empty">ยังไม่มีข้อมูล</div>';
+    return;
+  }
+  const chartH = 190, padTop = 24, padBottom = 24, left = 40;
+  const n = series.length;
+  const avail = mount.clientWidth || 600;
+  // one slot per bucket holds n bars + a gap; keep bars readable and scroll when they don't fit
+  const slot = Math.max(n * 7 + 8, Math.min(n * 16 + 14, (avail - left - 4) / buckets.length));
+  const barW = Math.max(5, Math.min(14, (slot - 8) / n));
+  const groupW = barW * n;
+  const pad = (slot - groupW) / 2;
+  const w = Math.max(left + buckets.length * slot + 4, 300);
+  const h = chartH + padTop + padBottom;
+  const base = padTop + chartH;
+  const maxVal = Math.max(...buckets.flatMap((b) => b.values), 1);
+  const top = niceMax(maxVal);
+
+  const grid = [0, 0.25, 0.5, 0.75, 1]
+    .map((f) => {
+      const y = padTop + chartH * (1 - f);
+      return `<line class="bar-gridline" x1="${left}" x2="${w}" y1="${y}" y2="${y}"></line><text class="bar-tick" x="0" y="${y + 3}">${fmt(top * f)}</text>`;
+    })
+    .join("");
+
+  const cols = buckets
+    .map((b, i) => {
+      const x0 = left + i * slot + pad;
+      const bars = b.values
+        .map((v, j) => {
+          if (!v) return "";
+          const barH = Math.max((v / top) * chartH, 1);
+          return `<path d="${roundedTop(x0 + j * barW, base - barH, barW - 1, barH, 3)}" fill="${series[j].color}"></path>`;
+        })
+        .join("");
+      const isSel = b.key === selKey;
+      const band = `<rect class="${isSel ? "sel-band" : "hover-band"}" x="${x0 - pad + 2}" y="${padTop - 6}" width="${slot - 4}" height="${chartH + padBottom + 6}" rx="6"${isSel ? "" : ' fill="transparent"'}></rect>`;
+      const tip = series.map((s, j) => `${s.label}: ${fmt(b.values[j])}`).join("|");
+      return `<g class="bar-col" data-key="${esc(b.key)}" data-label="${esc(b.label)}" data-total="${b.total}" data-tip="${esc(tip)}">
+        ${band}${bars}
+        <text class="bar-tick${isSel ? " sel" : ""}" x="${x0 + groupW / 2}" y="${base + 15}" text-anchor="middle">${esc(b.tick)}</text>
+      </g>`;
+    })
+    .join("");
+
+  mount.innerHTML = `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="กราฟแท่งแยกกลุ่ม">${grid}${cols}</svg>`;
+  mount.scrollLeft = mount.scrollWidth;
   mount.querySelectorAll(".bar-col").forEach((el) => {
     el.addEventListener("mousemove", (e) => {
       const lines = el.dataset.tip.split("|").map((l) => esc(l)).join("<br>");

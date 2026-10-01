@@ -19,14 +19,24 @@
  *
  * Reference lists (shared with Group Management, published CSV — edit them there):
  *   Staff_Name              Staff_Name | Role   -> every name is เจ้าหน้าที่
+ *   Volunteer_Name          Volunteer_Name      -> every name is อาสา
  *   Innovation_activity     TH | ENG            -> activities of room "innovation"
  *   InspireLab_activity     TH | ENG            -> activities of room "inspire"
  *
  * Tabs this script owns in the Group Management spreadsheet:
  *   Exhibition_Rooms        รหัส | ชื่อห้อง | จำนวนรอบ | สี | สถานะ
- *   Exhibition_Volunteers   ชื่อ | สถานะ         -> อาสา (names already in Staff_Name are skipped)
+ *   Exhibition_Volunteers   ชื่อ | สถานะ         -> extra อาสา (names already in Staff_Name / Volunteer_Name are skipped)
  *   Exhibition_Activities   ห้อง | ชื่อกิจกรรม | สถานะ  -> only rooms without a reference list
  *   Exhibition_Data         one row per saved form (written by doPost)
+ *   Dashboard_Users         username | PIN ใหม่ | salt | pinHash | สถานะ | เข้าระบบล่าสุด
+ *
+ * Dashboard login (user + PIN):
+ *   Add a user by typing a username and a PIN in "PIN ใหม่". The next login (or running
+ *   hashPendingPins() from the editor) replaces it with salt + SHA-256 hash and clears the PIN.
+ *   To reset a PIN, type a new one in "PIN ใหม่" again. Set สถานะ to "ระงับ" to block a user.
+ *   The dashboard data (action=dashboard) needs a valid token; the form (config + save) does not.
+ *
+ * Finance tab of the dashboard reads the "EMod" tab (written by E-Mod-CodeGs.gs) of the same spreadsheet.
  *
  * Add a room / volunteer / activity by adding a row. Set สถานะ to "ซ่อน" to remove it from
  * the form dropdowns while keeping it for past dashboard data.
@@ -42,6 +52,8 @@ const DATA_SPREADSHEET_ID = "";
 // ชีตอ้างอิงชุดเดียวกับ CONFIG ใน script.js ของ Group Management (Publish to web เป็น CSV)
 const REF_STAFF_CSV_URL =
   "https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=1863604525&single=true&output=csv";
+const REF_VOLUNTEER_CSV_URL =
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=320745201&single=true&output=csv";
 // room code -> reference activity list. Rooms not listed here use the Exhibition_Activities tab.
 const REF_ACTIVITY_CSV_URLS = {
   innovation:
@@ -57,6 +69,7 @@ const ROLE_VOLUNTEER = "อาสา";
 const ROLE_STAFF = "เจ้าหน้าที่";
 const STATUS_ACTIVE = "ใช้งาน";
 const STATUS_HIDDEN = "ซ่อน";
+const USER_SUSPENDED = "ระงับ";
 const LIST_ROWS = 500; // rows that get dropdown validation
 
 // ต้องตรงกับ js/form-render.js (WALKIN_ROWS, GROUP_ROWS) และ js/form-calc.js (EXTERNAL_IDS)
@@ -82,8 +95,18 @@ const LEGACY_ACTIVITY_PREFIX = {
 // Fixed (non-room) numeric fields summed for the dashboard. Room totals are added per room.
 const BASE_NUMERIC_FIELDS = [
   "walkin_grand_total",
+  "walkin_child_th_total",
+  "walkin_adult_th_total",
+  "walkin_child_intl_total",
+  "walkin_adult_intl_total",
   "group_grand_total",
+  "group_child_grand_total",
+  "group_adult_grand_total",
   "exhibition_grand_total",
+  "exhibition_total_child",
+  "exhibition_total_adult",
+  "external_child", // derived in withDerived_()
+  "external_adult", // derived in withDerived_()
   "external_rooms_total",
   "summary_activity_total",
   "summary_AllDay_participants",
@@ -131,6 +154,12 @@ const TABS = {
       { col: 3, rule: listRule_([STATUS_ACTIVE, STATUS_HIDDEN]) },
     ],
   },
+  users: {
+    name: "Dashboard_Users",
+    header: ["username", "PIN ใหม่", "salt", "pinHash", "สถานะ", "เข้าระบบล่าสุด"],
+    seed: () => [],
+    validations: () => [{ col: 5, rule: listRule_([STATUS_ACTIVE, USER_SUSPENDED]) }],
+  },
 };
 
 function listRule_(values) {
@@ -144,6 +173,8 @@ function applyValidations_(key, sheet) {
   TABS[key].validations().forEach((v) => {
     sheet.getRange(2, v.col, LIST_ROWS, 1).setDataValidation(v.rule);
   });
+  // keep PINs as text so a leading 0 is not dropped (0123 -> 123)
+  if (key === "users") sheet.getRange(2, 2, LIST_ROWS, 1).setNumberFormat("@");
 }
 
 let ssCache_ = null; // one openById per request
@@ -229,6 +260,7 @@ function setupSheets() {
   getTab_("rooms"); // Activities' room dropdown points at it; ต้องมาก่อน getSheet_() ที่อ่านห้องจากแท็บนี้
   getSheet_();
   Object.keys(TABS).forEach((key) => applyValidations_(key, getTab_(key)));
+  hashPendingPins();
 }
 
 // ---------- read the config tabs ----------
@@ -286,7 +318,7 @@ function readRefCsv_(url) {
     .filter((r) => clean_(r[0]) !== "");
 }
 
-/** Staff_Name (reference) = เจ้าหน้าที่, then Exhibition_Volunteers = อาสา. */
+/** Staff_Name (reference) = เจ้าหน้าที่, then Volunteer_Name (reference) and Exhibition_Volunteers = อาสา. */
 function readStaff_() {
   const seen = {};
   const staff = [];
@@ -295,6 +327,12 @@ function readStaff_() {
     if (seen[name]) return;
     seen[name] = true;
     staff.push({ name: name, role: ROLE_STAFF, active: true });
+  });
+  readRefCsv_(REF_VOLUNTEER_CSV_URL).forEach((r) => {
+    const name = clean_(r[0]);
+    if (seen[name]) return;
+    seen[name] = true;
+    staff.push({ name: name, role: ROLE_VOLUNTEER, active: true });
   });
   readRows_(getTab_("volunteers"), 2, 0).forEach((r) => {
     const name = clean_(r[0]);
@@ -339,6 +377,13 @@ function doPost(e) {
     data = JSON.parse(e.postData.contents);
   } catch (err) {
     return json_({ error: "invalid JSON body" });
+  }
+  if (data && data.action === "login") {
+    try {
+      return json_(login_(data.username, data.pin));
+    } catch (err) {
+      return json_({ error: err.message });
+    }
   }
   const keys = Object.keys(data).filter((k) => k !== "timestamp" && FIELD_KEY_RE.test(k));
 
@@ -423,19 +468,23 @@ function extractSessions_(record, date, rooms, roleByName) {
     for (let i = 1; i <= MAX_ROUNDS; i++) {
       const activity = clean_(record[room.key + "_activity_" + i] || (legacy ? record[legacy + i] : ""));
       const staff = clean_(record[room.key + "_staff_" + i]);
-      const count = COUNT_SUFFIXES.reduce(
-        (sum, s) => sum + (Number(record[room.key + "_" + s + "_" + i]) || 0),
-        0,
-      );
+      const byCat = {};
+      COUNT_SUFFIXES.forEach((s) => (byCat[s] = Number(record[room.key + "_" + s + "_" + i]) || 0));
+      const count = COUNT_SUFFIXES.reduce((sum, s) => sum + byCat[s], 0);
       if (!activity && !staff && !count) continue;
-      sessions.push({
-        date: date,
-        room: room.key,
-        activity: activity,
-        staff: staff,
-        role: staff ? roleByName[staff] || "" : "",
-        count: count,
-      });
+      sessions.push(
+        Object.assign(
+          {
+            date: date,
+            room: room.key,
+            activity: activity,
+            staff: staff,
+            role: staff ? roleByName[staff] || "" : "",
+            count: count,
+          },
+          byCat,
+        ),
+      );
     }
   });
   return sessions;
@@ -445,7 +494,9 @@ function buildDashboard_() {
   const { header, rows } = readAllRows_();
   const rooms = readRooms_();
   const staff = readStaff_();
-  const fields = BASE_NUMERIC_FIELDS.concat(rooms.map((room) => room.key + "_rooms_total"));
+  const fields = BASE_NUMERIC_FIELDS.concat(
+    ...rooms.map((room) => [room.key + "_rooms_total"].concat(COUNT_SUFFIXES.map((c) => `${room.key}_${c}_total`))),
+  );
 
   const roleByName = {};
   staff.forEach((s) => {
@@ -456,7 +507,7 @@ function buildDashboard_() {
   const sessions = [];
 
   rows
-    .map((row) => rowToRecord_(header, row))
+    .map((row) => withDerived_(rowToRecord_(header, row), rooms))
     .forEach((record) => {
       const date = toDateString_(record);
       if (!date) return;
@@ -472,7 +523,49 @@ function buildDashboard_() {
       .map((date) => Object.assign({ date: date }, daily[date])),
     sessions: sessions,
     staff: staff,
+    finance: readFinance_(),
   };
+}
+
+/** Fields the dashboard needs that the form does not save directly (or old rows lack). */
+function withDerived_(record, rooms) {
+  record.external_child = EXTERNAL_KEYS.reduce((a, k) => a + (Number(record[`activity_${k}_child`]) || 0), 0);
+  record.external_adult = EXTERNAL_KEYS.reduce((a, k) => a + (Number(record[`activity_${k}_adult`]) || 0), 0);
+  // room totals per category, from the round rows (old rows have no hidden *_total inputs)
+  rooms.forEach((room) => {
+    COUNT_SUFFIXES.forEach((c) => {
+      let sum = 0;
+      for (let i = 1; i <= MAX_ROUNDS; i++) sum += Number(record[`${room.key}_${c}_${i}`]) || 0;
+      record[`${room.key}_${c}_total`] = sum;
+    });
+  });
+  return record;
+}
+
+/** Revenue of every E-Mod report: [{date, revenue: {channel: {section: amount}}}]. */
+function readFinance_() {
+  const sheet = ss_().getSheetByName("EMod");
+  if (!sheet || sheet.getLastRow() < 2) return [];
+  const values = sheet.getDataRange().getValues();
+  const header = values.shift();
+  const dateCol = header.indexOf("date");
+  const revCol = header.indexOf("revenueJson");
+  if (dateCol === -1 || revCol === -1) return [];
+  const tz = ss_().getSpreadsheetTimeZone();
+  const out = [];
+  values.forEach((row) => {
+    const v = row[dateCol];
+    const date = v instanceof Date ? Utilities.formatDate(v, tz, "yyyy-MM-dd") : String(v).trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
+    let revenue = null;
+    try {
+      revenue = JSON.parse(row[revCol] || "null");
+    } catch (err) {
+      revenue = null;
+    }
+    if (revenue && typeof revenue === "object") out.push({ date: date, revenue: revenue });
+  });
+  return out;
 }
 
 /** Lists for the form: only active entries. */
@@ -502,6 +595,134 @@ function json_(obj, callback) {
 
 function doGet(e) {
   const params = (e && e.parameter) || {};
-  const result = params.action === "config" ? buildConfig_() : buildDashboard_();
-  return json_(result, params.callback);
+  const callback = /^[A-Za-z_$][\w$.]{0,63}$/.test(params.callback || "") ? params.callback : null;
+  try {
+    if (params.action === "config") return json_(buildConfig_(), callback);
+    if (!verifyToken_(params.token)) return json_({ error: "unauthorized" }, callback);
+    return json_(buildDashboard_(), callback);
+  } catch (err) {
+    return json_({ error: err.message }, callback);
+  }
+}
+
+// ---------- dashboard login ----------
+
+const PIN_HASH_ROUNDS = 1000;
+const TOKEN_HOURS = 12;
+const LOGIN_MAX_FAILS = 5; // per username, then locked for LOGIN_LOCK_SECONDS
+const LOGIN_LOCK_SECONDS = 900;
+
+function hex_(bytes) {
+  return bytes.map((b) => ((b + 256) % 256).toString(16).padStart(2, "0")).join("");
+}
+
+function pinHash_(salt, pin) {
+  let h = salt + ":" + pin;
+  for (let i = 0; i < PIN_HASH_ROUNDS; i++) {
+    h = hex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, h, Utilities.Charset.UTF_8));
+  }
+  return h;
+}
+
+/** Run from the editor (or automatically on login): hash every PIN typed in "PIN ใหม่", then clear it. */
+function hashPendingPins() {
+  const sheet = getTab_("users");
+  if (sheet.getLastRow() < 2) return;
+  const range = sheet.getRange(2, 2, sheet.getLastRow() - 1, 3); // PIN ใหม่ | salt | pinHash
+  const rows = range.getValues();
+  let changed = false;
+  rows.forEach((r) => {
+    const pin = String(r[0]).trim();
+    if (!pin) return;
+    const salt = Utilities.getUuid();
+    r[0] = "";
+    r[1] = salt;
+    r[2] = pinHash_(salt, pin);
+    changed = true;
+  });
+  if (changed) range.setValues(rows);
+}
+
+function findUser_(sheet, username) {
+  if (sheet.getLastRow() < 2) return null;
+  const want = username.toLowerCase();
+  const rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, 5).getValues();
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    if (String(r[0]).trim().toLowerCase() !== want) continue;
+    return {
+      row: i + 2,
+      name: String(r[0]).trim(),
+      salt: String(r[2]),
+      hash: String(r[3]),
+      active: String(r[4]).trim() !== USER_SUSPENDED,
+    };
+  }
+  return null;
+}
+
+function login_(username, pin) {
+  const name = String(username || "").trim();
+  pin = String(pin || "").trim();
+  if (!name || !pin) return { error: "กรุณากรอกชื่อผู้ใช้และ PIN" };
+
+  const cache = CacheService.getScriptCache();
+  const failKey = "loginfail_" + name.toLowerCase();
+  const fails = Number(cache.get(failKey)) || 0;
+  if (fails >= LOGIN_MAX_FAILS) return { error: "ใส่ PIN ผิดหลายครั้ง กรุณารอ 15 นาทีแล้วลองใหม่" };
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    const sheet = getTab_("users");
+    hashPendingPins();
+    const user = findUser_(sheet, name);
+    if (!user || !user.active || !user.hash || pinHash_(user.salt, pin) !== user.hash) {
+      cache.put(failKey, String(fails + 1), LOGIN_LOCK_SECONDS);
+      return { error: "ชื่อผู้ใช้หรือ PIN ไม่ถูกต้อง" };
+    }
+    cache.remove(failKey);
+    sheet.getRange(user.row, 6).setValue(new Date());
+    return { token: makeToken_(user.name), user: user.name };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** HMAC secret, generated once and kept in Script Properties (never sent to the browser). */
+function authSecret_() {
+  const props = PropertiesService.getScriptProperties();
+  let secret = props.getProperty("AUTH_SECRET");
+  if (!secret) {
+    secret = Utilities.getUuid() + Utilities.getUuid();
+    props.setProperty("AUTH_SECRET", secret);
+  }
+  return secret;
+}
+
+function sign_(payload) {
+  return Utilities.base64EncodeWebSafe(Utilities.computeHmacSha256Signature(payload, authSecret_()));
+}
+
+function makeToken_(username) {
+  const payload = Utilities.base64EncodeWebSafe(
+    JSON.stringify({ u: username, exp: Date.now() + TOKEN_HOURS * 3600 * 1000 }),
+    Utilities.Charset.UTF_8,
+  );
+  return payload + "." + sign_(payload);
+}
+
+/** Username of a valid, unexpired token whose user is still active; otherwise null. */
+function verifyToken_(token) {
+  const parts = String(token || "").split(".");
+  if (parts.length !== 2 || sign_(parts[0]) !== parts[1]) return null;
+  let data;
+  try {
+    data = JSON.parse(Utilities.newBlob(Utilities.base64DecodeWebSafe(parts[0])).getDataAsString("UTF-8"));
+  } catch (err) {
+    return null;
+  }
+  if (!data || !data.u || !(data.exp > Date.now())) return null;
+  const user = findUser_(getTab_("users"), String(data.u));
+  return user && user.active ? user.name : null;
 }

@@ -30,6 +30,7 @@ Code.gs               Google Apps Script (วางใน Apps Script ของ 
 | แท็บ | ใช้ทำอะไร |
 | --- | --- |
 | `Staff_Name` | รายชื่อผู้ดำเนินกิจกรรม ทุกคนนับเป็น **เจ้าหน้าที่** |
+| `Volunteer_Name` | รายชื่อผู้ดำเนินกิจกรรม ทุกคนนับเป็น **อาสา** |
 | `Innovation_activity` | กิจกรรมของห้อง `innovation` (ใช้คอลัมน์ภาษาไทย) |
 | `InspireLab_activity` | กิจกรรมของห้อง `inspire` (ใช้คอลัมน์ภาษาไทย) |
 
@@ -38,7 +39,7 @@ Code.gs               Google Apps Script (วางใน Apps Script ของ 
 | แท็บ | คอลัมน์ | ใช้ทำอะไร |
 | --- | --- | --- |
 | `Exhibition_Rooms` | รหัส · ชื่อห้อง · จำนวนรอบ · สี · สถานะ | ห้องกิจกรรม เพิ่มแถว = เพิ่มห้องในฟอร์ม + Dashboard |
-| `Exhibition_Volunteers` | ชื่อ · สถานะ | รายชื่อ **อาสา** (ชื่อที่มีใน `Staff_Name` แล้วจะถูกข้าม) |
+| `Exhibition_Volunteers` | ชื่อ · สถานะ | รายชื่อ **อาสา** เพิ่มเติม (ชื่อที่มีใน `Staff_Name` / `Volunteer_Name` แล้วจะถูกข้าม) |
 | `Exhibition_Activities` | ห้อง · ชื่อกิจกรรม · สถานะ | กิจกรรมของห้องที่ไม่มีรายชื่ออ้างอิง (ไม่ใช่ inspire / innovation) |
 | `Exhibition_Data` | (สร้างอัตโนมัติพร้อมหัวคอลัมน์) | หนึ่งแถวต่อหนึ่งฟอร์มที่บันทึก |
 
@@ -55,3 +56,26 @@ Code.gs               Google Apps Script (วางใน Apps Script ของ 
 4. ย้ายข้อมูลเก่า (ถ้ามี): คัดลอกแท็บ `Data` เดิมมาวางเป็น `Exhibition_Data`, `Rooms` เป็น `Exhibition_Rooms`, และชื่ออาสาจากแท็บ `Staff` เดิมลง `Exhibition_Volunteers`
 5. Deploy > Manage deployments > Edit > **New version** (URL `/exec` เดิม) หรือ New deployment ถ้าเป็นโปรเจกต์ใหม่
 6. ใส่ URL ใน `WEBAPP_URL` ที่ `js/config.js`
+
+## Login ของ Dashboard
+
+Dashboard ต้องเข้าสู่ระบบด้วย **ชื่อผู้ใช้ + PIN** (ฟอร์มบันทึกไม่ต้อง) Apps Script ตรวจ token ทุกครั้งที่ดึงข้อมูล
+ถึงจะรู้ URL `/exec` ก็ดึงข้อมูล Dashboard ไม่ได้ถ้าไม่ได้ login
+
+แท็บ `Dashboard_Users` (สร้างให้เองตอนรัน `setupSheets()`):
+
+| username | PIN ใหม่ | salt | pinHash | สถานะ | เข้าระบบล่าสุด |
+|---|---|---|---|---|---|
+
+- **เพิ่มผู้ใช้ / ตั้ง PIN ใหม่:** พิมพ์ `username` และ PIN ในช่อง `PIN ใหม่` แล้วรอให้มีคน login ครั้งถัดไป
+  (หรือรัน `hashPendingPins()` จาก editor ทันที) ระบบจะเก็บเป็น salt + SHA-256 hash แล้วลบ PIN ตัวจริงทิ้ง
+- **ระงับผู้ใช้:** ตั้ง `สถานะ` เป็น `ระงับ` (มีผลทันที แม้คนนั้น login ค้างไว้อยู่)
+- ใส่ PIN ผิด 5 ครั้งติดกัน ชื่อนั้นจะถูกล็อก 15 นาที
+- login ค้างได้ 12 ชั่วโมงต่อครั้ง
+- แนะนำ PIN อย่างน้อย 6 หลัก และอย่าแชร์สิทธิ์แก้ไขชีตนี้กับคนที่ไม่ใช่ผู้ดูแล
+
+## แท็บการเงิน
+
+อ่านตาราง "รายได้" ของ E-Mod จากแท็บ `EMod` ใน Spreadsheet เดียวกัน แยกตามส่วนงาน (Inspire Lab, Camp, ...) และช่องทาง
+(Walk-in / Group × On-site / Online) ถ้า E-Mod เพิ่มส่วนงานใหม่ ให้เพิ่มชื่อใน `FIN_SECTIONS` ของ `js/dashboard-views.js`
+(ถ้าไม่เพิ่ม จะแสดงด้วยชื่อ key แทน)

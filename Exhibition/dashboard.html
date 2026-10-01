@@ -27,7 +27,13 @@
           <h1>Dashboard สรุปผู้เข้าชมและกิจกรรม</h1>
           <p class="subtitle">จัตุรัสวิทยาศาสตร์ อพวช. เชียงใหม่</p>
         </div>
-        <div id="status"></div>
+        <div class="top-right">
+          <div id="status"></div>
+          <div id="user-box" hidden>
+            <span id="user-name"></span>
+            <button class="tab" id="logout-btn" type="button">ออกจากระบบ</button>
+          </div>
+        </div>
       </div>
 
       <div class="controls">
@@ -35,6 +41,7 @@
           <button class="tab" data-view="visitors">ผู้เข้าชม</button>
           <button class="tab" data-view="staff">อาสา / เจ้าหน้าที่</button>
           <button class="tab" data-view="activities">รายกิจกรรม</button>
+          <button class="tab" data-view="finance">การเงิน</button>
         </div>
       </div>
 
@@ -69,7 +76,13 @@
         <div class="bento-grid" id="v-kpi"></div>
         <div class="bento-grid">
           <div class="card span-5">
-            <div class="card-head"><span class="t" id="v-donut-title">สัดส่วนผู้เข้าชม</span></div>
+            <div class="card-head">
+              <span class="t" id="v-donut-title">สัดส่วนผู้เข้าชม</span>
+              <div class="tabs" id="v-mode">
+                <button class="tab" data-vmode="area">ตามพื้นที่</button>
+                <button class="tab" data-vmode="age">เด็ก / ผู้ใหญ่</button>
+              </div>
+            </div>
             <div id="v-donut"></div>
           </div>
           <div class="card span-7">
@@ -77,6 +90,10 @@
             <div class="legend-inline" id="v-legend"></div>
             <div class="chart-scroll" id="v-bars"></div>
           </div>
+        </div>
+        <div class="card" style="margin-bottom: 14px">
+          <div class="card-head"><span class="t" id="v-break-title">แยกกลุ่มผู้เข้าชม</span></div>
+          <div class="table-scroll" id="v-break"></div>
         </div>
         <div class="card">
           <div class="card-head"><span class="t" id="v-table-title">ตารางสรุป</span></div>
@@ -115,6 +132,41 @@
           <div class="table-scroll" id="a-table"></div>
         </div>
       </div>
+
+      <!-- ================= การเงิน (จาก E-Mod) ================= -->
+      <div class="view" id="view-finance" hidden>
+        <div class="bento-grid" id="f-kpi"></div>
+        <div class="card" style="margin-bottom: 14px">
+          <div class="card-head"><span class="t" id="f-sec-title">รายได้แยกตามส่วนงาน</span></div>
+          <div class="table-scroll" id="f-sec"></div>
+        </div>
+        <div class="card" style="margin-bottom: 14px">
+          <div class="card-head"><span class="t" id="f-trend-title">แนวโน้มรายได้</span></div>
+          <div class="legend-inline" id="f-legend"></div>
+          <div class="chart-scroll" id="f-bars"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><span class="t" id="f-table-title">ตารางรายได้</span></div>
+          <div class="table-scroll" id="f-table"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= Login ================= -->
+    <div id="login" hidden>
+      <form id="login-form" class="login-card" autocomplete="on">
+        <div class="login-ic">🔒</div>
+        <h2>เข้าสู่ระบบ Dashboard</h2>
+        <p class="subtitle">ใช้ชื่อผู้ใช้และ PIN ที่ผู้ดูแลตั้งให้</p>
+        <label>ชื่อผู้ใช้
+          <input id="login-user" name="username" autocomplete="username" required />
+        </label>
+        <label>PIN
+          <input id="login-pin" name="pin" type="password" inputmode="numeric" autocomplete="current-password" required />
+        </label>
+        <div id="login-error" role="alert"></div>
+        <button type="submit" id="login-btn">เข้าสู่ระบบ</button>
+      </form>
     </div>
 
     <div id="tooltip"></div>

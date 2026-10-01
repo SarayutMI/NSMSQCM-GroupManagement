@@ -33,9 +33,19 @@ function fetchConfig() {
   return jsonp({ action: "config" });
 }
 
-/** Rooms, daily totals, sessions and staff for the dashboard. */
-function fetchDashboard() {
-  return jsonp({ action: "dashboard" }, 30000);
+/** Rooms, daily totals, sessions, staff and E-Mod revenue for the dashboard. Needs a login token. */
+function fetchDashboard(token) {
+  return jsonp({ action: "dashboard", token: token || "" }, 30000);
+}
+
+/** Dashboard login. POST so the PIN never sits in a URL; resolves {token, user} or {error}. */
+async function loginDashboard(username, pin) {
+  const res = await fetch(WEBAPP_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ action: "login", username: username, pin: pin }),
+  });
+  return res.json();
 }
 
 /** POST is fire-and-forget (no-cors): the response is opaque, no throw = sent. */
