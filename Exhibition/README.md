@@ -23,20 +23,35 @@ Code.gs               Google Apps Script (วางใน Apps Script ของ 
 
 ## ข้อมูลใน Google Sheet
 
+ใช้ Spreadsheet เดียวกับระบบ Group Management (จองห้อง) และรายชื่ออ้างอิงชุดเดียวกัน
+
+รายชื่ออ้างอิง (ชีตอ้างอิงของ Group Management, Publish to web เป็น CSV — แก้ที่นั่นที่เดียว):
+
+| แท็บ | ใช้ทำอะไร |
+| --- | --- |
+| `Staff_Name` | รายชื่อผู้ดำเนินกิจกรรม ทุกคนนับเป็น **เจ้าหน้าที่** |
+| `Innovation_activity` | กิจกรรมของห้อง `innovation` (ใช้คอลัมน์ภาษาไทย) |
+| `InspireLab_activity` | กิจกรรมของห้อง `inspire` (ใช้คอลัมน์ภาษาไทย) |
+
+แท็บของ Exhibition ใน Spreadsheet Group Management (สร้างอัตโนมัติตอนรัน `setupSheets()`):
+
 | แท็บ | คอลัมน์ | ใช้ทำอะไร |
 | --- | --- | --- |
-| `Rooms` | รหัส · ชื่อห้อง · จำนวนรอบ · สี · สถานะ | ห้องกิจกรรม เพิ่มแถว = เพิ่มห้องในฟอร์ม + Dashboard |
-| `Staff` | ชื่อ · ประเภท (อาสา/เจ้าหน้าที่) · สถานะ | รายชื่อผู้ดำเนินกิจกรรม |
-| `Activities` | ห้อง · ชื่อกิจกรรม · สถานะ | รายการกิจกรรมของแต่ละห้อง |
-| `Data` | (สร้างอัตโนมัติพร้อมหัวคอลัมน์ตอนรัน `setupSheets()`) | หนึ่งแถวต่อหนึ่งฟอร์มที่บันทึก |
+| `Exhibition_Rooms` | รหัส · ชื่อห้อง · จำนวนรอบ · สี · สถานะ | ห้องกิจกรรม เพิ่มแถว = เพิ่มห้องในฟอร์ม + Dashboard |
+| `Exhibition_Volunteers` | ชื่อ · สถานะ | รายชื่อ **อาสา** (ชื่อที่มีใน `Staff_Name` แล้วจะถูกข้าม) |
+| `Exhibition_Activities` | ห้อง · ชื่อกิจกรรม · สถานะ | กิจกรรมของห้องที่ไม่มีรายชื่ออ้างอิง (ไม่ใช่ inspire / innovation) |
+| `Exhibition_Data` | (สร้างอัตโนมัติพร้อมหัวคอลัมน์) | หนึ่งแถวต่อหนึ่งฟอร์มที่บันทึก |
 
+- รายชื่ออ้างอิงถูก cache ไว้ 5 นาที แก้ในชีตอ้างอิงแล้วรอสักครู่ฟอร์มจะเห็นเอง
 - สถานะ `ซ่อน` = ไม่แสดงใน dropdown ของฟอร์ม แต่ยังอยู่ใน Dashboard ของข้อมูลเก่า
-- `รหัส` ของห้อง (a-z, 0-9) ห้ามเปลี่ยนหลังมีข้อมูลแล้ว; `ชื่อห้อง` เปลี่ยนได้ (แก้คอลัมน์ `ห้อง` ใน `Activities` ให้ตรงด้วย)
-- ห้ามเปลี่ยนชื่อคน/กิจกรรมที่มีประวัติแล้ว เพราะ `Data` เก็บชื่อเป็นข้อความ
+- `รหัส` ของห้อง (a-z, 0-9) ห้ามเปลี่ยนหลังมีข้อมูลแล้ว; `ชื่อห้อง` เปลี่ยนได้ (แก้คอลัมน์ `ห้อง` ใน `Exhibition_Activities` ให้ตรงด้วย)
+- ห้ามเปลี่ยนชื่อคน/กิจกรรมที่มีประวัติแล้ว เพราะ `Exhibition_Data` เก็บชื่อเป็นข้อความ
 
 ## ติดตั้ง / อัปเดต Code.gs
 
-1. วาง `Code.gs` ทั้งไฟล์ใน Extensions > Apps Script ของ Sheet
-2. รัน `setupSheets()` หนึ่งครั้ง (สร้างครบทั้ง 4 แท็บ `Rooms`/`Staff`/`Activities`/`Data` พร้อมหัวคอลัมน์ และตั้ง dropdown ใหม่)
-3. Deploy > Manage deployments > Edit > **New version** (URL `/exec` เดิม)
-4. ใส่ URL ใน `WEBAPP_URL` ที่ `js/config.js`
+1. script.google.com > New project (ต้องแยกจากโปรเจกต์ Code.gs ของ Group Management) แล้ววาง `Code.gs` ทั้งไฟล์
+2. ใส่ ID ของ Spreadsheet Group Management ที่ `DATA_SPREADSHEET_ID` (จาก URL `.../spreadsheets/d/<ID>/edit`)
+3. รัน `setupSheets()` หนึ่งครั้ง (อนุญาตสิทธิ์ Spreadsheet + เรียก URL ภายนอก) จะสร้างแท็บ `Exhibition_*` ครบพร้อม dropdown
+4. ย้ายข้อมูลเก่า (ถ้ามี): คัดลอกแท็บ `Data` เดิมมาวางเป็น `Exhibition_Data`, `Rooms` เป็น `Exhibition_Rooms`, และชื่ออาสาจากแท็บ `Staff` เดิมลง `Exhibition_Volunteers`
+5. Deploy > Manage deployments > Edit > **New version** (URL `/exec` เดิม) หรือ New deployment ถ้าเป็นโปรเจกต์ใหม่
+6. ใส่ URL ใน `WEBAPP_URL` ที่ `js/config.js`

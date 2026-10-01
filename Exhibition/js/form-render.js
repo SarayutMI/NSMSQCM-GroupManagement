@@ -80,7 +80,7 @@ function renderRooms(rooms) {
   formRooms = rooms;
   $("rooms").innerHTML = rooms.length
     ? rooms.map(roomBlock).join("")
-    : '<p class="block-label">ยังไม่มีห้องที่ใช้งาน: เพิ่มห้องในแท็บ Rooms ของ Google Sheet</p>';
+    : '<p class="block-label">ยังไม่มีห้องที่ใช้งาน: เพิ่มห้องในแท็บ Exhibition_Rooms ของ Google Sheet</p>';
   addCounterButtons($("rooms"));
 }
 

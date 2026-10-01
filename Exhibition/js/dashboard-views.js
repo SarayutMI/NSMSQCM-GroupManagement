@@ -87,10 +87,10 @@ function renderStaff() {
   const inP = filtered.filter((s) => inPeriod(s.date));
   const label = bucketLabel(periodKey(), state.gran);
 
-  // notice: staff with no role in the Staff tab
+  // notice: names in Data that are in neither Staff_Name nor Exhibition_Volunteers
   const unsetNames = [...new Set(SESSIONS.filter((s) => s.staff && !s.role).map((s) => s.staff))];
   $("s-notice").innerHTML = unsetNames.length
-    ? `<div class="notice">มี ${unsetNames.length} คนที่ยังไม่ได้ระบุประเภท (อาสา / เจ้าหน้าที่) ในแท็บ <b>Staff</b> ของ Google Sheet: ${esc(unsetNames.slice(0, 12).join(", "))}${unsetNames.length > 12 ? " ..." : ""}</div>`
+    ? `<div class="notice">มี ${unsetNames.length} คนที่ไม่มีในรายชื่อ <b>Staff_Name</b> (เจ้าหน้าที่) หรือแท็บ <b>Exhibition_Volunteers</b> (อาสา) ของ Google Sheet: ${esc(unsetNames.slice(0, 12).join(", "))}${unsetNames.length > 12 ? " ..." : ""}</div>`
     : "";
 
   const roundsBy = (role) => inP.filter((s) => s.role === role).length;

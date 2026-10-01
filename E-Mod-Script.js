@@ -5,7 +5,7 @@
    - รายชื่อพนักงาน (ผู้บันทึก/ผู้แก้ไข) ดึงจากชีตอ้างอิงเดียวกับระบบจองห้อง (แท็บ Staff_Name)
    ========================================================= */
 const CONFIG = {
-  API_URL: '', // <-- ใส่ URL ของ Google Apps Script Web App (จาก E-Mod-CodeGs.gs) ที่นี่
+  API_URL: 'https://script.google.com/macros/s/AKfycbxxHvvPxXTIJ5DZmNz2rEmHpa5IR5ugIkOjbIpVYyfzga3YESmjnvouQsUhoV3QhgvOCw/exec', // <-- ใส่ URL ของ Google Apps Script Web App (จาก E-Mod-CodeGs.gs) ที่นี่
   STAFF_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=1863604525&single=true&output=csv'
 };
 
