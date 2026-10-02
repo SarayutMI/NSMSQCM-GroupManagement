@@ -19,9 +19,11 @@
     target = input;
     document.getElementById("numpadLabel").textContent = label(input);
     bar.classList.add("is-open");
+    document.body.classList.add("numpad-open"); // class แทน CSS :has() (Safari หน่วงมาก)
   }
   function close() {
     bar.classList.remove("is-open");
+    document.body.classList.remove("numpad-open");
     target = null;
   }
 

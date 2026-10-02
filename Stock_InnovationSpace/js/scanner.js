@@ -62,6 +62,7 @@ const Scanner = (() => {
   function close() {
     stop();
     if (box) box.hidden = true;
+    document.body.classList.remove("scanner-open");
     done = true;
   }
 
@@ -113,6 +114,7 @@ const Scanner = (() => {
     manual.value = "";
     msg.textContent = "กำลังเปิดกล้อง...";
     box.hidden = false;
+    document.body.classList.add("scanner-open");
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       msg.textContent = cameraError(new Error("browser นี้ไม่รองรับกล้อง")) + " — พิมพ์เลขด้านล่างแทนได้";

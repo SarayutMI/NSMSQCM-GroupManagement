@@ -135,11 +135,13 @@ function openModal(title, bodyHtml, onSubmit, submitLabel) {
   $("modalSubmit").textContent = submitLabel || "บันทึก";
   modalSubmit = onSubmit;
   $("modal").hidden = false;
+  document.body.classList.add("modal-open");
   const first = $("modalBody").querySelector("input, select, textarea");
   if (first) setTimeout(() => first.focus(), 30);
 }
 function closeModal() {
   $("modal").hidden = true;
+  document.body.classList.remove("modal-open");
   modalSubmit = null;
   StockNumpad.close();
   const ghost = $("planGhost");

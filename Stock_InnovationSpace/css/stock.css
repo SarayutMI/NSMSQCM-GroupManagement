@@ -361,14 +361,14 @@ input:focus, select:focus, textarea:focus { outline: 2px solid rgba(42, 102, 196
 .numpad-done { background: var(--accent); border-color: var(--accent); color: #fff; font-size: 15px; }
 .numpad-done:active { opacity: 0.85; }
 /* เปิด numpad ในฟอร์ม: ดันฟอร์มขึ้นให้ช่องที่กรอกไม่ถูกบัง */
-body:has(.numpad-bar.is-open) .modal { align-items: flex-start; padding-top: 12px; }
-body:has(.numpad-bar.is-open) .modal-card { max-height: calc(100vh - 300px); max-height: calc(100dvh - 300px); }
+body.numpad-open .modal { align-items: flex-start; padding-top: 12px; }
+body.numpad-open .modal-card { max-height: calc(100vh - 300px); max-height: calc(100dvh - 300px); }
 /* ปุ่มเมนู ☰ ไม่ทับฟอร์ม / หน้าสแกน */
-body:has(.modal:not([hidden])) .nsmnav-btn,
-body:has(.scanner:not([hidden])) .nsmnav-btn { display: none !important; }
-body:has(.numpad-bar.is-open) .wrap { padding-bottom: 320px; }
+body.modal-open .nsmnav-btn,
+body.scanner-open .nsmnav-btn { display: none !important; }
+body.numpad-open .wrap { padding-bottom: 320px; }
 /* ปุ่มเมนู ☰ มุมขวาล่างบังปุ่ม ✓ เสร็จ: ซ่อนไว้ระหว่างกรอกตัวเลข */
-body:has(.numpad-bar.is-open) .nsmnav-btn { display: none !important; }
+body.numpad-open .nsmnav-btn { display: none !important; }
 
 /* ===== responsive ===== */
 @media (max-width: 980px) {
@@ -383,8 +383,8 @@ body:has(.numpad-bar.is-open) .nsmnav-btn { display: none !important; }
   /* ฟอร์มแบบ bottom sheet เต็มความกว้าง ช่องสั้นยังวางคู่กันได้ */
   .modal { padding: 0; align-items: flex-end; }
   .modal-card { max-width: none; max-height: 94vh; max-height: 94dvh; border-radius: 18px 18px 0 0; }
-  body:has(.numpad-bar.is-open) .modal { align-items: flex-start; padding: 0; }
-  body:has(.numpad-bar.is-open) .modal-card { border-radius: 0 0 18px 18px; }
+  body.numpad-open .modal { align-items: flex-start; padding: 0; }
+  body.numpad-open .modal-card { border-radius: 0 0 18px 18px; }
   .modal-head { padding: 12px 16px; }
   .modal-body { padding: 14px 16px; gap: 10px; }
   .modal-foot { padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); }
