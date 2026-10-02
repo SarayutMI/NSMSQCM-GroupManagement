@@ -325,7 +325,11 @@ function escapeHtml(str){
 }
 function addDays(d,n){ const r = new Date(d); r.setDate(r.getDate()+n); return r; }
 function startOfWeek(d){ const r = new Date(d); r.setDate(d.getDate()-d.getDay()); r.setHours(0,0,0,0); return r; }
-function money(n){ return Number(n||0).toLocaleString('th-TH'); }
+/* เอกสาร export (PDF/พิมพ์/Word) ต้องเป็นเลขอารบิกทุกเครื่อง: Safari / MS Edge / บางเครื่องที่ตั้งภาษาไทย
+   แสดงผล locale 'th-TH' หรือข้อความที่พิมพ์ด้วยแป้นไทยเป็นเลขไทย (๑๒๓) — บังคับ nu-latn และแปลง ๐-๙ ทุกจุดก่อนพิมพ์ */
+const NUM_LOCALE = 'th-TH-u-nu-latn';
+function arabicDigits(s){ return String(s == null ? '' : s).replace(/[๐-๙]/g, c => String(c.charCodeAt(0) - 0x0E50)); }
+function money(n){ return arabicDigits(Number(n||0).toLocaleString(NUM_LOCALE)); }
 function thaiFullDate(dateStr){
   if(!dateStr) return '-';
   const d = parseDate(dateStr);
@@ -1159,7 +1163,7 @@ function buildOrderReceiptHtml(weekStart, col){
       <div class="r-sum">รวม ${g.total} ชุด · ${g.rows.length} รอบ</div>
       ${g.rows.map(rowHtml).join('')}`).join('')}
     <hr>
-    <div class="r-foot">พิมพ์เมื่อ ${new Date().toLocaleString('th-TH')}</div>
+    <div class="r-foot">พิมพ์เมื่อ ${arabicDigits(new Date().toLocaleString(NUM_LOCALE))}</div>
   </div>`;
 }
 function buildSelectedOrderData(weekStart, which){
@@ -1178,7 +1182,7 @@ function buildSelectedOrderData(weekStart, which){
 function printOrder(which){
   const picked = buildSelectedOrderData(state.orderWeekStart, which);
   if(picked.length===0){ alert('กรุณาติ๊กเลือกรายการที่ต้องการพิมพ์อย่างน้อย 1 รายการ'); return; }
-  document.getElementById('printArea').innerHTML = picked.map(c=> buildOrderReceiptHtml(state.orderWeekStart, c)).join('');
+  document.getElementById('printArea').innerHTML = arabicDigits(picked.map(c=> buildOrderReceiptHtml(state.orderWeekStart, c)).join(''));
   let st = document.getElementById('receiptPageStyle');
   if(!st){ st = document.createElement('style'); st.id = 'receiptPageStyle'; document.head.appendChild(st); }
   st.textContent = RECEIPT_PAGE_CSS;   // ใช้เฉพาะตอนพิมพ์ Order แล้วเอาออกเมื่อพิมพ์เสร็จ ไม่กระทบเอกสาร A4
@@ -1939,11 +1943,12 @@ document.getElementById('docPreviewZoomIn').addEventListener('click', ()=> setDo
 document.getElementById('docPreviewZoomOut').addEventListener('click', ()=> setDocPreviewZoom(docPreviewZoom-0.1));
 document.getElementById('docPreviewZoomReset').addEventListener('click', ()=> setDocPreviewZoom(1));
 document.getElementById('docPreviewPrintBtn').addEventListener('click', ()=>{
-  document.getElementById('printArea').innerHTML = docPreviewPagesHtml.join('');
+  document.getElementById('printArea').innerHTML = arabicDigits(docPreviewPagesHtml.join(''));
   window.print();
 });
 
 function openDocPreviewModal(pagesHtml, title){
+  pagesHtml = pagesHtml.map(arabicDigits);
   docPreviewPagesHtml = pagesHtml;
   const frame = document.getElementById('docPreviewFrame');
   const cssHref = new URL('style.css', location.href).href;
@@ -1995,7 +2000,7 @@ const DOCX_PAGE_PROPERTIES = { page: {
 } };
 const DOCX_CONTENT_WIDTH = DOCX_PAGE_WIDTH - DOCX_MARGIN_LEFT - DOCX_MARGIN_RIGHT;
 function dRun(text, opts={}){
-  return new docx.TextRun({ text: String(text), font: DOCX_FONT, size: opts.size||29, bold: !!opts.bold, color: opts.color||undefined, underline: opts.underline ? {type: docx.UnderlineType.SINGLE} : undefined });
+  return new docx.TextRun({ text: arabicDigits(text), font: DOCX_FONT, size: opts.size||29, bold: !!opts.bold, color: opts.color||undefined, underline: opts.underline ? {type: docx.UnderlineType.SINGLE} : undefined });
 }
 function dPara(text, opts={}){
   const alignMap = {left:docx.AlignmentType.LEFT, center:docx.AlignmentType.CENTER, right:docx.AlignmentType.RIGHT};
