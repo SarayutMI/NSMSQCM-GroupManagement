@@ -1942,8 +1942,17 @@ function setDocPreviewZoom(z){
 document.getElementById('docPreviewZoomIn').addEventListener('click', ()=> setDocPreviewZoom(docPreviewZoom+0.1));
 document.getElementById('docPreviewZoomOut').addEventListener('click', ()=> setDocPreviewZoom(docPreviewZoom-0.1));
 document.getElementById('docPreviewZoomReset').addEventListener('click', ()=> setDocPreviewZoom(1));
-document.getElementById('docPreviewPrintBtn').addEventListener('click', ()=>{
+/* ฟอนต์เอกสาร (fonts/THSarabunPSK*.ttf) — โหลดรอไว้ตั้งแต่เปิดหน้า และรอให้พร้อมก่อนสั่งพิมพ์
+   ไม่งั้นการพิมพ์ครั้งแรกอาจออกมาเป็นฟอนต์สำรอง (เพราะ #printArea ซ่อนอยู่ browser ยังไม่โหลดฟอนต์ให้) */
+function docFontsReady(){
+  if(!document.fonts || !document.fonts.load) return Promise.resolve();
+  const load = Promise.all(['400','700'].map(w => document.fonts.load(w + ' 16pt DocSarabunPSK', 'กข 0123')));
+  return Promise.race([load, new Promise(r => setTimeout(r, 3000))]).catch(()=>{});
+}
+docFontsReady();
+document.getElementById('docPreviewPrintBtn').addEventListener('click', async ()=>{
   document.getElementById('printArea').innerHTML = arabicDigits(docPreviewPagesHtml.join(''));
+  await docFontsReady();
   window.print();
 });
 

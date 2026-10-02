@@ -439,10 +439,14 @@
   .btn-group{display:flex;gap:4px;}
 
   /* ---------- Print / export documents (TH SarabunPSK — compact, 1 doc = 1 page) ---------- */
+  /* ฟอนต์เอกสารโหลดจากเว็บเอง (fonts/) ไม่พึ่งฟอนต์ในเครื่อง: เครื่องที่ไม่มี TH SarabunPSK หรือมีรุ่นอื่น
+     (เช่นรุ่น IT๙ ที่วาด 0-9 เป็นเลขไทย) จะได้ PDF หน้าตา/ตัวเลขต่างกัน — ชื่อ family แยกไว้ไม่ชนกับฟอนต์ในเครื่อง */
+  @font-face{font-family:'DocSarabunPSK';src:url('fonts/THSarabunPSK.ttf') format('truetype');font-weight:400;font-style:normal;font-display:block;}
+  @font-face{font-family:'DocSarabunPSK';src:url('fonts/THSarabunPSK-Bold.ttf') format('truetype');font-weight:700;font-style:normal;font-display:block;}
   #printArea{display:none;}
   .doc-page{
     padding:10px 24px;color:#111;
-    font-family:'TH SarabunPSK','TH Sarabun New','Sarabun',sans-serif;
+    font-family:'DocSarabunPSK','TH SarabunPSK','TH Sarabun New','Sarabun',sans-serif;
     font-size:14.5pt; line-height:1.18;
     position:relative; box-sizing:border-box; min-height:257mm;
   }
