@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ตรวจความเร็วระบบ</title>
+<style>
+  :root { --ink:#16181d; --muted:#6b7280; --line:#e5e7eb; --bg:#f5f7fa; --ok:#16a34a; --warn:#d97706; --bad:#dc2626; --navy:#1e3a5f; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: -apple-system, "Segoe UI", "Sarabun", sans-serif; font-size: 15px; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 20px 16px 60px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  p.sub { color: var(--muted); margin: 0 0 16px; }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; margin-bottom: 14px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 7px 6px; border-bottom: 1px solid var(--line); font-size: 14px; vertical-align: top; }
+  th { color: var(--muted); font-size: 12px; font-weight: 600; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .ok { color: var(--ok); font-weight: 700; } .warn { color: var(--warn); font-weight: 700; } .bad { color: var(--bad); font-weight: 700; }
+  button { font: inherit; border: none; border-radius: 10px; padding: 10px 16px; cursor: pointer; background: var(--navy); color: #fff; font-weight: 600; }
+  button.ghost { background: #fff; color: var(--ink); border: 1px solid var(--line); }
+  button:disabled { opacity: .5; cursor: wait; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  pre { white-space: pre-wrap; font-size: 12px; background: #f8fafc; border: 1px solid var(--line); border-radius: 10px; padding: 10px; max-height: 240px; overflow: auto; }
+  .muted { color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>ตรวจความเร็วระบบ</h1>
+  <p class="sub">เปิดหน้านี้บน "เครื่องที่ช้า" แล้วกดเริ่มตรวจ จากนั้นกด "คัดลอกผล" ส่งให้ผู้ดูแล — อ่านข้อมูลอย่างเดียว ไม่บันทึกอะไรลง Sheet</p>
+
+  <div class="card">
+    <div class="row">
+      <button id="runBtn" type="button">▶ เริ่มตรวจ</button>
+      <button id="copyBtn" class="ghost" type="button" disabled>📋 คัดลอกผล</button>
+      <span class="muted" id="state"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <b>เครื่องนี้</b>
+    <table id="device"></table>
+  </div>
+
+  <div class="card">
+    <b>เวลาโหลดแต่ละส่วน</b>
+    <span class="muted">(ยิ่งน้อยยิ่งดี · เขียว &lt; 3 วิ · ส้ม 3–6 วิ · แดง &gt; 6 วิ)</span>
+    <table>
+      <thead><tr><th>รายการ</th><th>ระบบ</th><th class="num">เวลา</th><th class="num">ขนาด</th></tr></thead>
+      <tbody id="results"></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <b>สรุป</b>
+    <div id="summary" class="muted">ยังไม่ได้ตรวจ</div>
+  </div>
+
+  <pre id="raw" hidden></pre>
+</div>
+
+<script>
+// URL ของแต่ละระบบ อ่านจากไฟล์ตั้งค่าจริงของแต่ละระบบ (ไม่ต้องแก้หน้านี้เมื่อเปลี่ยน deployment)
+const SOURCES = [
+  { sys: 'ระบบจองห้อง', file: 'script.js', re: /API_URL:\s*'([^']+)'/, paths: [['รายการจอง', '']] },
+  { sys: 'E-Mod', file: 'E-Mod-Script.js', re: /API_URL:\s*'([^']+)'/, paths: [['รายการรายงาน', '?action=list'], ['รายงานวันนี้', '?action=getByDate&date={today}']] },
+  { sys: 'Exhibition', file: 'Exhibition/js/config.js', re: /WEBAPP_URL\s*=\s*"([^"]+)"/, paths: [['รายชื่อห้อง/กิจกรรม', '?action=config'], ['ข้อมูลวันนี้', '?action=getByDate&date={today}']] },
+  { sys: 'Stock', file: 'Stock_InnovationSpace/js/config.js', re: /API_URL:\s*"([^"]+)"/, paths: [['ข้อมูลสต๊อก', '']] },
+];
+const EXTRA = [
+  ['ไฟล์ CSV รายชื่อ (Google Sheets)', 'อ้างอิง', 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=1863604525&single=true&output=csv'],
+  ['Tailwind CDN (ใช้ใน E-Mod)', 'ไลบรารี', 'https://cdn.tailwindcss.com'],
+  ['docx.js (ใช้ในระบบจองห้อง)', 'ไลบรารี', 'https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js'],
+];
+
+const $ = (id) => document.getElementById(id);
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const sec = (ms) => (ms / 1000).toFixed(2) + ' วิ';
+const cls = (ms) => (ms < 3000 ? 'ok' : ms < 6000 ? 'warn' : 'bad');
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+let report = [];
+
+function deviceInfo() {
+  const c = navigator.connection || {};
+  // งานคำนวณเล็กๆ วัดความแรง CPU คร่าวๆ (เครื่องปกติ ~50–150 ms)
+  const t0 = performance.now(); let x = 0;
+  for (let i = 0; i < 3e7; i++) x += i % 7;
+  const cpu = performance.now() - t0;
+  const rows = [
+    ['Browser / ระบบ', navigator.userAgent],
+    ['CPU (core)', navigator.hardwareConcurrency || '-'],
+    ['RAM (GB, ประมาณ)', navigator.deviceMemory || '-'],
+    ['เน็ต (ประเภท / ความเร็วโดยประมาณ)', c.effectiveType ? `${c.effectiveType} · ${c.downlink || '?'} Mbps · RTT ${c.rtt || '?'} ms` : 'browser ไม่บอก'],
+    ['ทดสอบ CPU (ยิ่งน้อยยิ่งแรง)', Math.round(cpu) + ' ms' + (x < 0 ? '' : '')],
+  ];
+  $('device').innerHTML = rows.map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join('');
+  return { rows, cpu };
+}
+
+// noCors: ไลบรารีจาก CDN บางเจ้าไม่ให้อ่านเนื้อหาข้ามเว็บ — วัดเวลาดาวน์โหลดได้ แต่ไม่รู้ขนาด
+async function timed(url, noCors) {
+  const t0 = performance.now();
+  try {
+    const res = await fetch(url, noCors ? { cache: 'no-store', mode: 'no-cors' } : { cache: 'no-store' });
+    const buf = await res.arrayBuffer();
+    return { ms: performance.now() - t0, size: buf.byteLength, ok: noCors || res.ok, status: res.status };
+  } catch (err) {
+    return { ms: performance.now() - t0, size: 0, ok: false, status: String(err.message || err) };
+  }
+}
+
+function addRow(name, sys, r) {
+  report.push({ name, sys, ms: Math.round(r.ms), size: r.size, ok: r.ok, status: r.status });
+  const kb = r.size ? (r.size / 1024).toFixed(1) + ' KB' : '-';
+  $('results').insertAdjacentHTML('beforeend', `<tr><td>${esc(name)}${r.ok ? '' : ` <span class="bad">(ผิดพลาด: ${esc(r.status)})</span>`}</td><td>${esc(sys)}</td><td class="num ${cls(r.ms)}">${sec(r.ms)}</td><td class="num">${kb}</td></tr>`);
+}
+
+async function run() {
+  $('runBtn').disabled = true; $('copyBtn').disabled = true;
+  $('results').innerHTML = ''; report = [];
+  const dev = deviceInfo();
+  $('state').textContent = 'กำลังตรวจ... (ประมาณ 30–60 วินาที)';
+
+  for (const s of SOURCES) {
+    let base = null;
+    try { const txt = await (await fetch(s.file, { cache: 'no-store' })).text(); const m = txt.match(s.re); base = m && m[1]; } catch (e) { /* ignore */ }
+    if (!base) { addRow(s.sys + ': อ่าน URL ไม่ได้', s.sys, { ms: 0, size: 0, ok: false, status: 'ไม่พบ URL ในไฟล์ตั้งค่า' }); continue; }
+    for (const [name, q] of s.paths) {
+      $('state').textContent = `กำลังตรวจ ${s.sys}: ${name}...`;
+      addRow(name, s.sys, await timed(base + q.replace('{today}', today())));
+    }
+  }
+  for (const [name, sys, url] of EXTRA) {
+    $('state').textContent = `กำลังตรวจ ${name}...`;
+    addRow(name, sys, await timed(url, sys === 'ไลบรารี'));
+  }
+
+  const api = report.filter((r) => SOURCES.some((s) => s.sys === r.sys));
+  const avg = api.length ? api.reduce((a, r) => a + r.ms, 0) / api.length : 0;
+  const slowest = [...report].sort((a, b) => b.ms - a.ms)[0];
+  const tips = [];
+  if (avg > 6000) tips.push('การเชื่อมต่อกับ Google Apps Script ช้ามาก — มักเกิดจากเน็ต/Wi-Fi หรือ proxy ขององค์กร');
+  if (dev.cpu > 400) tips.push('เครื่องนี้ประมวลผลช้า — หน้า E-Mod (Tailwind) และการ export เอกสารจะหน่วงเป็นพิเศษ');
+  if (report.some((r) => !r.ok)) tips.push('มีบางรายการโหลดไม่สำเร็จ — อาจถูกบล็อกโดย firewall/proxy หรือเน็ตหลุด');
+  $('summary').innerHTML = `เฉลี่ยต่อคำขอข้อมูล (Apps Script): <b class="${cls(avg)}">${sec(avg)}</b> · ช้าสุด: ${esc(slowest.name)} (${esc(slowest.sys)}) ${sec(slowest.ms)}`
+    + (tips.length ? `<ul>${tips.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : '<br>ไม่พบปัญหาชัดเจนจากเครื่องนี้');
+
+  $('raw').textContent = JSON.stringify({ at: new Date().toISOString(), device: Object.fromEntries(dev.rows), results: report }, null, 1);
+  $('state').textContent = 'ตรวจเสร็จแล้ว';
+  $('runBtn').disabled = false; $('copyBtn').disabled = false;
+}
+
+$('runBtn').addEventListener('click', run);
+$('copyBtn').addEventListener('click', async () => {
+  const text = $('raw').textContent;
+  try { await navigator.clipboard.writeText(text); $('state').textContent = 'คัดลอกผลแล้ว — วางส่งให้ผู้ดูแลได้เลย'; }
+  catch (e) { $('raw').hidden = false; $('state').textContent = 'คัดลอกอัตโนมัติไม่ได้ — เลือกข้อความด้านล่างแล้วคัดลอกเอง'; }
+});
+deviceInfo();
+</script>
+</body>
+</html>
