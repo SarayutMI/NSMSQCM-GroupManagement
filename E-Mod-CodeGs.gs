@@ -195,7 +195,6 @@ function emodCreate_(data) {
 }
 
 function emodUpdate_(data) {
-  if (!String(data.editor || '').trim()) return { error: 'กรุณาระบุผู้แก้ไข' };
   if (!emodValidDate_(data.date)) return { error: 'วันที่ไม่ถูกต้อง' };
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
@@ -207,10 +206,15 @@ function emodUpdate_(data) {
     if (dateRow !== -1 && dateRow !== rowIndex) return { error: 'มีรายงานวันที่นี้อยู่แล้ว (1 วันมีได้ 1 รายงาน)' };
     const existingRow = sheet.getRange(rowIndex, 1, 1, EMOD_HEADERS.length).getValues()[0];
     const existing = emodRowToObject_(EMOD_HEADERS, existingRow);
+    // รายงานที่ Exhibition สร้างให้อัตโนมัติ: บันทึกครั้งแรกใน E-Mod ใช้ "ผู้บันทึก" (ไม่ต้องมีผู้แก้ไข)
+    const autoCreated = /^Exhibition/.test(String(existing.recorder || ''));
+    if (autoCreated ? !String(data.recorder || '').trim() : !String(data.editor || '').trim()) {
+      return { error: autoCreated ? 'กรุณาระบุผู้บันทึก' : 'กรุณาระบุผู้แก้ไข' };
+    }
     const now = new Date().toISOString();
     const record = emodEncode_(data);
     record.id = existing.id;
-    record.recorder = existing.recorder || data.recorder || '';
+    record.recorder = (autoCreated ? data.recorder : existing.recorder) || data.recorder || existing.recorder || '';
     record.createdAt = existing.createdAt;
     record.updatedAt = now;
     const dateCol = EMOD_HEADERS.indexOf('date') + 1;

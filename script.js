@@ -688,10 +688,21 @@ function setVisitSyncBanner(mode, err){
     el.textContent = '⚠ เชื่อมต่อ Google Sheet ไม่สำเร็จ: ' + (err||'ตรวจสอบ API_URL / การ deploy');
   }
 }
+/* รายการจองรอบล่าสุดเก็บไว้ในเครื่อง: เปิดหน้าแล้วเห็นปฏิทินทันที แล้วค่อยอัปเดตจาก Sheet เบื้องหลัง
+   (Apps Script ใช้เวลาตอบ 2-4 วินาทีทุกครั้ง) */
+const VISITS_CACHE_KEY = 'sgm_visits_cache';
+function readVisitsCache(){
+  try{ const c = JSON.parse(localStorage.getItem(VISITS_CACHE_KEY) || 'null'); return c && c.url === CONFIG.API_URL && Array.isArray(c.visits) ? c.visits : null; }
+  catch(e){ return null; }
+}
+function writeVisitsCache(visits){
+  try{ localStorage.setItem(VISITS_CACHE_KEY, JSON.stringify({ url: CONFIG.API_URL, at: Date.now(), visits })); }catch(e){ /* storage เต็ม/ถูกปิด */ }
+}
 async function loadVisits(){
   if(CONFIG.API_URL){
     try{
       state.visits = await apiListVisits();
+      writeVisitsCache(state.visits);
       setVisitSyncBanner('ok');
     }catch(err){
       console.error(err);
@@ -2208,9 +2219,12 @@ document.querySelector('.doc-export-grid').addEventListener('click', (e)=>{
 
 /* ---------------- Init ---------------- */
 (async ()=>{
-  showLoading('กำลังโหลดข้อมูล...');
+  // มีข้อมูลรอบก่อนในเครื่อง: แสดงทันทีและโหลดเบื้องหลังโดยไม่บังจอ / ไม่มี (เปิดครั้งแรก): บังจอรอเหมือนเดิม
+  const cached = CONFIG.API_URL ? readVisitsCache() : null;
+  if(cached){ state.visits = cached; renderAll(); }
+  else showLoading('กำลังโหลดข้อมูล...');
   try{ await Promise.all([loadVisits(), loadRefSchools(), loadRefActivities(), loadRefStaff(), loadRefLocations()]); }
-  finally{ hideLoading(); }
+  finally{ if(!cached) hideLoading(); }
 })();
 if(CONFIG.API_URL){
   setInterval(loadVisits, 20000); // ดึงข้อมูลใหม่ทุก 20 วิ เพื่อให้หลายคนเห็นข้อมูลตรงกัน (เงียบ ไม่ขึ้นป๊อปอัป)

@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>E-Mod Dashboard</title>
+    <link rel="icon" href="LOGO/NSMSQCM.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="Exhibition/css/base.css" />
+    <link rel="stylesheet" href="Exhibition/css/dashboard.css" />
+    <style>
+      .bar-cell { position: relative; min-width: 110px; }
+      .bar-cell i { position: absolute; left: 0; top: 50%; transform: translateY(-50%); height: 60%; border-radius: 4px; background: #dbe7fb; z-index: 0; }
+      .bar-cell span { position: relative; z-index: 1; }
+      td a.day-link { color: var(--accent); text-decoration: none; font-weight: 600; }
+      td a.day-link:hover { text-decoration: underline; }
+      .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+      @media (max-width: 980px) { .grid-2 { grid-template-columns: 1fr; } }
+      .card + .card { margin-top: 0; }
+      .section-gap { margin-bottom: 14px; }
+      .card-head .view-switch .tab { padding: 4px 10px; font-size: 11.5px; }
+      .issue-search { width: 100%; max-width: 360px; border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; font: inherit; font-size: 13px; margin-bottom: 6px; }
+      td.wrap { white-space: normal; }
+      /* กราฟแท่งแนวนอน */
+      .hbars { display: grid; gap: 7px; padding: 6px 0; }
+      .hb-row { display: grid; grid-template-columns: minmax(110px, 30%) 1fr auto; gap: 10px; align-items: center; font-size: 12.5px; }
+      .hb-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .hb-track { height: 18px; background: #f1f4f8; border-radius: 6px; overflow: hidden; }
+      .hb-track i { display: block; height: 100%; border-radius: 6px; }
+      .hb-val { font-weight: 700; font-variant-numeric: tabular-nums; min-width: 70px; text-align: right; }
+      /* กราฟแท่งแนวตั้ง (รายวัน) */
+      .vbars { display: flex; align-items: flex-end; gap: 4px; height: 230px; padding: 18px 4px 0; overflow-x: auto; }
+      .vb-col { flex: 1 0 24px; max-width: 56px; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 3px; }
+      .vb-bar { width: 70%; background: #2a78d6; border-radius: 5px 5px 0 0; min-height: 0; }
+      .vb-col:hover .vb-bar { background: #1e5bb0; }
+      .vb-val { font-size: 9.5px; color: var(--label); white-space: nowrap; writing-mode: vertical-rl; transform: rotate(180deg); max-height: 70px; }
+      .vb-label { font-size: 10.5px; color: var(--muted); height: 16px; }
+      /* กราฟวงกลม */
+      .pie-wrap { display: flex; gap: 22px; align-items: center; flex-wrap: wrap; padding: 6px 0; }
+      .pie-total { font-size: 17px; font-weight: 700; fill: var(--ink); }
+      .pie-sub { font-size: 11px; fill: var(--muted); }
+      .pie-legend { display: grid; gap: 6px; font-size: 12.5px; min-width: 240px; max-width: 460px; flex: 1; }
+      .pie-legend div { display: grid; grid-template-columns: 12px 1fr auto 52px; gap: 8px; align-items: center; }
+      .pie-legend i { width: 12px; height: 12px; border-radius: 3px; }
+      .pie-legend b { font-variant-numeric: tabular-nums; }
+      .pie-legend small { color: var(--muted); text-align: right; }
+    </style>
+  </head>
+  <body>
+    <div class="nsm-exhead">
+      <span class="ic">📋</span>
+      <div>
+        <div class="ti">E-Mod Dashboard</div>
+        <div class="su">จัตุรัสวิทยาศาสตร์ อพวช. เชียงใหม่ · สรุปรายงานประจำวัน MOD</div>
+      </div>
+    </div>
+    <div class="wrap">
+      <div class="top">
+        <div>
+          <h1>สรุปรายงาน E-Mod</h1>
+          <p class="subtitle">รายได้ · กรุ๊ป/โรงเรียน · ผู้เข้าชมแยกกลุ่ม · กิจกรรม · ทีม MOD</p>
+        </div>
+        <div class="top-right">
+          <div id="status"></div>
+          <div id="user-box" hidden>
+            <span id="user-name"></span>
+            <button class="tab" id="logout-btn" type="button">ออกจากระบบ</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <div class="ctl-group">
+          <span class="ctl-label">ช่วงเวลา</span>
+          <div class="tabs" id="gran-tabs">
+            <button class="tab" data-gran="day">รายวัน</button>
+            <button class="tab" data-gran="month">รายเดือน</button>
+            <button class="tab" data-gran="year">รายปี</button>
+            <button class="tab" data-gran="all">ทั้งหมด</button>
+          </div>
+          <select id="period" aria-label="เลือกช่วงเวลา"></select>
+        </div>
+      </div>
+
+      <div class="bento-grid" id="kpi"></div>
+
+      <div class="card section-gap">
+        <div class="card-head"><span class="t" id="rev-day-title">รายได้รายวัน</span></div>
+        <div class="table-scroll" id="rev-day"></div>
+      </div>
+
+      <div class="card section-gap">
+        <div class="card-head"><span class="t" id="rev-sec-title">รายได้แยกตามส่วนงาน</span></div>
+        <div class="table-scroll" id="rev-sec"></div>
+      </div>
+
+      <div class="card section-gap">
+        <div class="card-head"><span class="t" id="groups-title">กรุ๊ปที่มา</span></div>
+        <div class="table-scroll" id="groups"></div>
+      </div>
+
+      <div class="card section-gap">
+        <div class="card-head"><span class="t" id="visitors-title">ผู้เข้าชมแยกกลุ่ม</span></div>
+        <div class="table-scroll" id="visitors"></div>
+      </div>
+
+      <div class="card section-gap">
+        <div class="card-head"><span class="t" id="other-title">กิจกรรมอื่นๆ (Walk-in / Group)</span></div>
+        <div class="table-scroll" id="other"></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-head"><span class="t" id="rounds-title">Inspire Lab / Innovation Space</span></div>
+          <div class="table-scroll" id="rounds"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><span class="t" id="schools-title">โรงเรียนที่เข้าร่วมกิจกรรม</span></div>
+          <div class="table-scroll" id="schools"></div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-head"><span class="t" id="team-title">ทีม MOD</span></div>
+          <div class="table-scroll" id="team"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><span class="t" id="leaders-title">ผู้ดำเนินกิจกรรม</span></div>
+          <div class="table-scroll" id="leaders"></div>
+        </div>
+      </div>
+
+      <div class="card section-gap">
+        <div class="card-head"><span class="t" id="issues-title">ปัญหาและข้อเสนอแนะ</span></div>
+        <input id="issue-search" type="search" class="issue-search" placeholder="ค้นหาปัญหา / Zone / หมายเหตุ..." />
+        <div class="table-scroll" id="issues"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><span class="t" id="days-title">รายงานรายวัน</span><span class="subtitle">คลิกวันที่เพื่อเปิดรายงานใน E-Mod</span></div>
+        <div class="table-scroll" id="days"></div>
+      </div>
+    </div>
+
+    <!-- ================= Login (ผู้ใช้ / PIN ชุดเดียวกับ Exhibition Dashboard) ================= -->
+    <div id="login" hidden>
+      <form id="login-form" class="login-card" autocomplete="on">
+        <div class="login-ic">🔒</div>
+        <h2>เข้าสู่ระบบ E-Mod Dashboard</h2>
+        <p class="subtitle">ใช้ชื่อผู้ใช้และ PIN ชุดเดียวกับ Exhibition Dashboard</p>
+        <label>ชื่อผู้ใช้
+          <input id="login-user" name="username" autocomplete="username" required />
+        </label>
+        <label>PIN
+          <input id="login-pin" name="pin" type="password" inputmode="numeric" autocomplete="current-password" required />
+        </label>
+        <div id="login-progress" aria-live="polite"></div>
+        <div id="login-error" role="alert"></div>
+        <button type="submit" id="login-btn">เข้าสู่ระบบ</button>
+      </form>
+    </div>
+    <div id="tooltip"></div>
+
+    <script src="notify-popup.js"></script>
+    <script src="Exhibition/js/config.js"></script>
+    <script src="Exhibition/js/api.js"></script>
+    <script src="E-Mod-Dashboard.js"></script>
+    <script>window.NSM_NAV_BASE = '';</script>
+    <script src="nav-drawer.js"></script>
+  </body>
+</html>

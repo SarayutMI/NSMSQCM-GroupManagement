@@ -178,43 +178,9 @@
           <p class="col-title">ส่วนกิจกรรมอื่นๆ</p>
           <div class="bento bento-external">
             <div class="bento-head"><span class="dot"></span><span class="t">กิจกรรมอื่นๆ</span></div>
-            <div class="block pos-col-activity">
-              <table>
-                <thead>
-                  <tr>
-                    <th class="rowlabel">กิจกรรม</th>
-                    <th>เด็ก</th>
-                    <th>ผู้ใหญ่</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td class="rowlabel">Walk Rally</td>
-                    <td><input type="text" id="activity_walkrally_child" placeholder="0" inputmode="none" data-calc /></td>
-                    <td><input type="text" id="activity_walkrally_adult" placeholder="0" inputmode="none" data-calc /></td>
-                  </tr>
-                  <tr>
-                    <td class="rowlabel">Mini Make and Play</td>
-                    <td><input type="text" id="activity_miniplay_child" placeholder="0" inputmode="none" data-calc /></td>
-                    <td><input type="text" id="activity_miniplay_adult" placeholder="0" inputmode="none" data-calc /></td>
-                  </tr>
-                  <tr>
-                    <td class="rowlabel">Don't Miss</td>
-                    <td><input type="text" id="activity_other1_child" placeholder="0" inputmode="none" data-calc /></td>
-                    <td><input type="text" id="activity_other1_adult" placeholder="0" inputmode="none" data-calc /></td>
-                  </tr>
-                  <tr>
-                    <td class="rowlabel">กิจกรรมอื่นๆ</td>
-                    <td><input type="text" id="activity_other2_child" placeholder="0" inputmode="none" data-calc /></td>
-                    <td><input type="text" id="activity_other2_adult" placeholder="0" inputmode="none" data-calc /></td>
-                  </tr>
-                  <tr class="total-room">
-                    <td class="rowlabel">รวมยอด External Activity</td>
-                    <td colspan="2"><input type="text" id="external_rooms_total" class="val-lg tag-blue" placeholder="0" readonly /></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            <!-- ตารางเต็ม (เหมือน E-Mod) วาดจาก js/form-render.js: renderExternal() — ตอนพิมพ์ซ่อน ใช้ตารางสรุปด้านล่างแทน -->
+            <div class="block ext-detail" id="external-detail"></div>
+            <div class="block pos-col-activity" id="external-summary"></div>
           </div>
         </div>
 

@@ -29,18 +29,54 @@ function jsonp(params, timeoutMs) {
 }
 
 /** Rooms (with their activities) + staff for the form dropdowns. */
-function fetchConfig() {
-  return jsonp({ action: "config" });
+// fresh = ข้าม cache ของ server (ปุ่มโหลด/รีเฟรช) — ปกติ server ตอบจาก cache ได้เร็วกว่ามาก
+function fetchConfig(fresh) {
+  return jsonp(Object.assign({ action: "config" }, fresh ? { fresh: 1 } : {}));
 }
 
 /** The form saved for one date: {data: {field id: value} | null, count, savedAt}. */
-function fetchDay(date) {
-  return jsonp({ action: "getByDate", date: date });
+function fetchDay(date, fresh) {
+  return jsonp(Object.assign({ action: "getByDate", date: date }, fresh ? { fresh: 1 } : {}));
 }
 
 /** Rooms, daily totals, sessions, staff and E-Mod revenue for the dashboard. Needs a login token. */
-function fetchDashboard(token) {
-  return jsonp({ action: "dashboard", token: token || "" }, 30000);
+function fetchDashboard(token, fresh) {
+  return jsonp(Object.assign({ action: "dashboard", token: token || "" }, fresh ? { fresh: 1 } : {}), 30000);
+}
+
+/** Login พร้อมบอกสถานะในการ์ด login (ใช้ทั้ง Exhibition Dashboard และ E-Mod Dashboard)
+    ระบบของ Google ใช้เวลาตรวจ PIN 3-8 วินาที — ผู้ใช้ต้องเห็นว่ากำลังทำงานอยู่ ไม่ใช่ค้าง */
+async function loginWithProgress(username, pin) {
+  const btn = $("login-btn"), prog = $("login-progress"), inputs = [$("login-user"), $("login-pin")];
+  const label = btn.textContent;
+  const t0 = Date.now();
+  const step = (msg) => {
+    if (prog) prog.innerHTML = `<span class="login-spin"></span>${esc(msg)} <small>${Math.floor((Date.now() - t0) / 1000)} วิ</small>`;
+  };
+  const stepMsg = () => {
+    const s = (Date.now() - t0) / 1000;
+    return s < 1.5 ? "กำลังเชื่อมต่อระบบ..." : s < 7 ? "กำลังตรวจสอบชื่อผู้ใช้และ PIN..." : "ยังทำงานอยู่ ระบบของ Google อาจใช้เวลาสักครู่...";
+  };
+  btn.disabled = true;
+  btn.textContent = "กำลังเข้าสู่ระบบ...";
+  inputs.forEach((el) => (el.readOnly = true));
+  $("login-error").textContent = "";
+  step(stepMsg());
+  const timer = setInterval(() => step(stepMsg()), 500);
+  try {
+    const res = await loginDashboard(username, pin);
+    if (!res.token) throw new Error(res.error || "เข้าสู่ระบบไม่สำเร็จ");
+    if (prog) prog.innerHTML = `✓ เข้าสู่ระบบสำเร็จ กำลังโหลดข้อมูล...`;
+    return res;
+  } catch (err) {
+    if (prog) prog.textContent = "";
+    throw new Error(err.message === "Failed to fetch" ? "เชื่อมต่อระบบไม่ได้ ตรวจอินเทอร์เน็ตแล้วลองใหม่" : err.message);
+  } finally {
+    clearInterval(timer);
+    btn.disabled = false;
+    btn.textContent = label;
+    inputs.forEach((el) => (el.readOnly = false));
+  }
 }
 
 /** Dashboard login. POST so the PIN never sits in a URL; resolves {token, user} or {error}. */

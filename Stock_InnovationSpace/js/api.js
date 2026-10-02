@@ -1,10 +1,10 @@
 // คุยกับ Code.gs (Web App) — ทุกคำสั่งเขียนตอบกลับด้วยข้อมูลล่าสุดทั้งหมด {items, locations, log}
 
-async function apiCall(options) {
+async function apiCall(options, query) {
   if (!STOCK_CONFIG.API_URL) throw new Error("ยังไม่ได้ตั้ง API_URL ใน js/config.js (Deploy Code.gs ก่อน)");
   let res;
   try {
-    res = await fetch(STOCK_CONFIG.API_URL, options);
+    res = await fetch(STOCK_CONFIG.API_URL + (query || ""), options);
   } catch (err) {
     throw new Error("เชื่อมต่อ Sheet ไม่ได้ ตรวจอินเทอร์เน็ตแล้วลองใหม่");
   }
@@ -18,8 +18,9 @@ async function apiCall(options) {
   return json.data;
 }
 
-function fetchState() {
-  return apiCall({ method: "GET" });
+/** fresh = ข้าม cache ของ server (ปุ่ม ⟳) — ปกติ server ตอบจาก cache ได้เร็วกว่ามาก */
+function fetchState(fresh) {
+  return apiCall({ method: "GET" }, fresh ? "?fresh=1" : "");
 }
 
 /** body: {action, ...}; `by` (ผู้ทำรายการ) ใส่ให้อัตโนมัติ */

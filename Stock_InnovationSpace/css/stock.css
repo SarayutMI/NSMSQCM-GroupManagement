@@ -146,6 +146,8 @@ button, input, select, textarea { font-family: inherit; font-size: inherit; }
 .btn-danger:hover { border-color: var(--out); color: var(--out); }
 .btn-small { padding: 4px 9px; font-size: 12px; border-radius: 7px; }
 .btn-ghost { background: rgba(255, 255, 255, 0.12); border-color: transparent; color: #fff; font-size: 16px; padding: 6px 11px; }
+.btn-ghost.syncing { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 .btn-ghost:hover { background: rgba(255, 255, 255, 0.24); color: #fff; border-color: transparent; }
 .link { border: none; background: none; padding: 0; color: var(--accent); cursor: pointer; text-align: left; font-weight: 500; }
 .link:hover { text-decoration: underline; }

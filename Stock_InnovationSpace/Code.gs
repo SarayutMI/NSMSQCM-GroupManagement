@@ -321,15 +321,82 @@ function deleteLocation_(id, by) {
   tab_("locations").deleteRow(cur._row);
 }
 
+// ---------- cache ผลการอ่าน (ให้หน้าเว็บไม่ต้องรอเปิดชีตทุกครั้ง) ----------
+// เก็บผลไว้ใน CacheService (หมดอายุเองตาม ttl) และ "ล้างทั้งหมด" ทันทีที่มีการบันทึกผ่าน Web App นี้
+// โดยเปลี่ยนเลขรุ่นของ cache — ถ้าแก้ข้อมูลในชีตตรงๆ จะเห็นผลเมื่อ cache หมดอายุ หรือกดปุ่มรีเฟรชในหน้าเว็บ (fresh=1)
+const CACHE_VER_KEY = "cache_ver";
+const CACHE_CHUNK = 30000; // ตัวอักษรต่อชิ้น (ไทย 3 byte/ตัว ยังต่ำกว่าเพดาน 100KB ต่อค่า)
+
+function cacheVer_() {
+  const c = CacheService.getScriptCache();
+  let v = c.get(CACHE_VER_KEY);
+  if (!v) {
+    v = String(Date.now());
+    c.put(CACHE_VER_KEY, v, 21600);
+  }
+  return v;
+}
+/** มีการบันทึก: ทิ้ง cache ทุกตัวของสคริปต์นี้ */
+function cacheBump_() {
+  CacheService.getScriptCache().put(CACHE_VER_KEY, String(Date.now()), 21600);
+}
+function cacheGet_(key) {
+  try {
+    const c = CacheService.getScriptCache();
+    const k = cacheVer_() + ":" + key;
+    const n = Number(c.get(k));
+    if (!n) return null;
+    const keys = [];
+    for (let i = 0; i < n; i++) keys.push(k + "#" + i);
+    const parts = c.getAll(keys);
+    let s = "";
+    for (let i = 0; i < n; i++) {
+      if (parts[k + "#" + i] == null) return null;
+      s += parts[k + "#" + i];
+    }
+    return JSON.parse(s);
+  } catch (err) {
+    return null;
+  }
+}
+function cachePut_(key, obj, ttl) {
+  try {
+    const c = CacheService.getScriptCache();
+    const k = cacheVer_() + ":" + key;
+    const s = JSON.stringify(obj);
+    const n = Math.max(1, Math.ceil(s.length / CACHE_CHUNK));
+    if (n > 30) return; // ใหญ่เกิน: ไม่ cache (ยังทำงานได้ แค่ช้าเท่าเดิม)
+    const m = {};
+    for (let i = 0; i < n; i++) m[k + "#" + i] = s.slice(i * CACHE_CHUNK, (i + 1) * CACHE_CHUNK);
+    m[k] = String(n);
+    c.putAll(m, ttl);
+  } catch (err) {
+    // cache เต็ม/ผิดพลาด: ข้ามไป ไม่กระทบผลลัพธ์
+  }
+}
+/** อ่านจาก cache ถ้ามี ไม่มีก็คำนวณแล้วเก็บ (fresh = ข้าม cache แล้วเก็บค่าใหม่) */
+function cached_(key, ttl, fresh, compute) {
+  if (!fresh) {
+    const hit = cacheGet_(key);
+    if (hit !== null) return hit;
+  }
+  const v = compute();
+  cachePut_(key, v, ttl);
+  return v;
+}
+
 // ---------- HTTP ----------
 
 function json_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
 
-function doGet() {
+const STATE_TTL = 600; // วินาที
+
+function doGet(e) {
+  const fresh = !!(e && e.parameter && e.parameter.fresh);
   try {
-    return json_({ data: state_() });
+    return json_({ data: cached_("state", STATE_TTL, fresh, state_) });
   } catch (err) {
     return json_({ error: err.message });
   }
@@ -360,7 +427,10 @@ function doPost(e) {
     else if (a === "saveLocation") saveLocation_(body.data || {}, body.by);
     else if (a === "deleteLocation") deleteLocation_(body.id, body.by);
     else throw new Error("unknown action: " + a);
-    return json_({ data: state_() });
+    cacheBump_();
+    const st = state_();
+    cachePut_("state", st, STATE_TTL);
+    return json_({ data: st });
   } catch (err) {
     return json_({ error: err.message });
   } finally {

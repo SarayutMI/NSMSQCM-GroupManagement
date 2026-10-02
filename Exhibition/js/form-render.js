@@ -30,6 +30,69 @@ function renderExhibitRows() {
   $("group-rows").innerHTML = group;
 }
 
+// ---------- กิจกรรมอื่นๆ (ชุดเดียวกับ E-Mod: 4 รายการล็อก + ตั้งชื่อเอง 2 แถว) ----------
+// key = ส่วนของ id ช่องกรอก: activity_<key>_w_<count>, activity_<key>_g_<count>, activity_<key>_school,
+// activity_<key>_name (เฉพาะแถวตั้งชื่อเอง) และยอดรวม activity_<key>_child / _adult (คำนวณให้)
+const EXTERNAL_ACTIVITIES = [
+  { key: "walkrally", label: "Walk Rally" },
+  { key: "dontmiss", label: "Don't Miss" },
+  { key: "iscream", label: "I-Scream" },
+  { key: "miniplay", label: "Mini Make & Play" },
+  { key: "other1", label: null },
+  { key: "other2", label: null },
+];
+const EXT_SIDES = [["w", "Walk-in"], ["g", "Group"]];
+
+function renderExternal() {
+  const head2 = EXT_SIDES.map(() => COUNT_HEADS.map((h) => `<th>${h}</th>`).join("")).join("");
+  const rows = EXTERNAL_ACTIVITIES.map((a) => {
+    const name = a.label
+      ? `<td class="rowlabel">${esc(a.label)}</td>`
+      : `<td><input type="text" id="activity_${a.key}_name" class="wide" placeholder="กิจกรรมอื่น (กรอกชื่อ)"></td>`;
+    const cells = EXT_SIDES.map(([s]) => COUNT_COLS.map((c) => numCell(`activity_${a.key}_${s}_${c}`)).join("")).join("");
+    return `<tr>${name}${cells}<td>${schoolCell(`activity_${a.key}_school`)}</td></tr>`;
+  }).join("");
+  $("external-detail").innerHTML = `<table class="ext-table">
+      <thead>
+        <tr><th class="rowlabel" rowspan="2">กิจกรรม</th>${EXT_SIDES.map(([, l]) => `<th colspan="4">${l}</th>`).join("")}<th class="rowlabel" rowspan="2">ชื่อโรงเรียน</th></tr>
+        <tr>${head2}</tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  // สรุปต่อกิจกรรม (เห็นทั้งบนจอและตอนพิมพ์ — ตอนพิมพ์ใช้ตารางนี้แทนตารางเต็มให้จบในหน้าเดียว)
+  $("external-summary").innerHTML = `<table>
+      <thead><tr><th class="rowlabel">กิจกรรม</th><th>เด็ก</th><th>ผู้ใหญ่</th></tr></thead>
+      <tbody>
+        ${EXTERNAL_ACTIVITIES.map((a) => `<tr>
+          <td class="rowlabel" ${a.label ? "" : `id="activity_${a.key}_label"`}>${a.label ? esc(a.label) : "กิจกรรมอื่น"}</td>
+          <td><input type="text" id="activity_${a.key}_child" class="tag-gray" placeholder="0" readonly /></td>
+          <td><input type="text" id="activity_${a.key}_adult" class="tag-gray" placeholder="0" readonly /></td></tr>`).join("")}
+        <tr class="total-room">
+          <td class="rowlabel">รวมยอด External Activity</td>
+          <td colspan="2"><input type="text" id="external_rooms_total" class="val-lg tag-blue" placeholder="0" readonly /></td>
+        </tr>
+      </tbody>
+    </table>`;
+}
+
+/** ข้อมูลที่บันทึกก่อนมีตารางเต็ม (มีแค่ activity_<key>_child/_adult): ย้ายเข้าช่องใหม่ตอนโหลด
+    ยอดเด็ก → Walk-in เด็กไทย, ผู้ใหญ่ → Walk-in ผู้ใหญ่ไทย; แถวเดิม "other1" คือ Don't Miss, "other2" คือ กิจกรรมอื่นๆ */
+function migrateLegacyExternal(data) {
+  if (!data || Object.keys(data).some((k) => /^activity_[a-z0-9]+_[wg]_/.test(k))) return data;
+  const out = Object.assign({}, data);
+  const move = { walkrally: "walkrally", miniplay: "miniplay", other1: "dontmiss", other2: "other1" };
+  Object.keys(move).forEach((old) => {
+    const c = out[`activity_${old}_child`], a = out[`activity_${old}_adult`];
+    delete out[`activity_${old}_child`];
+    delete out[`activity_${old}_adult`];
+    const to = move[old];
+    if (c !== undefined && c !== "") out[`activity_${to}_w_child_th`] = c;
+    if (a !== undefined && a !== "") out[`activity_${to}_w_adult_th`] = a;
+    if (old === "other2" && ((c && Number(c)) || (a && Number(a)))) out.activity_other1_name = out.activity_other1_name || "กิจกรรมอื่นๆ";
+  });
+  return out;
+}
+
 function roomBlock(room) {
   const k = room.key;
   let rows = "";

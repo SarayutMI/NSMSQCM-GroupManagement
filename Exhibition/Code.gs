@@ -75,12 +75,15 @@ const STATUS_HIDDEN = "ซ่อน";
 const USER_SUSPENDED = "ระงับ";
 const LIST_ROWS = 500; // rows that get dropdown validation
 
-// ต้องตรงกับ js/form-render.js (WALKIN_ROWS, GROUP_ROWS) และ js/form-calc.js (EXTERNAL_IDS)
+// ต้องตรงกับ js/form-render.js (WALKIN_ROWS, GROUP_ROWS, EXTERNAL_ACTIVITIES)
 // ใช้แค่สร้างหัวคอลัมน์ของแท็บ Data ล่วงหน้าตอน setupSheets() เท่านั้น — ถ้าไม่ตรงเป๊ะ doPost()
 // ก็ยังเพิ่มคอลัมน์ที่ขาดให้เองอัตโนมัติอยู่ดี (ดู "append any new field" ด้านล่าง) ไม่มีอะไรพัง
 const WALKIN_ROWS = 3;
 const GROUP_ROWS = 11;
-const EXTERNAL_KEYS = ["walkrally", "miniplay", "other1", "other2"];
+// กิจกรรมอื่นๆ (ชุดเดียวกับ E-Mod): Walk Rally, Don't Miss, I-Scream, Mini Make & Play + ตั้งชื่อเอง 2 แถว
+// แถวข้อมูลเก่าใช้ walkrally / miniplay / other1 (= Don't Miss) / other2 — ยอดรวมยังนับได้ครบด้วย key ชุดนี้
+const EXTERNAL_KEYS = ["walkrally", "dontmiss", "iscream", "miniplay", "other1", "other2"];
+const EXTERNAL_SIDES = ["w", "g"]; // Walk-in / Group
 
 const DEFAULT_ROUNDS = 7;
 const MAX_ROUNDS = 30; // rounds per room; also the upper bound when reading old rows
@@ -236,7 +239,11 @@ function dataHeader_() {
     fields.push(`${room.key}_child_total`, `${room.key}_adult_total`, `${room.key}_rooms_total`);
   });
 
-  EXTERNAL_KEYS.forEach((k) => fields.push(`activity_${k}_child`, `activity_${k}_adult`));
+  EXTERNAL_KEYS.forEach((k) => {
+    if (k === "other1" || k === "other2") fields.push(`activity_${k}_name`);
+    EXTERNAL_SIDES.forEach((s) => COUNT_SUFFIXES.forEach((c) => fields.push(`activity_${k}_${s}_${c}`)));
+    fields.push(`activity_${k}_school`, `activity_${k}_child`, `activity_${k}_adult`);
+  });
   fields.push("external_rooms_total", "pos_child_th", "pos_adult_th", "pos_child_intl", "pos_adult_intl");
   fields.push("summary_activity_total", "summary_AllDay_participants");
   fields.push("notes");
@@ -413,11 +420,174 @@ function doPost(e) {
     });
     if (target === -1) sheet.appendRow(row);
     else sheet.getRange(target, 1, 1, row.length).setValues([row]);
+    cacheBump_(); // ข้อมูลรายวัน/Dashboard ที่ cache ไว้ใช้ไม่ได้แล้ว
+    try {
+      syncToEmod_(data);
+    } catch (err) {
+      console.error("sync to E-Mod failed: " + err.message); // ไม่ให้การบันทึกของ Exhibition ล้มเพราะส่วนนี้
+    }
   } finally {
     lock.releaseLock();
   }
 
   return json_({ ok: true });
+}
+
+// ---------- ส่งข้อมูลไปรายงาน E-Mod วันเดียวกันอัตโนมัติ (แท็บ EMod ใน Spreadsheet เดียวกัน) ----------
+// Exhibition กรอกละเอียด -> E-Mod เก็บยอดรวม/รายการ: นิทรรศการ Walk-in (ยอดรวม 4 กลุ่ม), กรุ๊ป (ตารางกรุ๊ป),
+// รอบ Inspire Lab / Innovation Space, กิจกรรมอื่นๆ — ส่งเฉพาะส่วนที่กรอกใน Exhibition (ส่วนที่ว่างไม่ลบค่าที่ E-Mod กรอกเอง)
+// ส่วนที่ E-Mod กรอกเอง (ทีม MOD, Evening, รายได้, ผู้สูงอายุ, กิจกรรมพิเศษ ฯลฯ) ไม่แตะ
+const EMOD_TAB = "EMod";
+// ต้องตรงกับ EMOD_HEADERS ใน E-Mod-CodeGs.gs (ใช้ตอนแท็บ EMod ยังไม่มีเท่านั้น)
+const EMOD_HEADERS_FOR_SYNC = ["id", "date", "mod", "mExhibition", "mEducation", "mVisitorService", "specialActivitiesJson", "eveningJson", "visitorCountsJson",
+  "activityRoundsJson", "otherActivitiesJson", "revenueJson", "recorder", "editor", "createdAt", "updatedAt", "signer",
+  "summaryJson", "sumChildTh", "sumChildFor", "sumAdultTh", "sumAdultFor", "sumSenior", "sumTotal"];
+const ROOM_TO_EMOD = { inspire: "inspireLab", innovation: "innovationSpace" };
+const EXT_TO_EMOD = [["walkrally", "Walk Rally"], ["dontmiss", "Don't Miss"], ["iscream", "I-Scream"], ["miniplay", "Mini Make & Play"], ["other1", ""], ["other2", ""]];
+const CAT_TO_EMOD = { child_th: "childTh", adult_th: "adultTh", child_intl: "childFor", adult_intl: "adultFor" };
+
+function syncToEmod_(data) {
+  const date = toDateString_({ visitDate: data.visitDate });
+  if (!date) return;
+  const num = (v) => Number(v) || 0;
+  const txt = (v) => String(v == null ? "" : v).trim();
+  const some = (arr) => arr.some((x) => x);
+
+  // ---- แปลงข้อมูล Exhibition เป็นรูปแบบของ E-Mod ----
+  const walk = {};
+  Object.keys(CAT_TO_EMOD).forEach((c) => {
+    let s = 0;
+    for (let i = 1; i <= 20; i++) s += num(data[`walkin_${c}_${i}`]);
+    walk[CAT_TO_EMOD[c]] = s;
+  });
+  const groups = [];
+  for (let i = 1; i <= 60; i++) {
+    const school = txt(data[`group_school_${i}`]), child = num(data[`group_child_${i}`]), adult = num(data[`group_adult_${i}`]);
+    if (school || child || adult) groups.push({ school: school, childTh: child, adultTh: adult, childFor: 0, adultFor: 0, senior: 0 });
+  }
+  const rooms = {};
+  Object.keys(ROOM_TO_EMOD).forEach((k) => {
+    const rows = [];
+    for (let i = 1; i <= MAX_ROUNDS; i++) {
+      const r = { activity: txt(data[`${k}_activity_${i}`]), leader: txt(data[`${k}_staff_${i}`]), school: txt(data[`${k}_school_${i}`]) };
+      Object.keys(CAT_TO_EMOD).forEach((c) => (r[CAT_TO_EMOD[c]] = num(data[`${k}_${c}_${i}`])));
+      rows.push(r);
+    }
+    let last = rows.length;
+    while (last > 0 && !rows[last - 1].activity && !rows[last - 1].leader && !rows[last - 1].school && !some(Object.values(CAT_TO_EMOD).map((c) => rows[last - 1][c]))) last--;
+    if (last) rooms[ROOM_TO_EMOD[k]] = rows.slice(0, Math.max(8, last));
+  });
+  const others = EXT_TO_EMOD.map(([k, label]) => {
+    const a = { name: label || txt(data[`activity_${k}_name`]), school: txt(data[`activity_${k}_school`]) };
+    ["w", "g"].forEach((s) => Object.keys(CAT_TO_EMOD).forEach((c) => (a[`${s}_${CAT_TO_EMOD[c]}`] = num(data[`activity_${k}_${s}_${c}`]))));
+    return a;
+  });
+  const othersHaveData = others.some((a) => a.school || (!EXT_TO_EMOD.find((x) => x[1] === a.name) && a.name) || Object.keys(a).some((k) => /^[wg]_/.test(k) && a[k]));
+  const walkHasData = some(Object.values(walk));
+  if (!walkHasData && !groups.length && !Object.keys(rooms).length && !othersHaveData) return; // ไม่มีอะไรจะส่ง
+
+  // ---- หา / สร้างแถวรายงานวันนั้นในแท็บ EMod ----
+  let sheet = ss_().getSheetByName(EMOD_TAB);
+  if (!sheet) {
+    sheet = ss_().insertSheet(EMOD_TAB);
+    sheet.getRange(1, 1, 1, EMOD_HEADERS_FOR_SYNC.length).setValues([EMOD_HEADERS_FOR_SYNC]);
+    sheet.setFrozenRows(1);
+  }
+  let header = sheet.getRange(1, 1, 1, Math.max(1, sheet.getLastColumn())).getValues()[0].map(String);
+  const missing = EMOD_HEADERS_FOR_SYNC.filter((h) => header.indexOf(h) === -1);
+  if (missing.length) {
+    sheet.getRange(1, header.length + 1, 1, missing.length).setValues([missing]);
+    header = header.concat(missing);
+  }
+  const col = (h) => header.indexOf(h);
+  let rowNum = -1, row = header.map(() => "");
+  if (sheet.getLastRow() > 1) {
+    const values = sheet.getRange(2, 1, sheet.getLastRow() - 1, header.length).getValues();
+    const tz = ss_().getSpreadsheetTimeZone();
+    for (let i = 0; i < values.length; i++) {
+      const v = values[i][col("date")];
+      const d = v instanceof Date ? Utilities.formatDate(v, tz, "yyyy-MM-dd") : String(v).trim();
+      if (d === date) {
+        rowNum = i + 2;
+        row = values[i];
+        break;
+      }
+    }
+  }
+  const parse = (h, fallback) => {
+    try {
+      return JSON.parse(row[col(h)] || "null") || fallback;
+    } catch (err) {
+      return fallback;
+    }
+  };
+  const now = new Date().toISOString();
+  const vc = parse("visitorCountsJson", {});
+  if (walkHasData) vc.exWalkin = Object.assign({ senior: 0 }, vc.exWalkin || {}, walk); // ผู้สูงอายุคงค่าที่ E-Mod กรอก
+  if (groups.length) {
+    vc.groups = groups;
+    vc.groupCount = groups.length;
+    const sum = (k) => groups.reduce((a, g) => a + g[k], 0);
+    vc.exGroup = Object.assign({ senior: 0 }, vc.exGroup || {}, { childTh: sum("childTh"), adultTh: sum("adultTh"), childFor: 0, adultFor: 0 });
+  }
+  const ar = parse("activityRoundsJson", {});
+  Object.keys(rooms).forEach((k) => (ar[k] = rooms[k]));
+  let oa = parse("otherActivitiesJson", []);
+  if (othersHaveData) oa = others;
+
+  const report = { visitorCounts: vc, activityRounds: ar, otherActivities: oa };
+  const sum = emodSummaryForSync_(report);
+  const set = (h, v) => {
+    if (col(h) !== -1) row[col(h)] = v;
+  };
+  if (rowNum === -1) {
+    set("id", Utilities.getUuid());
+    set("date", date);
+    set("recorder", "Exhibition (อัตโนมัติ)");
+    set("createdAt", now);
+  }
+  set("visitorCountsJson", JSON.stringify(vc));
+  set("activityRoundsJson", JSON.stringify(ar));
+  set("otherActivitiesJson", JSON.stringify(oa));
+  set("updatedAt", now);
+  set("summaryJson", JSON.stringify(sum));
+  set("sumChildTh", sum.total.childTh);
+  set("sumChildFor", sum.total.childFor);
+  set("sumAdultTh", sum.total.adultTh);
+  set("sumAdultFor", sum.total.adultFor);
+  set("sumSenior", sum.total.senior);
+  set("sumTotal", sum.total.total);
+  const target = rowNum === -1 ? sheet.getLastRow() + 1 : rowNum;
+  sheet.getRange(target, col("date") + 1).setNumberFormat("@"); // วันที่เป็นข้อความเหมือนที่ E-Mod เขียน
+  sheet.getRange(target, 1, 1, header.length).setValues([row.map((v) => (v instanceof Date ? v.toISOString() : v))]);
+}
+
+/** สรุปผู้เข้าชมแยกกลุ่ม — ตรรกะเดียวกับ emodSummary_ ใน E-Mod-CodeGs.gs (ใช้เติมคอลัมน์ sum* ตอนส่งข้อมูลไป E-Mod) */
+function emodSummaryForSync_(d) {
+  const CATS = ["childTh", "childFor", "adultTh", "adultFor", "senior"];
+  const n = (v) => Number(v) || 0;
+  const vc = d.visitorCounts || {}, ar = d.activityRounds || {};
+  const row = (key, label, src) => {
+    const r = { key: key, label: label };
+    CATS.forEach((c) => (r[c] = n(src[c])));
+    r.total = CATS.reduce((a, c) => a + r[c], 0);
+    return r;
+  };
+  const sumRounds = (list) => (list || []).reduce((a, x) => {
+    ["childTh", "childFor", "adultTh", "adultFor"].forEach((c) => (a[c] = (a[c] || 0) + n(x[c])));
+    return a;
+  }, {});
+  const rows = [row("exWalkin", "นิทรรศการ Walk-in", vc.exWalkin || {}), row("exGroup", "นิทรรศการ Group", vc.exGroup || {}),
+    row("inspireLab", "Inspire Lab", sumRounds(ar.inspireLab)), row("innovationSpace", "Innovation Space", sumRounds(ar.innovationSpace))];
+  (d.otherActivities || []).forEach((a, i) => {
+    const src = {};
+    ["childTh", "childFor", "adultTh", "adultFor"].forEach((c) => (src[c] = n(a["w_" + c]) + n(a["g_" + c])));
+    const r = row("other" + i, String(a.name || "").trim() || "กิจกรรมอื่น " + (i + 1), src);
+    if (r.total || String(a.name || "").trim()) rows.push(r);
+  });
+  const all = {};
+  CATS.forEach((c) => (all[c] = rows.reduce((s, r) => s + r[c], 0)));
+  return { rows: rows, total: row("total", "รวมทั้งหมด", all) };
 }
 
 /** Sheet row number of the latest Data row saved for `date` (YYYY-MM-DD), or -1. */
@@ -602,6 +772,52 @@ function withDerived_(record, rooms) {
   return record;
 }
 
+/** รายงาน E-Mod ทั้งหมด (แท็บ EMod) สำหรับหน้า E-Mod Dashboard — ตัดแถว/ช่องที่ว่างออกให้ข้อมูลเล็กลง */
+function readEmodReports_() {
+  const sheet = ss_().getSheetByName("EMod");
+  if (!sheet || sheet.getLastRow() < 2) return [];
+  const values = sheet.getDataRange().getValues();
+  const header = values.shift().map(String);
+  const tz = ss_().getSpreadsheetTimeZone();
+  const parse = (v) => {
+    try {
+      return JSON.parse(v || "null");
+    } catch (err) {
+      return null;
+    }
+  };
+  const num = (v) => Number(v) || 0;
+  const hasText = (v) => String(v == null ? "" : v).trim() !== "";
+  const out = [];
+  values.forEach((row) => {
+    const g = (k) => {
+      const i = header.indexOf(k);
+      return i < 0 ? "" : row[i];
+    };
+    const v = g("date");
+    const date = v instanceof Date ? Utilities.formatDate(v, tz, "yyyy-MM-dd") : String(v).trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
+    const vc = parse(g("visitorCountsJson")) || {};
+    if (Array.isArray(vc.groups)) vc.groups = vc.groups.filter((x) => x && (hasText(x.school) || Object.keys(x).some((k) => k !== "school" && num(x[k]))));
+    const ar = parse(g("activityRoundsJson")) || {};
+    Object.keys(ar).forEach((k) => {
+      if (Array.isArray(ar[k])) ar[k] = ar[k].filter((r) => r && (hasText(r.activity) || hasText(r.leader) || hasText(r.school) || ["childTh", "adultTh", "childFor", "adultFor"].some((c) => num(r[c]))));
+    });
+    const oa = (parse(g("otherActivitiesJson")) || []).filter((a) => a && (hasText(a.name) || Object.keys(a).some((k) => k !== "name" && k !== "school" && num(a[k]))));
+    const ev = parse(g("eveningJson")) || {};
+    // Evening Briefing: รายชื่ออาสา + ปัญหาและข้อเสนอแนะ + หมายเหตุ ของแต่ละ Zone (เฉพาะ Zone ที่มีข้อมูล)
+    const evening = Object.keys(ev).map((z) => ({
+      zone: ev[z] && ev[z].name, duty: ev[z] && ev[z].duty, volunteers: ev[z] && ev[z].volunteers, issues: ev[z] && ev[z].issues, notes: ev[z] && ev[z].notes,
+    })).filter((x) => hasText(x.volunteers) || hasText(x.issues) || hasText(x.notes));
+    out.push({
+      date: date, mod: g("mod"), mExhibition: g("mExhibition"), mEducation: g("mEducation"), mVisitorService: g("mVisitorService"),
+      recorder: g("recorder"), signer: g("signer"), specialActivities: (parse(g("specialActivitiesJson")) || []).filter(hasText),
+      visitorCounts: vc, activityRounds: ar, otherActivities: oa, revenue: parse(g("revenueJson")) || {}, evening: evening,
+    });
+  });
+  return out.sort((a, b) => (a.date < b.date ? -1 : 1));
+}
+
 /** Revenue of every E-Mod report: [{date, revenue: {channel: {section: amount}}}]. */
 function readFinance_() {
   const sheet = ss_().getSheetByName("EMod");
@@ -653,14 +869,88 @@ function json_(obj, callback) {
     : ContentService.createTextOutput(body).setMimeType(ContentService.MimeType.JSON);
 }
 
+// ---------- cache ผลการอ่าน (ให้หน้าเว็บไม่ต้องรอเปิดชีตทุกครั้ง) ----------
+// เก็บผลไว้ใน CacheService (หมดอายุเองตาม ttl) และ "ล้างทั้งหมด" ทันทีที่มีการบันทึกผ่าน Web App นี้
+// โดยเปลี่ยนเลขรุ่นของ cache — ถ้าแก้ข้อมูลในชีตตรงๆ จะเห็นผลเมื่อ cache หมดอายุ หรือกดปุ่มรีเฟรชในหน้าเว็บ (fresh=1)
+const CACHE_VER_KEY = "cache_ver";
+const CACHE_CHUNK = 30000; // ตัวอักษรต่อชิ้น (ไทย 3 byte/ตัว ยังต่ำกว่าเพดาน 100KB ต่อค่า)
+
+function cacheVer_() {
+  const c = CacheService.getScriptCache();
+  let v = c.get(CACHE_VER_KEY);
+  if (!v) {
+    v = String(Date.now());
+    c.put(CACHE_VER_KEY, v, 21600);
+  }
+  return v;
+}
+/** มีการบันทึก: ทิ้ง cache ทุกตัวของสคริปต์นี้ */
+function cacheBump_() {
+  CacheService.getScriptCache().put(CACHE_VER_KEY, String(Date.now()), 21600);
+}
+function cacheGet_(key) {
+  try {
+    const c = CacheService.getScriptCache();
+    const k = cacheVer_() + ":" + key;
+    const n = Number(c.get(k));
+    if (!n) return null;
+    const keys = [];
+    for (let i = 0; i < n; i++) keys.push(k + "#" + i);
+    const parts = c.getAll(keys);
+    let s = "";
+    for (let i = 0; i < n; i++) {
+      if (parts[k + "#" + i] == null) return null;
+      s += parts[k + "#" + i];
+    }
+    return JSON.parse(s);
+  } catch (err) {
+    return null;
+  }
+}
+function cachePut_(key, obj, ttl) {
+  try {
+    const c = CacheService.getScriptCache();
+    const k = cacheVer_() + ":" + key;
+    const s = JSON.stringify(obj);
+    const n = Math.max(1, Math.ceil(s.length / CACHE_CHUNK));
+    if (n > 90) return; // ใหญ่เกิน (~2.7 ล้านตัวอักษร): ไม่ cache (ยังทำงานได้ แค่ช้าเท่าเดิม)
+    const m = {};
+    for (let i = 0; i < n; i++) m[k + "#" + i] = s.slice(i * CACHE_CHUNK, (i + 1) * CACHE_CHUNK);
+    m[k] = String(n);
+    c.putAll(m, ttl);
+  } catch (err) {
+    // cache เต็ม/ผิดพลาด: ข้ามไป ไม่กระทบผลลัพธ์
+  }
+}
+/** อ่านจาก cache ถ้ามี ไม่มีก็คำนวณแล้วเก็บ (fresh = ข้าม cache แล้วเก็บค่าใหม่) */
+function cached_(key, ttl, fresh, compute) {
+  if (!fresh) {
+    const hit = cacheGet_(key);
+    if (hit !== null) return hit;
+  }
+  const v = compute();
+  cachePut_(key, v, ttl);
+  return v;
+}
+
+const CONFIG_TTL = 300; // รายชื่อห้อง/กิจกรรม/คน (CSV อ้างอิงก็ cache 5 นาทีอยู่แล้ว)
+const DAY_TTL = 900; // ข้อมูลรายวัน (ล้างทันทีเมื่อบันทึกผ่านฟอร์ม)
+const DASH_TTL = 120; // Dashboard: แท็บการเงินอ่านจาก E-Mod ซึ่งบันทึกจากอีกสคริปต์ จึงให้หมดอายุเร็ว
+
 function doGet(e) {
   const params = (e && e.parameter) || {};
+  const fresh = !!params.fresh;
   const callback = /^[A-Za-z_$][\w$.]{0,63}$/.test(params.callback || "") ? params.callback : null;
   try {
-    if (params.action === "config") return json_(buildConfig_(), callback);
-    if (params.action === "getByDate") return json_(readDay_(params.date), callback);
+    if (params.action === "config") return json_(cached_("config", CONFIG_TTL, fresh, buildConfig_), callback);
+    if (params.action === "getByDate") {
+      const date = String(params.date || "");
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return json_(readDay_(date), callback);
+      return json_(cached_("day:" + date, DAY_TTL, fresh, () => readDay_(date)), callback);
+    }
     if (!verifyToken_(params.token)) return json_({ error: "unauthorized" }, callback);
-    return json_(buildDashboard_(), callback);
+    if (params.action === "emod") return json_({ reports: cached_("emod", DASH_TTL, fresh, readEmodReports_) }, callback);
+    return json_(cached_("dashboard", DASH_TTL, fresh, buildDashboard_), callback);
   } catch (err) {
     return json_({ error: err.message }, callback);
   }
@@ -784,6 +1074,10 @@ function verifyToken_(token) {
     return null;
   }
   if (!data || !data.u || !(data.exp > Date.now())) return null;
-  const user = findUser_(getTab_("users"), String(data.u));
-  return user && user.active ? user.name : null;
+  // สถานะผู้ใช้ cache 2 นาที (ไม่ต้องเปิดแท็บ Dashboard_Users ทุกครั้ง) — ตั้ง "ระงับ" แล้วมีผลภายใน 2 นาที
+  const st = cached_("user:" + String(data.u).toLowerCase(), 120, false, () => {
+    const u = findUser_(getTab_("users"), String(data.u));
+    return { name: u ? u.name : "", active: !!(u && u.active) };
+  });
+  return st.active ? st.name : null;
 }

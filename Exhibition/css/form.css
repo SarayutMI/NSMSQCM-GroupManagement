@@ -95,6 +95,16 @@ h1 {
   margin: 0 0 6px;
   font-weight: 400;
 }
+/* กิจกรรมอื่นๆ: ตารางเต็มแบบ E-Mod (Walk-in / Group × 4 กลุ่ม) — กว้าง จึงเลื่อนด้านข้างได้บนจอแคบ */
+.ext-detail { overflow-x: auto; }
+.ext-table { min-width: 900px; }
+.ext-table th { white-space: nowrap; }
+.ext-table td .wide { min-width: 140px; }
+#external-summary { margin-top: 10px; }
+@media print {
+  .ext-detail { display: none !important; } /* ตอนพิมพ์ใช้ตารางสรุป (เด็ก / ผู้ใหญ่) ให้จบในหน้าเดียว */
+  #external-summary { margin-top: 0; }
+}
 /* เรียงลงมาทีละส่วนตามลำดับ: นิทรรศการ > กิจกรรม > กิจกรรมอื่นๆ > POS (อ่าน/กรอกง่ายกว่าดูทีละคอลัมน์) */
 .columns {
   display: flex;

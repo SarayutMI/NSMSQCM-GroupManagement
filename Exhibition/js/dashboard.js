@@ -105,65 +105,105 @@ function showLogin(msg) {
 function bindLogin() {
   $("login-form").addEventListener("submit", async (e) => {
     e.preventDefault();
-    const btn = $("login-btn");
-    btn.disabled = true;
-    $("login-error").textContent = "";
+    if ($("login-btn").disabled) return; // กดซ้ำระหว่างรอ
     try {
-      const res = await loginDashboard($("login-user").value.trim(), $("login-pin").value.trim());
-      if (!res.token) throw new Error(res.error || "เข้าสู่ระบบไม่สำเร็จ");
+      const res = await loginWithProgress($("login-user").value.trim(), $("login-pin").value.trim());
       writeAuth({ token: res.token, user: res.user });
       $("login").hidden = true;
+      $("login-progress").textContent = "";
       loadData();
     } catch (err) {
-      $("login-error").textContent = err.message === "Failed to fetch" ? "เชื่อมต่อ Sheet ไม่ได้" : err.message;
+      $("login-error").textContent = err.message;
       $("login-pin").value = "";
-    } finally {
-      btn.disabled = false;
+      $("login-pin").focus();
     }
   });
   $("logout-btn").addEventListener("click", () => {
     writeAuth(null);
+    writeDashCache(null);
+    dashLoaded = false;
     DAILY = SESSIONS = STAFF = FINANCE = [];
     showLogin();
   });
 }
 
-async function loadData() {
+// ข้อมูล Dashboard รอบล่าสุดเก็บไว้ในเครื่อง (ต่อผู้ใช้): เปิดหน้าแล้วเห็นทันที แล้วค่อยอัปเดตจาก Sheet เบื้องหลัง
+const DASH_CACHE_KEY = "exhibition.dashboard.data";
+function readDashCache() {
+  try {
+    const c = JSON.parse(localStorage.getItem(DASH_CACHE_KEY) || "null");
+    return c && currentAuth && c.user === currentAuth.user ? c : null;
+  } catch (e) {
+    return null;
+  }
+}
+function writeDashCache(data) {
+  try {
+    if (data) localStorage.setItem(DASH_CACHE_KEY, JSON.stringify({ user: currentAuth.user, at: Date.now(), data: data }));
+    else localStorage.removeItem(DASH_CACHE_KEY);
+  } catch (e) {
+    /* storage เต็ม/ถูกปิด: ข้ามไป */
+  }
+}
+let dashLoaded = false;
+
+function applyDashboard(data) {
+  $("user-name").textContent = "👤 " + (currentAuth.user || "");
+  $("user-box").hidden = false;
+  ROOMS = data.rooms;
+  DAILY = data.daily || [];
+  SESSIONS = data.sessions || [];
+  STAFF = data.staff || [];
+  FINANCE = data.finance || [];
+  if (state.room !== "all" && !ROOMS.some((r) => r.key === state.room)) state.room = "all";
+  renderRoomTabs();
+  // คงช่วงเวลาที่กำลังดูอยู่ไว้ ถ้าอัปเดตเบื้องหลังระหว่างใช้งาน
+  if (!dashLoaded || !state.anchor) {
+    const dates = allDates();
+    state.anchor = dates.length ? dates[dates.length - 1] : new Date().toISOString().slice(0, 10);
+  }
+  render();
+  dashLoaded = true;
+}
+
+async function loadData(fresh) {
   if (!currentAuth || !currentAuth.token) {
     showLogin();
     return;
   }
-  setStatus("กำลังโหลดข้อมูล...");
+  if (!dashLoaded) {
+    const cached = readDashCache();
+    if (cached && cached.data) applyDashboard(cached.data);
+  }
+  // มีข้อมูลแสดงอยู่แล้ว: อัปเดตเงียบๆ (ข้อความมุมขวาบน ไม่บังจอ)
+  if (dashLoaded) setStatus("กำลังอัปเดตข้อมูล...", "none");
+  else setStatus("กำลังโหลดข้อมูล...");
   try {
-    const data = await fetchDashboard(currentAuth.token);
+    const data = await fetchDashboard(currentAuth.token, fresh);
     if (data.error === "unauthorized") {
       writeAuth(null);
+      writeDashCache(null);
       setStatus("");
       showLogin("หมดเวลาเข้าระบบ กรุณาเข้าสู่ระบบใหม่");
       return;
     }
     if (data.error) throw new Error(data.error);
     if (!Array.isArray(data.rooms)) throw new Error("ข้อมูลไม่ตรงรูปแบบ (Deploy Code.gs เวอร์ชันใหม่แล้วหรือยัง)");
-    $("user-name").textContent = "👤 " + (currentAuth.user || "");
-    $("user-box").hidden = false;
-    ROOMS = data.rooms;
-    DAILY = data.daily || [];
-    SESSIONS = data.sessions || [];
-    STAFF = data.staff || [];
-    FINANCE = data.finance || [];
-    if (state.room !== "all" && !ROOMS.some((r) => r.key === state.room)) state.room = "all";
-    renderRoomTabs();
-    const dates = allDates();
-    state.anchor = dates.length ? dates[dates.length - 1] : new Date().toISOString().slice(0, 10);
-    render();
-    setStatus("อัปเดตล่าสุด " + new Date().toLocaleTimeString("th-TH"), "success");
+    const first = !dashLoaded;
+    applyDashboard(data);
+    writeDashCache(data);
+    setStatus("อัปเดตล่าสุด " + new Date().toLocaleTimeString("th-TH"), first ? "success" : "none");
   } catch (err) {
-    setStatus(err.message, "error");
+    setStatus(err.message + (dashLoaded ? " (กำลังแสดงข้อมูลล่าสุดที่เก็บไว้ในเครื่อง)" : ""), "error");
   }
 }
 
 window.addEventListener("DOMContentLoaded", () => {
   bindControls();
   bindLogin();
+  // คลิกข้อความ "อัปเดตล่าสุด" มุมขวาบน = ดึงข้อมูลใหม่จาก Sheet จริง (ข้าม cache)
+  $("status").title = "คลิกเพื่อดึงข้อมูลล่าสุดจาก Sheet";
+  $("status").style.cursor = "pointer";
+  $("status").addEventListener("click", () => loadData(true));
   loadData();
 });

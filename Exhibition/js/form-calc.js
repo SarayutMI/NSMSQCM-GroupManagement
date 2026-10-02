@@ -1,7 +1,7 @@
 // All totals of the form. Recomputed from scratch on every edit (cheap, and keeps the
 // rules in one place). Needs form-render.js for WALKIN_ROWS, GROUP_ROWS, COUNT_COLS, formRooms.
 
-const EXTERNAL_IDS = ["walkrally", "miniplay", "other1", "other2"].flatMap((k) => [`activity_${k}_child`, `activity_${k}_adult`]);
+// กิจกรรมอื่นๆ: EXTERNAL_ACTIVITIES อยู่ใน form-render.js
 
 function num(id) {
   const el = $(id);
@@ -67,7 +67,21 @@ function recalcAll() {
   });
 
   // External activities (POS)
-  const external = EXTERNAL_IDS.reduce((a, id) => a + num(id), 0);
+  let external = 0;
+  EXTERNAL_ACTIVITIES.forEach((a) => {
+    let child = 0, adult = 0;
+    EXT_SIDES.forEach(([s]) => {
+      child += num(`activity_${a.key}_${s}_child_th`) + num(`activity_${a.key}_${s}_child_intl`);
+      adult += num(`activity_${a.key}_${s}_adult_th`) + num(`activity_${a.key}_${s}_adult_intl`);
+    });
+    put(`activity_${a.key}_child`, child);
+    put(`activity_${a.key}_adult`, adult);
+    external += child + adult;
+    if (!a.label) { // ชื่อแถวตั้งชื่อเองไปแสดงในตารางสรุปด้วย
+      const nm = ($(`activity_${a.key}_name`) || {}).value;
+      $(`activity_${a.key}_label`).textContent = (nm || "").trim() || "กิจกรรมอื่น";
+    }
+  });
   put("external_rooms_total", external);
 
   // POS: children only from walk-in, adults from walk-in + room activities

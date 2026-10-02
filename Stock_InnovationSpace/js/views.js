@@ -92,7 +92,7 @@ function renderItems() {
     ["สิ่งของ", "Stock (มีจริง)", "ขั้นต่ำ", "สถานะ", "ตำแหน่ง", "อัปเดตล่าสุด", ""],
     list.map(
       (it) => `<tr class="${ui.focusItemId === it.id ? "picked" : ""}">
-        <td>${it.code ? `<span class="code item-code">${esc(it.code)}</span> ` : ""}<b>${esc(it.name)}</b><div class="sub">${esc(it.category || "")}${it.barcode ? ` · <span class="code">▮ ${esc(it.barcode)}</span>` : ""}${it.note ? " · " + esc(it.note) : ""}</div></td>
+        <td>${it.code || it.barcode ? `<span class="code item-code">${esc(it.code || it.barcode)}</span> ` : ""}<b>${esc(it.name)}</b><div class="sub">${esc(it.category || "")}${it.barcode && it.code && normCode(it.barcode).toUpperCase() !== normCode(it.code).toUpperCase() ? ` · <span class="code">▮ ${esc(it.barcode)}</span>` : ""}${it.note ? " · " + esc(it.note) : ""}</div></td>
         <td class="qty-cell"><div class="stepper">
           <button class="step" data-adjust="${esc(it.id)}" data-delta="-1" ${stockOf(it) <= 0 ? "disabled" : ""} aria-label="ลด Stock 1">−</button>
           <span class="q">${fmtQty(stockOf(it))} <small>${esc(it.unit)}</small></span>

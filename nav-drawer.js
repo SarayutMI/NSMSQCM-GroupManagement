@@ -15,6 +15,7 @@
     { href: BASE + 'index.html', icon: '🏠', label: 'หน้าแรก', match: [''] },
     { href: BASE + 'booking.html', icon: '📅', label: 'ระบบจองห้องกิจกรรม', match: ['booking.html'] },
     { href: BASE + 'E-Mod.html', icon: '📋', label: 'E-Mod รายงานประจำวัน', match: ['e-mod.html'] },
+    { href: BASE + 'E-Mod-Dashboard.html', icon: '📈', label: 'E-Mod · Dashboard', match: ['e-mod-dashboard.html'] },
     { href: BASE + 'Exhibition/index.html', icon: '🖼️', label: 'Exhibition · แบบบันทึกผู้เข้าชม', match: ['exhibition/index.html'] },
     { href: BASE + 'Exhibition/dashboard.html', icon: '📊', label: 'Exhibition · Dashboard', match: ['exhibition/dashboard.html'] },
     { href: BASE + 'Stock_InnovationSpace/index.html', icon: '📦', label: 'Stock · Innovation Space', match: ['stock_innovationspace/index.html'] }

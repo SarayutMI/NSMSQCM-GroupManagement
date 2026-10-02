@@ -6,7 +6,7 @@ function bindEvents() {
     const t = e.target.closest("[data-view]");
     if (t) showView(t.dataset.view);
   });
-  $("refreshBtn").addEventListener("click", () => reload());
+  $("refreshBtn").addEventListener("click", () => reload(true));
   $("userSelect").addEventListener("change", () => {
     try {
       localStorage.setItem(USER_KEY, currentUser());
@@ -74,12 +74,13 @@ function bindEvents() {
     $("fCategoryNewBox").hidden = !isNew;
     if (isNew) $("fCategoryNew").focus();
   });
-  // ฟอร์มรายการ: แสดงทั้งหมด (Stock + Ready) ทันทีที่กรอก
+  // ฟอร์มรายการ: Stock คงเหลือ = ทั้งหมด − Ready แสดงทันทีที่กรอก
   $("modalForm").addEventListener("input", (e) => {
-    if (!["stockQty", "standbyQty"].includes(e.target.name) || !$("fQtySum")) return;
+    if (!["qty", "standbyQty"].includes(e.target.name) || !$("fStockLeft")) return;
     const f = $("modalBody");
-    const sum = (Number(f.querySelector("[name=stockQty]").value) || 0) + (Number(f.querySelector("[name=standbyQty]").value) || 0);
-    $("fQtySum").textContent = fmtQty(sum);
+    const left = (Number(f.querySelector("[name=qty]").value) || 0) - (Number(f.querySelector("[name=standbyQty]").value) || 0);
+    $("fStockLeft").textContent = fmtQty(left);
+    $("fPileInfo").classList.toggle("t-out", left < 0); // Ready มากกว่าทั้งหมด
   });
   $("modalForm").addEventListener("submit", (e) => {
     e.preventDefault();
@@ -203,5 +204,11 @@ window.addEventListener("DOMContentLoaded", async () => {
   render();
   fillUsers([]);
   fetchNames(STOCK_CONFIG.STAFF_CSV_URLS).then(fillUsers);
-  await reload();
+  // เห็นข้อมูลรอบก่อนทันที แล้วค่อยอัปเดตจาก Sheet เบื้องหลัง
+  const cached = readStateCache();
+  if (cached && cached.data) {
+    applyState(cached.data);
+    ui.loaded = true;
+  }
+  await reload(false);
 });

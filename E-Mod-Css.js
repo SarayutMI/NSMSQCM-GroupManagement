@@ -52,6 +52,7 @@
 
   /* สรุปผู้เข้าชมแยกกลุ่ม: กระดาษมีที่จำกัด (ต้องจบใน A4 2 แผ่น) — ซ่อนแถวที่เป็น 0 และบีบระยะ */
   #visitorSummaryBody tr.sum-zero { display: none !important; }
+  #otherActivitiesBody tr.other-empty { display: none !important; } /* แถวตั้งชื่อเองที่ไม่ได้กรอก */
   #visitorSummaryWrap th, #visitorSummaryWrap td { padding: 0 3px !important; line-height: 1.1 !important; font-size: 7.5px !important; }
   /* ช่องเซ็นชื่อท้ายรายงาน: เส้นเซ็นเตี้ยลง ให้จบในหน้า 2 */
   #sectionSign .h-10 { height: 22px !important; }

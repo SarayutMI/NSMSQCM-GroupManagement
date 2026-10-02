@@ -98,18 +98,48 @@ function applyState(data) {
   ITEMS.sort((a, b) => String(a.name).localeCompare(String(b.name), "th"));
   LOCATIONS = (data.locations || []).slice().sort((a, b) => String(a.name).localeCompare(String(b.name), "th"));
   LOG = data.log || [];
+  saveStateCache(data);
   if (ui.selectedLocId && !locById(ui.selectedLocId)) ui.selectedLocId = null;
   if (ui.focusItemId && !itemById(ui.focusItemId)) ui.focusItemId = null;
   render();
 }
 
-async function reload(quiet) {
-  if (!quiet) setStatus("กำลังโหลดข้อมูลสต๊อกจาก Sheet...");
+// ---------- ข้อมูลล่าสุดที่เก็บไว้ในเครื่อง: เปิดหน้าแล้วเห็นทันที ไม่ต้องรอ Sheet ----------
+const STATE_CACHE_KEY = "stock.innovation.state";
+function saveStateCache(data) {
   try {
-    applyState(await fetchState());
-    if (!quiet) setStatus("", "none");
+    localStorage.setItem(STATE_CACHE_KEY, JSON.stringify({ at: Date.now(), data: data }));
+  } catch (e) {
+    /* storage เต็ม/ถูกปิด: ข้ามไป */
+  }
+}
+function readStateCache() {
+  try {
+    return JSON.parse(localStorage.getItem(STATE_CACHE_KEY) || "null");
+  } catch (e) {
+    return null;
+  }
+}
+/** แสดงว่ากำลังซิงก์อยู่เบื้องหลัง (ปุ่ม ⟳ หมุน) — ไม่บังจอ ใช้งานต่อได้ */
+function showSync(on) {
+  $("refreshBtn").classList.toggle("syncing", on);
+  $("refreshBtn").title = on ? "กำลังอัปเดตข้อมูลจาก Sheet..." : "โหลดข้อมูลล่าสุดจาก Sheet";
+}
+
+/** fresh = ข้าม cache ของ server; ถ้ามีข้อมูลแสดงอยู่แล้วจะโหลดเบื้องหลังโดยไม่ขึ้น popup บังจอ */
+async function reload(fresh) {
+  const showing = ui.loaded;
+  if (!showing) setStatus("กำลังโหลดข้อมูลสต๊อกจาก Sheet...");
+  showSync(true);
+  try {
+    applyState(await fetchState(fresh));
+    ui.loaded = true;
+    if (!showing) setStatus("", "none");
+    else if (fresh) setStatus("อัปเดตข้อมูลจาก Sheet แล้ว", "success");
   } catch (err) {
-    setStatus("โหลดข้อมูลไม่สำเร็จ: " + err.message, "error");
+    setStatus("โหลดข้อมูลไม่สำเร็จ: " + err.message + (showing ? " (กำลังแสดงข้อมูลล่าสุดที่เก็บไว้ในเครื่อง)" : ""), "error");
+  } finally {
+    showSync(false);
   }
 }
 
@@ -167,24 +197,23 @@ const locOptions = (selected, blankLabel) =>
 // ---------- item actions ----------
 /** preset: ค่าตั้งต้นของรายการใหม่ เช่น {barcode} จากการสแกนที่ไม่พบในระบบ */
 function openItemForm(id, preset) {
-  const it = id ? itemById(id) : Object.assign({ name: "", category: "", unit: "ชิ้น", qty: 0, minQty: 0, locationId: ui.selectedLocId || "", locationNote: "", note: "", imageUrl: "", barcode: "", code: "", standbyQty: 0 }, preset || {});
+  const it = id ? itemById(id) : Object.assign({ name: "", category: "", unit: "ชิ้น", qty: 0, minQty: 0, locationId: ui.selectedLocId || "", locationNote: "", note: "", imageUrl: "", barcode: "", code: "", standbyQty: 0 }, preset && preset.barcode ? Object.assign({ code: preset.barcode }, preset) : preset || {});
   const p = piles(it);
   if (!it) return;
   openModal(
     id ? "แก้ไขรายการ" : "เพิ่มของใหม่",
     `<label class="f-full">ชื่อสิ่งของ *<input name="name" required maxlength="200" value="${esc(it.name)}"></label>
-     <label>รหัส<input name="code" maxlength="50" value="${esc(it.code || "")}" placeholder="เช่น IS-001" autocapitalize="characters"></label>
+     <label class="f-full">รหัส / บาร์โค้ด
+       <span class="with-btn"><input name="code" id="fCode" maxlength="60" value="${esc(it.code || it.barcode || "")}" placeholder="พิมพ์ / ยิงเครื่องสแกน / ถ่ายบาร์โค้ด" autocapitalize="characters" autocomplete="off"><button type="button" class="btn" data-scan-into="fCode">📷 สแกน</button></span></label>
      <label>หน่วย<input name="unit" value="${esc(it.unit)}" placeholder="ชิ้น / กล่อง"></label>
      <label class="f-full">หมวดหมู่<select name="category" id="fCategorySel">${categoryOptions(it.category)}</select></label>
      <label class="f-full" id="fCategoryNewBox" hidden>ชื่อหมวดหมู่ใหม่<input name="categoryNew" id="fCategoryNew" maxlength="100" placeholder="พิมพ์ชื่อหมวดหมู่ใหม่"></label>
-     <label>Stock (มีจริงในคลัง)<input name="stockQty" type="text" inputmode="none" data-num autocomplete="off" value="${esc(p.stock)}"></label>
+     <label>จำนวนทั้งหมด (Stock + Ready)<input name="qty" type="text" inputmode="none" data-num autocomplete="off" value="${esc(it.qty)}"></label>
      <label>Ready (ดึงออกจาก Stock)<input name="standbyQty" type="text" inputmode="none" data-num autocomplete="off" value="${esc(p.standby)}"></label>
      <label>ขั้นต่ำ (เตือนเมื่อ Stock เหลือ)<input name="minQty" type="text" inputmode="none" data-num autocomplete="off" value="${esc(it.minQty)}"></label>
-     <p class="muted pile-sum">ทั้งหมด (Stock + Ready) <b id="fQtySum">${fmtQty(it.qty)}</b> ${esc(it.unit || "")}</p>
+     <p class="muted pile-sum" id="fPileInfo">Stock คงเหลือ <b id="fStockLeft">${fmtQty(p.stock)}</b> ${esc(it.unit || "")}</p>
      <label class="f-full">ตำแหน่งจัดเก็บ<select name="locationId">${locOptions(it.locationId)}</select></label>
      <label class="f-full">รายละเอียดตำแหน่ง<input name="locationNote" value="${esc(it.locationNote)}" placeholder="เช่น ชั้น 2 กล่องสีฟ้า"></label>
-     <label class="f-full">บาร์โค้ด (ถ้ามี)
-       <span class="with-btn"><input name="barcode" id="fBarcode" inputmode="numeric" value="${esc(it.barcode || "")}" placeholder="สแกน / ยิง / พิมพ์เลข"><button type="button" class="btn" data-scan-into="fBarcode">📷 สแกน</button></span></label>
      <label class="f-full">ลิงก์รูป (ถ้ามี)<input name="imageUrl" type="url" value="${esc(it.imageUrl)}" placeholder="https://..."></label>
      <label class="f-full">หมายเหตุ<textarea name="note" rows="2">${esc(it.note)}</textarea></label>`,
     async (v) => {
@@ -194,6 +223,9 @@ function openItemForm(id, preset) {
         if (!v.category) return setStatus("กรุณาพิมพ์ชื่อหมวดหมู่ใหม่ (หรือเลือกหมวดที่มีอยู่)", "warn");
       }
       delete v.categoryNew;
+      // Ready ดึงออกจาก Stock: ทั้งหมดคงที่, Stock = ทั้งหมด − Ready (server คำนวณจาก qty + standbyQty)
+      if (Number(v.standbyQty) > Number(v.qty)) return setStatus("Ready มากกว่าจำนวนทั้งหมดไม่ได้", "warn");
+      v.barcode = v.code; // รหัสกับบาร์โค้ดเป็นค่าเดียวกัน (ค้นหา/สแกนเจอได้ทั้งสองแบบ)
       const ok = await run({ action: "saveItem", data: Object.assign(v, { id: id || "" }) }, "กำลังบันทึกรายการ...", id ? "แก้ไขรายการแล้ว" : "เพิ่มของใหม่แล้ว");
       if (ok) closeModal();
     },

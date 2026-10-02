@@ -43,19 +43,20 @@ let dirty = false;
 let shownDate = "";
 
 /** Loads what was saved for the chosen date (if anything) into the form. */
-async function loadDay(date) {
+/** pending: คำขอที่เริ่มไว้แล้ว (ตอนเปิดหน้าขอพร้อมกับรายชื่อห้อง) / fresh: ข้าม cache ของ server */
+async function loadDay(date, fresh, pending) {
   if (!date) return;
   const seq = ++loadDay.seq;
   const btn = $("loadDayBtn");
   btn.disabled = true;
   setStatus(`กำลังโหลดข้อมูลวันที่ ${date} จาก Sheet...`);
   try {
-    const res = await fetchDay(date);
+    const res = await (pending || fetchDay(date, fresh));
     if (seq !== loadDay.seq) return; // a newer date was picked meanwhile
     if (res.error) throw new Error(res.error);
     clearForm();
     if (res.data) {
-      restoreFormData(res.data);
+      restoreFormData(migrateLegacyExternal(res.data));
       setStatus(
         `โหลดข้อมูลที่บันทึกไว้แล้ว (บันทึกล่าสุด ${res.savedAt || "-"}) แก้ไขแล้วกดบันทึกเพื่ออัปเดต` +
           (res.count > 1 ? ` · ⚠ วันที่นี้มี ${res.count} แถวใน Sheet ระบบจะแก้แถวล่าสุด` : ""),
@@ -92,12 +93,12 @@ function onDateChange() {
 }
 
 /** Load button: always fetches again, even for the date already shown. */
-function onLoadClick() {
+function onLoadClick() { // ปุ่มโหลด: ดึงจาก Sheet จริงเสมอ (ข้าม cache)
   const date = $("visitDate").value;
   if (!date) return;
   if (dirty && !confirm(UNSAVED_MSG)) return;
   shownDate = date;
-  loadDay(date);
+  loadDay(date, true);
 }
 
 function updateLoadLabel() {
@@ -187,7 +188,7 @@ function bindEvents() {
   document.querySelector(".sheet").addEventListener("input", (e) => {
     if (e.target.id === "visitDate") return onDateChange();
     dirty = true;
-    if (e.target.matches("[data-calc]")) recalcAll();
+    if (e.target.matches("[data-calc]") || /^activity_other\d_name$/.test(e.target.id)) recalcAll();
   });
   document.querySelector(".sheet").addEventListener("change", (e) => {
     if (e.target.matches("select")) dirty = true;
@@ -199,6 +200,7 @@ function bindEvents() {
 
 window.addEventListener("DOMContentLoaded", () => {
   renderExhibitRows();
+  renderExternal();
   addCounterButtons(document.querySelector(".sheet"));
   bindEvents();
 
@@ -214,5 +216,8 @@ window.addEventListener("DOMContentLoaded", () => {
   recalcAll();
   // rooms first (their fields must exist), then whatever was already saved for today
   shownDate = $("visitDate").value;
-  loadConfig().then(() => loadDay(shownDate));
+  // ขอข้อมูลวันนี้พร้อมกับรายชื่อห้อง (ไม่ต้องรอกันทีละอย่าง) แล้วค่อยเติมลงฟอร์มเมื่อห้องพร้อม
+  const dayRequest = fetchDay(shownDate);
+  dayRequest.catch(() => {}); // ถ้าล้ม loadDay จะแจ้งเอง
+  loadConfig().then(() => loadDay(shownDate, false, dayRequest));
 });

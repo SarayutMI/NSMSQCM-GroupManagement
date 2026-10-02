@@ -5,7 +5,7 @@
    - รายชื่อพนักงาน (ผู้บันทึก/ผู้แก้ไข) ดึงจากชีตอ้างอิงเดียวกับระบบจองห้อง (แท็บ Staff_Name)
    ========================================================= */
 const CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycbxE6hKLX58T4eiGM0_3M8kWcIo-vUwj8VqX7jGhrQbPDpwAZRNe7xri3H3zT3zvQdFURw/exec', // <-- ใส่ URL ของ Google Apps Script Web App (จาก E-Mod-CodeGs.gs) ที่นี่
+  API_URL: 'https://script.google.com/macros/s/AKfycbzeuF-Jt9hmrZ2DBtEOHVAE39Sf3V95Vp3Sj0XwbgfNKH9aInouXaBpwIK8FNGjFdwZSQ/exec', // <-- ใส่ URL ของ Google Apps Script Web App (จาก E-Mod-CodeGs.gs) ที่นี่
   STAFF_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=1863604525&single=true&output=csv',
   // รายชื่ออาสา (แท็บ Volunteer_Name) สำหรับช่อง "รายชื่ออาสา" ของ Evening Briefing
   VOLUNTEER_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=320745201&single=true&output=csv',
@@ -52,7 +52,9 @@ const REVENUE_ROWS = [
   { key: 'walkinOnsite', label: 'Walk-in : On-site' }, { key: 'walkinOnline', label: 'Walk-in : Online' },
   { key: 'groupOnsite', label: 'Group : On-site' }, { key: 'groupOnline', label: 'Group : Online' }
 ];
-const DEFAULT_OTHER_ACTIVITIES = ['Walk Rally', "Don't Miss", 'I-Scream', '', ''];
+// กิจกรรมอื่นๆ: 4 รายการล็อกชื่อไว้ + แถวตั้งชื่อเองอีก 2 แถว (ชุดเดียวกับฟอร์ม Exhibition)
+const FIXED_OTHER_ACTIVITIES = ['Walk Rally', "Don't Miss", 'I-Scream', 'Mini Make & Play'];
+const EXTRA_OTHER_ROWS = 2;
 const MAX_GROUPS = 50;
 
 /* ---------------- Tailwind class ก้อนที่ใช้ซ้ำ ---------------- */
@@ -79,6 +81,24 @@ function escapeHtml(s) {
 }
 function emptyRound() { return { childTh: 0, adultTh: 0, childFor: 0, adultFor: 0, leader: '', activity: '', school: '' }; }
 function emptyGroup() { return { school: '', childTh: 0, adultTh: 0, childFor: 0, adultFor: 0, senior: 0 }; }
+// ชื่อเทียบแบบหลวมๆ: "Mini Make and Play" = "Mini Make & Play", "Dont miss" = "Don't Miss"
+const otherKey = s => String(s || '').toLowerCase().replace(/\band\b/g, '').replace(/[^a-z0-9ก-๙]/g, '');
+/** จัดรายการกิจกรรมอื่นๆ (รวมรายงานเก่าที่เพิ่ม/ลบแถวเองได้) ให้เป็น: 4 รายการล็อก + แถวตั้งชื่อเอง (อย่างน้อย 2)
+    ข้อมูลเดิมย้ายเข้าแถวที่ชื่อตรงกัน ที่เหลือไปอยู่แถวตั้งชื่อเอง — ไม่มีข้อมูลหาย */
+function normalizeOtherActivities(list) {
+  const saved = (list || []).map(a => Object.assign(emptyOtherActivity(''), a));
+  const used = new Set();
+  const fixed = FIXED_OTHER_ACTIVITIES.map(name => {
+    const i = saved.findIndex((a, j) => !used.has(j) && otherKey(a.name) === otherKey(name));
+    if (i === -1) return emptyOtherActivity(name);
+    used.add(i);
+    return Object.assign(saved[i], { name });
+  });
+  const hasData = a => String(a.name || '').trim() || String(a.school || '').trim() || OTHER_COLS.some(c => Number(a[c]));
+  const extra = saved.filter((a, j) => !used.has(j) && hasData(a));
+  while (extra.length < EXTRA_OTHER_ROWS) extra.push(emptyOtherActivity(''));
+  return fixed.concat(extra);
+}
 function emptyOtherActivity(name) {
   return { name: name || '', w_childTh: 0, w_adultTh: 0, w_childFor: 0, w_adultFor: 0, g_childTh: 0, g_adultTh: 0, g_childFor: 0, g_adultFor: 0, school: '' };
 }
@@ -103,7 +123,7 @@ function blankReport() {
       inspireLab: Array.from({ length: 8 }, emptyRound),
       innovationSpace: Array.from({ length: 8 }, emptyRound)
     },
-    otherActivities: DEFAULT_OTHER_ACTIVITIES.map(emptyOtherActivity),
+    otherActivities: normalizeOtherActivities([]),
     revenue,
     recorder: '', editor: '', signer: '', createdAt: '', updatedAt: ''
   };
@@ -384,12 +404,16 @@ function renderRoundsTable(prefix, rows) {
 
 function otherActivityRowHtml(i, a) {
   const numCell = (col, val) => `<td class="${TD}"><input type="number" min="0" inputmode="none" class="${IN_NUM}" data-col="${col}" data-path="otherActivities.${i}.${col}" value="${val || 0}"></td>`;
-  return `<tr data-idx="${i}">
-    <td class="${TD_TXT}"><input class="${IN_TXT}" data-path="otherActivities.${i}.name" value="${escapeHtml(a.name || '')}" placeholder="ชื่อกิจกรรม"></td>
+  const locked = i < FIXED_OTHER_ACTIVITIES.length;
+  const nameCell = locked
+    ? `<td class="${TD_TXT} whitespace-nowrap font-medium">${escapeHtml(a.name)}<input type="hidden" data-path="otherActivities.${i}.name" value="${escapeHtml(a.name)}"></td>`
+    : `<td class="${TD_TXT}"><input class="${IN_TXT}" data-path="otherActivities.${i}.name" value="${escapeHtml(a.name || '')}" placeholder="กิจกรรมอื่น (กรอกชื่อ)"></td>`;
+  const empty = !locked && !String(a.name || '').trim() && !String(a.school || '').trim() && !OTHER_COLS.some(c => Number(a[c]));
+  return `<tr data-idx="${i}"${empty ? ' class="other-empty"' : ''}>
+    ${nameCell}
     ${numCell('w_childTh', a.w_childTh)}${numCell('w_adultTh', a.w_adultTh)}${numCell('w_childFor', a.w_childFor)}${numCell('w_adultFor', a.w_adultFor)}
     ${numCell('g_childTh', a.g_childTh)}${numCell('g_adultTh', a.g_adultTh)}${numCell('g_childFor', a.g_childFor)}${numCell('g_adultFor', a.g_adultFor)}
     <td class="${TD_TXT}"><input class="${IN_TXT}" data-path="otherActivities.${i}.school" value="${escapeHtml(a.school || '')}"></td>
-    <td class="${TD} print-hide text-center"><button type="button" class="${MINI_BTN} rm-other" data-idx="${i}" title="ลบ">✕</button></td>
   </tr>`;
 }
 function renderOtherActivities(list) {
@@ -397,7 +421,7 @@ function renderOtherActivities(list) {
   const totalRow = document.getElementById('otherActivitiesTotal');
   totalRow.innerHTML = `<td class="${TD}">รวม</td>` +
     OTHER_COLS.map(c => `<td class="${TD} text-center" id="otherTotal_${c}">0</td>`).join('') +
-    `<td class="${TD}" colspan="2"></td>`;
+    `<td class="${TD}"></td>`;
 }
 
 function renderRevenue(revenue) {
@@ -572,7 +596,7 @@ function populateForm(r) {
   renderGroups(groupCount, groups);
   renderRoundsTable('inspireLab', r.activityRounds.inspireLab);
   renderRoundsTable('innovationSpace', r.activityRounds.innovationSpace);
-  renderOtherActivities(r.otherActivities);
+  renderOtherActivities(normalizeOtherActivities(r.otherActivities));
   renderRevenue(r.revenue);
 
   document.getElementById('headSub').textContent = r.id ? `แก้ไขรายงาน (${r.date})` : `รายงานฉบับใหม่ (${r.date})`;
@@ -591,20 +615,6 @@ document.getElementById('specialActivitiesRows').addEventListener('click', e => 
   r.specialActivities.splice(Number(btn.dataset.idx), 1);
   if (!r.specialActivities.length) r.specialActivities.push('');
   renderSpecialActivities(r.specialActivities);
-});
-document.getElementById('addOtherActivity').addEventListener('click', () => {
-  const r = serializeReport();
-  r.otherActivities.push(emptyOtherActivity(''));
-  renderOtherActivities(r.otherActivities);
-  recomputeAll();
-});
-document.getElementById('otherActivitiesBody').addEventListener('click', e => {
-  const btn = e.target.closest('.rm-other'); if (!btn) return;
-  const r = serializeReport();
-  r.otherActivities.splice(Number(btn.dataset.idx), 1);
-  if (!r.otherActivities.length) r.otherActivities.push(emptyOtherActivity(''));
-  renderOtherActivities(r.otherActivities);
-  recomputeAll();
 });
 
 document.addEventListener('input', e => {
@@ -728,12 +738,14 @@ document.getElementById('newBtn').addEventListener('click', () => {
   setStatus('');
 });
 
-document.getElementById('loadBtn').addEventListener('click', async () => {
-  const date = document.getElementById('f_date').value || todayStr();
-  const found = await loadByDate(date);
+/** pending: คำขอที่เริ่มไว้แล้ว (ตอนเปิดหน้าขอพร้อมกับรายชื่อ ไม่ต้องรอกันทีละอย่าง) */
+async function loadReportForDate(date, pending) {
+  const found = await (pending || loadByDate(date));
   if (found) {
-    state = { id: found.id, editingId: true };
-    populateForm(found);
+    // รายงานที่ Exhibition สร้างให้อัตโนมัติ: คนแรกที่บันทึกใน E-Mod เป็น "ผู้บันทึก" (ไม่ต้องเลือกผู้แก้ไข)
+    const auto = /^Exhibition/.test(String(found.recorder || ''));
+    state = { id: found.id, editingId: true, autoCreated: auto };
+    populateForm(auto ? Object.assign({}, found, { recorder: '' }) : found);
     setStatus('โหลดรายงานวันที่ ' + date + ' แล้ว');
   } else {
     state = { id: '', editingId: false };
@@ -741,7 +753,8 @@ document.getElementById('loadBtn').addEventListener('click', async () => {
     populateForm(blank);
     setStatus('ยังไม่มีรายงานวันที่ ' + date + ' — เริ่มฉบับใหม่');
   }
-});
+}
+document.getElementById('loadBtn').addEventListener('click', () => loadReportForDate(document.getElementById('f_date').value || todayStr()));
 
 document.getElementById('printBtn').addEventListener('click', () => window.print());
 
@@ -830,10 +843,10 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
   const recorderEl = document.getElementById('f_recorder'), editorEl = document.getElementById('f_editor');
   const recorder = recorderEl.value.trim(), editor = editorEl.value.trim();
   if (!recorder) { recorderEl.focus(); setStatus('กรุณาเลือกผู้บันทึก'); return; }
-  if (state.editingId && !editor) { editorEl.focus(); setStatus('กรุณาเลือกผู้แก้ไข'); return; }
+  if (state.editingId && !state.autoCreated && !editor) { editorEl.focus(); setStatus('กรุณาเลือกผู้แก้ไข'); return; }
 
   const r = serializeReport();
-  r.recorder = state.editingId ? (r.recorder || recorder) : recorder;
+  r.recorder = state.editingId && !state.autoCreated ? (r.recorder || recorder) : recorder;
   r.editor = state.editingId ? editor : '';
   const now = new Date().toISOString();
   r.createdAt = r.createdAt || now;
@@ -887,7 +900,12 @@ document.getElementById('f_date').addEventListener('change', () => document.getE
 /* ---------------- init ---------------- */
 (async function init() {
   document.getElementById('f_date').value = todayStr();
-  populateForm(blankReport());
+  // เปิดจากลิงก์ใน E-Mod Dashboard: E-Mod.html?date=YYYY-MM-DD
+  const qDate = new URLSearchParams(location.search).get('date');
+  if (/^\d{4}-\d{2}-\d{2}$/.test(qDate || '')) document.getElementById('f_date').value = qDate;
+  populateForm(Object.assign(blankReport(), { date: document.getElementById('f_date').value }));
+  const date = document.getElementById('f_date').value;
+  const pending = loadByDate(date); // เริ่มขอรายงานไปพร้อมกับรายชื่อ CSV
   await loadStaff();
-  document.getElementById('loadBtn').click();
+  await loadReportForDate(date, pending);
 })();
