@@ -28,7 +28,9 @@ const EMOD_HEADERS = [
   'specialActivitiesJson', 'eveningJson', 'visitorCountsJson',
   'activityRoundsJson', 'otherActivitiesJson', 'revenueJson',
   'recorder', 'editor', 'createdAt', 'updatedAt',
-  'signer' // ผู้ลงชื่อท้ายรายงาน (เพิ่มทีหลัง)
+  'signer', // ผู้ลงชื่อท้ายรายงาน (เพิ่มทีหลัง)
+  // สรุปผู้เข้าชมแยกกลุ่ม (คำนวณจากข้อมูลในรายงานตอนบันทึก): ทั้งตารางเป็น JSON + ยอดรวมแยกคอลัมน์ไว้รวม/กรองในชีตได้ง่าย
+  'summaryJson', 'sumChildTh', 'sumChildFor', 'sumAdultTh', 'sumAdultFor', 'sumSenior', 'sumTotal'
   // คอลัมน์ใหม่ต่อท้ายสุดเสมอ — ห้ามแทรกกลาง เพราะจะทำให้คอลัมน์ของแถวเก่าในชีตเลื่อนตำแหน่งผิด
 ];
 const EMOD_JSON_FIELDS = ['specialActivities', 'evening', 'visitorCounts', 'activityRounds', 'otherActivities', 'revenue'];
@@ -81,6 +83,40 @@ function emodDecorate_(obj) {
   return out;
 }
 
+const EMOD_CATS = ['childTh', 'childFor', 'adultTh', 'adultFor', 'senior'];
+
+/** สรุปผู้เข้าชมแยกกลุ่มของรายงาน 1 วัน (ตรรกะเดียวกับ computeSummary ใน E-Mod-Script.js)
+    rows: นิทรรศการ Walk-in, นิทรรศการ Group, Inspire Lab, Innovation Space, กิจกรรมอื่นทีละรายการ */
+function emodSummary_(d) {
+  const n = v => Number(v) || 0;
+  const vc = d.visitorCounts || {}, ar = d.activityRounds || {};
+  const row = (key, label, src) => {
+    const r = { key: key, label: label };
+    EMOD_CATS.forEach(c => { r[c] = n(src[c]); });
+    r.total = EMOD_CATS.reduce((a, c) => a + r[c], 0);
+    return r;
+  };
+  const sumRounds = list => (list || []).reduce((a, x) => {
+    ['childTh', 'childFor', 'adultTh', 'adultFor'].forEach(c => { a[c] = (a[c] || 0) + n(x[c]); });
+    return a;
+  }, {});
+  const rows = [
+    row('exWalkin', 'นิทรรศการ Walk-in', vc.exWalkin || {}),
+    row('exGroup', 'นิทรรศการ Group', vc.exGroup || {}),
+    row('inspireLab', 'Inspire Lab', sumRounds(ar.inspireLab)),
+    row('innovationSpace', 'Innovation Space', sumRounds(ar.innovationSpace))
+  ];
+  (d.otherActivities || []).forEach((a, i) => {
+    const src = {};
+    ['childTh', 'childFor', 'adultTh', 'adultFor'].forEach(c => { src[c] = n(a['w_' + c]) + n(a['g_' + c]); });
+    const r = row('other' + i, String(a.name || '').trim() || ('กิจกรรมอื่น ' + (i + 1)), src);
+    if (r.total || String(a.name || '').trim()) rows.push(r);
+  });
+  const all = {};
+  EMOD_CATS.forEach(c => { all[c] = rows.reduce((s, r) => s + r[c], 0); });
+  return { rows: rows, total: row('total', 'รวมทั้งหมด', all) };
+}
+
 function emodEncode_(data) {
   const record = {};
   EMOD_HEADERS.forEach(h => { record[h] = ''; });
@@ -90,6 +126,11 @@ function emodEncode_(data) {
     recorder: data.recorder || '', editor: data.editor || '', signer: data.signer || ''
   });
   EMOD_JSON_FIELDS.forEach(field => { record[field + 'Json'] = JSON.stringify(data[field] || null); });
+  const sum = emodSummary_(data);
+  record.summaryJson = JSON.stringify(sum);
+  record.sumChildTh = sum.total.childTh; record.sumChildFor = sum.total.childFor;
+  record.sumAdultTh = sum.total.adultTh; record.sumAdultFor = sum.total.adultFor;
+  record.sumSenior = sum.total.senior; record.sumTotal = sum.total.total;
   return record;
 }
 

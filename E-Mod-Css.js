@@ -49,6 +49,12 @@
   [class*="rounded-lg"].border { padding: 3px !important; }
 
   .grand-total, .bg-blue-50 { padding: 3px 6px !important; }
+
+  /* สรุปผู้เข้าชมแยกกลุ่ม: กระดาษมีที่จำกัด (ต้องจบใน A4 2 แผ่น) — ซ่อนแถวที่เป็น 0 และบีบระยะ */
+  #visitorSummaryBody tr.sum-zero { display: none !important; }
+  #visitorSummaryWrap th, #visitorSummaryWrap td { padding: 0 3px !important; line-height: 1.1 !important; font-size: 7.5px !important; }
+  /* ช่องเซ็นชื่อท้ายรายงาน: เส้นเซ็นเตี้ยลง ให้จบในหน้า 2 */
+  #sectionSign .h-10 { height: 22px !important; }
   `;
   window.EMOD_PRINT_RULES = printRules;
 
@@ -61,7 +67,7 @@ input[type=number]::-webkit-inner-spin-button{ -webkit-appearance: none; margin:
 @page { size: A4; margin: 8mm 7mm; }
 
 /* การ์ดแต่ละ section บนจอ (ตอนพิมพ์ถูกรีเซ็ตทิ้งด้านบนแล้ว หน้าตาเอกสารเหมือนเดิมทุกประการ) */
-.emod-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(15,23,42,.06); transition: box-shadow .15s ease; }
+.emod-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 1rem; padding: 1.125rem 1.25rem; box-shadow: 0 1px 3px rgba(15,23,42,.06); transition: box-shadow .15s ease; }
 .emod-card:focus-within { box-shadow: 0 0 0 3px rgba(37,99,235,.12); border-color: #93c5fd; }
 select:focus, input:focus, textarea:focus { outline: none; box-shadow: 0 0 0 3px rgba(37,99,235,.15); border-color: #60a5fa !important; }
 
@@ -69,7 +75,9 @@ select:focus, input:focus, textarea:focus { outline: none; box-shadow: 0 0 0 3px
 /* ทุกอย่างบนจอใหญ่ขึ้น 40% (แถบเครื่องมือ, เมนูลัด, ตัวรายงาน, numpad) — ตารางกว้างเกินจอให้เลื่อนดูได้
    เฉพาะ @media screen: ตอนพิมพ์/Export และหน้าพรีวิวยังเป็น A4 2 แผ่นตามกติกา print ด้านบนเหมือนเดิม */
 @media screen {
-  .emod-zoom { zoom: 1.4; }
+  /* ขยายด้วยขนาดตัวอักษรฐาน (Tailwind ใช้หน่วย rem เกือบทั้งหมด) แทน CSS zoom —
+     Safari บน iPad คำนวณจุดที่แตะผิดเมื่อใช้ zoom กับ sticky/fixed ทำให้กดไม่ติด */
+  html { font-size: 140%; }
 }
 /* จอแคบ (มือถือ): แถบเครื่องมือขยายแล้วสูงเกินครึ่งจอ จึงไม่ให้ติดค้างด้านบน */
 @media screen and (max-width: 640px) {
@@ -77,33 +85,33 @@ select:focus, input:focus, textarea:focus { outline: none; box-shadow: 0 0 0 3px
 }
 /* dropdown ใหญ่ขึ้น แตะง่าย — เฉพาะบนจอ (เอกสารพิมพ์ไม่เปลี่ยน) */
 @media screen {
-  select { min-height: 34px; cursor: pointer; }
-  .tap-select, td:has(> select) { cursor: pointer; }
+  select { min-height: 2.125rem; cursor: pointer; }
+  .tap-select { cursor: pointer; }
 }
 @media screen and (pointer: coarse) {
-  /* นิ้ว: ช่องสูงขึ้น + ตัวหนังสือ 16px กัน iPhone ซูมเข้าเองตอนแตะ */
-  select, input[type=text], input:not([type]), textarea { font-size: 16px !important; }
-  select { min-height: 42px; }
+  /* นิ้ว: ช่องสูงขึ้น + ตัวหนังสืออย่างน้อย 16px กัน iPhone/iPad ซูมเข้าเองตอนแตะ */
+  select, input[type=text], input[type=number], input:not([type]), textarea { font-size: max(16px, 0.875rem) !important; }
+  select { min-height: 2.625rem; }
 }
 .numpad-btn {
-  padding: 12px 0; border-radius: 10px; border: 1px solid #e2e8f0; background: #f8fafc;
-  font-size: 20px; font-weight: 600; color: #1e293b; user-select: none; -webkit-tap-highlight-color: transparent;
+  padding: 0.75rem 0; border-radius: 0.625rem; border: 1px solid #e2e8f0; background: #f8fafc;
+  font-size: 1.25rem; font-weight: 600; color: #1e293b; user-select: none; -webkit-tap-highlight-color: transparent;
 }
 .numpad-btn:active { background: #dbeafe; border-color: #60a5fa; }
-.numpad-action { background: #fef3c7; border-color: #fde68a; color: #92400e; font-size: 16px; }
+.numpad-action { background: #fef3c7; border-color: #fde68a; color: #92400e; font-size: 1rem; }
 .numpad-action:active { background: #fde68a; }
-.numpad-done { background: #2563eb; border-color: #2563eb; color: #fff; font-size: 16px; }
+.numpad-done { background: #2563eb; border-color: #2563eb; color: #fff; font-size: 1rem; }
 .numpad-done:active { background: #1d4ed8; }
 /* ปุ่มเมนู ☰ มุมขวาล่าง (nav-drawer.js) บังปุ่ม ✓ เสร็จ: ซ่อนไว้ระหว่างที่ numpad เปิด */
-body:has(#numpadBar:not(.hidden)) .nsmnav-btn { display: none !important; }
+body.numpad-open .nsmnav-btn { display: none !important; }
 
 /* ปุ่ม +/- ข้างช่องตัวเลขทุกช่อง (E-Mod-Script.js: addSteppers) — ตอนพิมพ์ซ่อนด้วย .print-hide */
 .cnt-step { display: flex; align-items: stretch; gap: 2px; min-width: 0; }
 .cnt-step > input { flex: 1 1 auto; min-width: 0; }
 .cnt-step-btns { display: flex; flex-direction: column; gap: 2px; flex: none; }
 .cnt-step-btns button {
-  width: 24px; flex: 1 1 0; min-height: 13px; padding: 0; border: 1px solid #cbd5e1; border-radius: 4px;
-  background: #f8fafc; color: #475569; font-size: 12px; font-weight: 700; line-height: 1; cursor: pointer;
+  width: 1.5rem; flex: 1 1 0; min-height: 0.8rem; padding: 0; border: 1px solid #cbd5e1; border-radius: 0.25rem;
+  background: #f8fafc; color: #475569; font-size: 0.75rem; font-weight: 700; line-height: 1; cursor: pointer;
   user-select: none; -webkit-tap-highlight-color: transparent; touch-action: manipulation;
 }
 .cnt-step-btns button:hover { border-color: #60a5fa; color: #2563eb; }

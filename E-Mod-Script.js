@@ -5,7 +5,7 @@
    - รายชื่อพนักงาน (ผู้บันทึก/ผู้แก้ไข) ดึงจากชีตอ้างอิงเดียวกับระบบจองห้อง (แท็บ Staff_Name)
    ========================================================= */
 const CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycbzJMzKNqJxW5gdbDgOFTJEdZPTKnTgkoKmEx6LOQcYgPBk_bWvCStBVYJ-0Zpl7bipk6g/exec', // <-- ใส่ URL ของ Google Apps Script Web App (จาก E-Mod-CodeGs.gs) ที่นี่
+  API_URL: 'https://script.google.com/macros/s/AKfycbxE6hKLX58T4eiGM0_3M8kWcIo-vUwj8VqX7jGhrQbPDpwAZRNe7xri3H3zT3zvQdFURw/exec', // <-- ใส่ URL ของ Google Apps Script Web App (จาก E-Mod-CodeGs.gs) ที่นี่
   STAFF_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=1863604525&single=true&output=csv',
   // รายชื่ออาสา (แท็บ Volunteer_Name) สำหรับช่อง "รายชื่ออาสา" ของ Evening Briefing
   VOLUNTEER_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=320745201&single=true&output=csv',
@@ -151,9 +151,11 @@ document.addEventListener('click', e => {
   if (!box) return;
   const sels = box.querySelectorAll('select');
   if (sels[0].disabled) return;
+  // Safari (iPad/iPhone) เปิด dropdown จากโค้ดไม่ได้ — ปล่อยให้แตะที่ตัว dropdown ตามปกติ (ช่องขยายเต็มกล่องแล้ว)
+  if (typeof sels[0].showPicker !== 'function' || /^((?!chrome|android).)*safari/i.test(navigator.userAgent)) return;
   e.preventDefault();
   sels[0].focus();
-  try { sels[0].showPicker(); } catch (err) { /* browser เก่า: focus อย่างเดียว */ }
+  try { sels[0].showPicker(); } catch (err) { /* ไม่ได้รับอนุญาต: focus อย่างเดียว */ }
 });
 
 /* ---------------- staff dropdowns ---------------- */
@@ -473,6 +475,55 @@ function recomputeRevenue() {
   const gc = document.getElementById('revGrandTotal');
   if (gc) gc.textContent = grand;
 }
+/* ---------------- สรุปผู้เข้าชมแยกกลุ่ม (ตรรกะเดียวกับ emodSummary_ ใน E-Mod-CodeGs.gs) ---------------- */
+const SUMMARY_COLS = [
+  { key: 'childTh', label: 'เด็กไทย' }, { key: 'childFor', label: 'เด็กต่างชาติ' },
+  { key: 'adultTh', label: 'ผู้ใหญ่ไทย' }, { key: 'adultFor', label: 'ผู้ใหญ่ต่างชาติ' },
+  { key: 'senior', label: 'ผู้สูงอายุ' }
+];
+function computeSummary(d) {
+  const n = v => Number(v) || 0;
+  const vc = d.visitorCounts || {}, ar = d.activityRounds || {};
+  const row = (key, label, src) => {
+    const r = { key, label };
+    SUMMARY_COLS.forEach(c => { r[c.key] = n(src[c.key]); });
+    r.total = SUMMARY_COLS.reduce((a, c) => a + r[c.key], 0);
+    return r;
+  };
+  const sumRounds = list => (list || []).reduce((a, x) => {
+    ROUND_COLS.forEach(c => { a[c] = (a[c] || 0) + n(x[c]); });
+    return a;
+  }, {});
+  const rows = [
+    row('exWalkin', 'นิทรรศการ Walk-in', vc.exWalkin || {}),
+    row('exGroup', 'นิทรรศการ Group', vc.exGroup || {}),
+    row('inspireLab', 'Inspire Lab', sumRounds(ar.inspireLab)),
+    row('innovationSpace', 'Innovation Space', sumRounds(ar.innovationSpace))
+  ];
+  (d.otherActivities || []).forEach((a, i) => {
+    const src = {};
+    ROUND_COLS.forEach(c => { src[c] = n(a['w_' + c]) + n(a['g_' + c]); });
+    const r = row('other' + i, String(a.name || '').trim() || ('กิจกรรมอื่น ' + (i + 1)), src);
+    if (r.total || String(a.name || '').trim()) rows.push(r);
+  });
+  const all = {};
+  SUMMARY_COLS.forEach(c => { all[c.key] = rows.reduce((s, r) => s + r[c.key], 0); });
+  return { rows, total: row('total', 'รวมทั้งหมด', all) };
+}
+function renderSummary() {
+  const s = computeSummary(serializeReport());
+  const TH = 'border border-slate-200 px-2 py-2 font-semibold whitespace-nowrap';
+  const kidAdult = r => [r.childTh + r.childFor, r.adultTh + r.adultFor + r.senior];
+  document.getElementById('visitorSummaryHead').innerHTML =
+    `<th class="${TH} text-left">กลุ่ม</th>` + SUMMARY_COLS.map(c => `<th class="${TH}">${c.label}</th>`).join('') +
+    `<th class="${TH}">เด็กรวม</th><th class="${TH}">ผู้ใหญ่รวม</th><th class="${TH}">รวม</th>`;
+  const cells = r => SUMMARY_COLS.map(c => `<td class="${TD} text-center">${r[c.key]}</td>`).join('') +
+    kidAdult(r).map(v => `<td class="${TD} text-center">${v}</td>`).join('') + `<td class="${TD} text-center font-semibold">${r.total}</td>`;
+  document.getElementById('visitorSummaryBody').innerHTML = s.rows.map(r =>
+    `<tr${r.total ? '' : ' class="sum-zero"'}><td class="${TD_TXT} whitespace-nowrap font-medium">${escapeHtml(r.label)}</td>${cells(r)}</tr>`).join('');
+  document.getElementById('visitorSummaryTotal').innerHTML = `<td class="${TD_TXT}">${s.total.label}</td>${cells(s.total)}`;
+}
+
 function recomputeAll() {
   const exTotal = recomputeExhibition();
   const labTotal = recomputeRoundsTable('inspireLab');
@@ -480,6 +531,7 @@ function recomputeAll() {
   const otherTotal = recomputeOtherActivities();
   recomputeRevenue();
   const grand = exTotal + labTotal + innoTotal + otherTotal;
+  renderSummary();
   document.getElementById('grandTotalVisitors').textContent = `รวมผู้เข้าชมทั้งสิ้น ${grand} คน`;
 }
 
@@ -610,12 +662,14 @@ function openNumpad(input) {
   numpadTarget = input;
   document.getElementById('numpadLabel').textContent = numpadFieldLabel(input);
   numpadBar.classList.remove('hidden');
+  document.body.classList.add('numpad-open'); // class แทน CSS :has() (Safari หน่วงมาก)
   requestAnimationFrame(() => numpadBar.classList.remove('translate-y-full'));
 }
 function closeNumpad() {
   if (!numpadTarget) return;
   numpadBar.classList.add('translate-y-full');
   setTimeout(() => numpadBar.classList.add('hidden'), 200);
+  document.body.classList.remove('numpad-open');
   numpadTarget = null;
 }
 document.addEventListener('focusin', e => {

@@ -225,6 +225,15 @@
       </div>
       <button id="addOtherActivity" type="button" class="print-hide mt-2 self-start rounded border border-dashed border-slate-300 px-3 py-1 text-xs text-blue-600 hover:bg-blue-50">+ เพิ่มกิจกรรม</button>
 
+      <h3 class="mb-2 mt-5 text-sm font-semibold text-slate-600">สรุปผู้เข้าชมแยกกลุ่ม</h3>
+      <div class="overflow-x-auto rounded-lg border border-slate-200" id="visitorSummaryWrap">
+        <table class="w-full min-w-[720px] border-collapse text-xs sm:text-sm">
+          <thead><tr class="bg-slate-50 text-slate-500" id="visitorSummaryHead"></tr></thead>
+          <tbody id="visitorSummaryBody"></tbody>
+          <tfoot><tr class="bg-blue-50 font-semibold text-navy" id="visitorSummaryTotal"></tr></tfoot>
+        </table>
+      </div>
+
       <div class="mt-4 rounded-lg bg-blue-50 px-4 py-2.5 text-right text-sm font-bold text-navy" id="grandTotalVisitors">รวมผู้เข้าชมทั้งสิ้น 0 คน</div>
     </section>
 
@@ -243,7 +252,7 @@
     </section>
 
     <!-- ============ Signature (ผู้ลงชื่อ 1 คน เลือกจากรายชื่อเจ้าหน้าที่ Staff_Name) ============ -->
-    <section class="mt-10 flex justify-center">
+    <section id="sectionSign" class="mt-10 flex justify-center">
       <div class="tap-select w-full max-w-xs text-center text-sm text-slate-600">
         <div class="mb-1.5 h-10 border-b border-dashed border-slate-300"></div>
         <div class="flex items-center justify-center gap-1.5">
