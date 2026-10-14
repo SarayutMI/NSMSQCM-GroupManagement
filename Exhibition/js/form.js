@@ -1,7 +1,7 @@
 // Entry point of index.html: loads rooms / activities / staff from the Sheet, wires the buttons.
 // Load order: config.js, api.js, form-render.js, form-calc.js, form.js.
 
-const CONFIG_CACHE_KEY = "exhibition.config.v1";
+const CONFIG_CACHE_KEY = "exhibition.config.v1:" + WEBAPP_URL;
 
 // ข้อความสถานะ: แสดงบนแถบเครื่องมือ และเป็น popup กลางจอ (../notify-popup.js) — type ไม่ระบุ = เดาจากข้อความ
 function setStatus(msg, type) {

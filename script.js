@@ -9,17 +9,17 @@
      แล้วคัดลอกลิงก์มาใส่ที่ SCHOOLS_CSV_URL ด้านล่าง (คอลัมน์: school_TH, school_ENG, contactPerson, contactPhone)
    ========================================================= */
 const CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycbxVEm1uJp76f0DLDiOklytQfbVmjniAu8jvu2jwL_3aFZCC_4oU9tUlEeImXuVSSZ_vlg/exec',            // <-- ใส่ URL ของ Google Apps Script Web App (จาก Code.gs) ที่นี่ เพื่อเชื่อม Sheet จริง
-  SCHOOLS_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=0&single=true&output=csv',     // คอลัมน์: school_TH, school_ENG, contactPerson, contactPhone
+  API_URL: 'https://script.google.com/macros/s/AKfycbxYrM9aw7ND0REWxce3XZ0IqXUZi4ixJKSjpODVlxHd4P_I2NFefUwVNQ_bjuYmCw981A/exec',            // <-- ใส่ URL ของ Google Apps Script Web App (จาก Code.gs) ที่นี่ เพื่อเชื่อม Sheet จริง
+  SCHOOLS_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQNdVGBvaPu_IyingUelluIVLK9w5GAHxy-PSJw6VPf5BZDCAfXvrFcsGm7GOttLJWYq3hX9Bbn8T1v/pub?gid=0&single=true&output=csv',     // คอลัมน์: school_TH, school_ENG, contactPerson, contactPhone
   // รายชื่อพนักงาน (แท็บ Staff_Name ในชีตเดียวกัน, คอลัมน์: Staff_Name, Role) ใช้เป็นตัวเลือก "ผู้บันทึก/ผู้แก้ไข"
-  STAFF_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=1863604525&single=true&output=csv',
+  STAFF_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQNdVGBvaPu_IyingUelluIVLK9w5GAHxy-PSJw6VPf5BZDCAfXvrFcsGm7GOttLJWYq3hX9Bbn8T1v/pub?gid=1537104195&single=true&output=csv',
   // รายชื่อ "สถานที่" (แท็บ Location ในชีตเดียวกัน, คอลัมน์เดียว: แถวแรกเป็นหัวตาราง)
-  LOCATIONS_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=437766438&single=true&output=csv',
+  LOCATIONS_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQNdVGBvaPu_IyingUelluIVLK9w5GAHxy-PSJw6VPf5BZDCAfXvrFcsGm7GOttLJWYq3hX9Bbn8T1v/pub?gid=1973153460&single=true&output=csv',
   // รายการ "เรื่อง/หัวข้อ" ของแต่ละห้อง/กิจกรรม (ชีตเดียวกับรายชื่อโรงเรียน คนละแท็บ, 2 คอลัมน์: ไทย, อังกฤษ — แถวแรกเป็นหัวตาราง)
   ACTIVITY_CSV_URLS: {
-    innovation: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=116326658&single=true&output=csv',
-    inspirelab: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=1497609226&single=true&output=csv',
-    other:      'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=867048367&single=true&output=csv'
+    innovation: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQNdVGBvaPu_IyingUelluIVLK9w5GAHxy-PSJw6VPf5BZDCAfXvrFcsGm7GOttLJWYq3hX9Bbn8T1v/pub?gid=1135574162&single=true&output=csv',
+    inspirelab: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQNdVGBvaPu_IyingUelluIVLK9w5GAHxy-PSJw6VPf5BZDCAfXvrFcsGm7GOttLJWYq3hX9Bbn8T1v/pub?gid=53020234&single=true&output=csv',
+    other:      'https://docs.google.com/spreadsheets/d/e/2PACX-1vQNdVGBvaPu_IyingUelluIVLK9w5GAHxy-PSJw6VPf5BZDCAfXvrFcsGm7GOttLJWYq3hX9Bbn8T1v/pub?gid=811382981&single=true&output=csv'
   }
 };
 
@@ -1509,10 +1509,22 @@ function openAddForm(prefillDate){
   openOverlay('formOverlay');
 }
 function openEditForm(v){
-  state.editingId = v.id;
-  setupStaffFields(v);
-  document.getElementById('formTitle').textContent = 'แก้ไขการจอง';
-  document.getElementById('f_id').value = v.id;
+  openPrefilledBookingForm(v, false);
+}
+function openDuplicateForm(v){
+  // A copy uses the normal create flow, with fresh activity/group IDs and attribution.
+  const activities = groupActivitiesByGroup(v.activities).flatMap(group=>{
+    const groupId = uid();
+    return group.map(a=>({...a, id: uid(), groupId}));
+  });
+  openPrefilledBookingForm({...v, activities}, true);
+  document.getElementById('f_date').focus();
+}
+function openPrefilledBookingForm(v, duplicate){
+  state.editingId = duplicate ? null : v.id;
+  setupStaffFields(duplicate ? null : v);
+  document.getElementById('formTitle').textContent = duplicate ? 'ทำสำเนาการจอง — เลือกวันที่และตรวจสอบข้อมูล' : 'แก้ไขการจอง';
+  document.getElementById('f_id').value = duplicate ? '' : v.id;
   document.getElementById('f_school').value = v.school;
   const packageSel = document.getElementById('f_packageLabel');
   const pkg = v.packageLabel||'';
@@ -1538,6 +1550,10 @@ function openEditForm(v){
   openOverlay('formOverlay');
 }
 document.getElementById('addBtn').addEventListener('click', ()=> openAddForm(fmtDate(state.cursorDate)));
+document.getElementById('duplicateBookingBtn').addEventListener('click', ()=>{
+  const v = state.visits.find(x=>x.id===state.currentDetailId);
+  if(v) openDuplicateForm(v);
+});
 
 function readActivitiesFromForm(){
   const activities = [];

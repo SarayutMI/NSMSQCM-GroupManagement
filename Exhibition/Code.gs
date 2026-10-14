@@ -54,15 +54,15 @@ const DATA_SPREADSHEET_ID = "";
 
 // ชีตอ้างอิงชุดเดียวกับ CONFIG ใน script.js ของ Group Management (Publish to web เป็น CSV)
 const REF_STAFF_CSV_URL =
-  "https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=1863604525&single=true&output=csv";
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vQNdVGBvaPu_IyingUelluIVLK9w5GAHxy-PSJw6VPf5BZDCAfXvrFcsGm7GOttLJWYq3hX9Bbn8T1v/pub?gid=1537104195&single=true&output=csv";
 const REF_VOLUNTEER_CSV_URL =
-  "https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=320745201&single=true&output=csv";
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vQNdVGBvaPu_IyingUelluIVLK9w5GAHxy-PSJw6VPf5BZDCAfXvrFcsGm7GOttLJWYq3hX9Bbn8T1v/pub?gid=1971395649&single=true&output=csv";
 // room code -> reference activity list. Rooms not listed here use the Exhibition_Activities tab.
 const REF_ACTIVITY_CSV_URLS = {
   innovation:
-    "https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=116326658&single=true&output=csv",
+    "https://docs.google.com/spreadsheets/d/e/2PACX-1vQNdVGBvaPu_IyingUelluIVLK9w5GAHxy-PSJw6VPf5BZDCAfXvrFcsGm7GOttLJWYq3hX9Bbn8T1v/pub?gid=1135574162&single=true&output=csv",
   inspire:
-    "https://docs.google.com/spreadsheets/d/e/2PACX-1vQHwC49QdSskveBiTSa9BZLxSMEvW6wa_XUEhFQQP5jStHI-EVPGdIjG3Goo_-iNiXKJkmYevzcC2kl/pub?gid=1497609226&single=true&output=csv",
+    "https://docs.google.com/spreadsheets/d/e/2PACX-1vQNdVGBvaPu_IyingUelluIVLK9w5GAHxy-PSJw6VPf5BZDCAfXvrFcsGm7GOttLJWYq3hX9Bbn8T1v/pub?gid=53020234&single=true&output=csv",
 };
 const REF_CACHE_SECONDS = 300;
 

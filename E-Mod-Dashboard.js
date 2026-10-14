@@ -43,8 +43,8 @@ const MOD_ROLES = [
 
 let REPORTS = [];
 const state = { gran: "month", key: null };
-const AUTH_KEY = "exhibition.dashboard.auth"; // ชุดเดียวกับ Exhibition/js/dashboard.js
-const CACHE_KEY = "emod.dashboard.data";
+const AUTH_KEY = "exhibition.dashboard.auth:" + WEBAPP_URL; // ชุดเดียวกับ Exhibition/js/dashboard.js
+const CACHE_KEY = "emod.dashboard.data:" + WEBAPP_URL;
 
 // ---------- helpers ----------
 const n = (v) => Number(v) || 0;

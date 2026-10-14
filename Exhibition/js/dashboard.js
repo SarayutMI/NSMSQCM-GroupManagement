@@ -74,7 +74,7 @@ function bindControls() {
 }
 
 // ---------- login (token from Code.gs, kept in this browser until it expires or logout) ----------
-const TOKEN_KEY = "exhibition.dashboard.auth";
+const TOKEN_KEY = "exhibition.dashboard.auth:" + WEBAPP_URL;
 
 function readAuth() {
   try {
@@ -128,7 +128,7 @@ function bindLogin() {
 }
 
 // ข้อมูล Dashboard รอบล่าสุดเก็บไว้ในเครื่อง (ต่อผู้ใช้): เปิดหน้าแล้วเห็นทันที แล้วค่อยอัปเดตจาก Sheet เบื้องหลัง
-const DASH_CACHE_KEY = "exhibition.dashboard.data";
+const DASH_CACHE_KEY = "exhibition.dashboard.data:" + WEBAPP_URL;
 function readDashCache() {
   try {
     const c = JSON.parse(localStorage.getItem(DASH_CACHE_KEY) || "null");

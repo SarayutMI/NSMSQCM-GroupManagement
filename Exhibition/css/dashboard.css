@@ -397,6 +397,8 @@ tfoot td { font-weight: 700; border-bottom: none; }
   justify-content: center;
   padding: 16px;
   background: rgba(22, 24, 29, 0.55);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
 }
 .login-card {
   width: 100%;
