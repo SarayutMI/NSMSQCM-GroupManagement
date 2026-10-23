@@ -10,13 +10,15 @@
 (function () {
   var AUTO_HIDE = { success: 1600, info: 2400 };
   var ICON = { success: '✓', info: 'ℹ', warn: '!', error: '✕' };
-  var root, card, icon, text, okBtn, timer;
+  var root, card, icon, text, okBtn, timer, showFrame, previousFocus;
 
   var css = '' +
     '.nsm-pop{position:fixed;inset:0;z-index:2000;display:flex;align-items:center;justify-content:center;padding:16px;pointer-events:none;opacity:0;transition:opacity .15s ease;font-family:inherit}' +
     '.nsm-pop.show{opacity:1}' +
+    '.nsm-pop[hidden]{display:none!important}' +
     '.nsm-pop.block{pointer-events:auto;background:rgba(15,23,42,.35)}' +
-    '.nsm-pop-card{pointer-events:auto;width:100%;max-width:360px;background:#fff;border-radius:16px;padding:22px 20px 18px;box-shadow:0 18px 50px rgba(15,23,42,.28);text-align:center;transform:scale(.96);transition:transform .15s ease}' +
+    '.nsm-pop-card{pointer-events:none;width:100%;max-width:360px;background:#fff;border-radius:16px;padding:22px 20px 18px;box-shadow:0 18px 50px rgba(15,23,42,.28);text-align:center;transform:scale(.96);transition:transform .15s ease}' +
+    '.nsm-pop.show .nsm-pop-card{pointer-events:auto}' +
     '.nsm-pop.show .nsm-pop-card{transform:scale(1)}' +
     '.nsm-pop-icon{width:46px;height:46px;margin:0 auto 10px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff}' +
     '.nsm-pop-text{font-size:15px;line-height:1.5;color:#1e293b;word-break:break-word}' +
@@ -51,6 +53,9 @@
       var t = root.dataset.type;
       if (e.target === root && (t === 'warn' || t === 'error')) hide();
     });
+    document.addEventListener('keydown', function (e) {
+      if (!root.hidden && e.key === 'Escape' && /^(warn|error)$/.test(root.dataset.type)) hide();
+    });
   }
 
   function guess(msg) {
@@ -63,8 +68,11 @@
 
   function hide() {
     clearTimeout(timer);
+    cancelAnimationFrame(showFrame);
     if (!root || root.hidden) return;
-    root.classList.remove('show');
+    // Release the backdrop and card immediately, including during the fade-out.
+    root.classList.remove('show', 'block');
+    if (root.contains(document.activeElement) && previousFocus && previousFocus.isConnected) previousFocus.focus({ preventScroll: true });
     timer = setTimeout(function () { root.hidden = true; }, 160);
   }
 
@@ -75,13 +83,15 @@
     build();
     type = type || guess(msg);
     clearTimeout(timer);
+    cancelAnimationFrame(showFrame);
+    if (!root.contains(document.activeElement)) previousFocus = document.activeElement;
     root.dataset.type = type;
     root.classList.toggle('block', type !== 'success' && type !== 'info');
     icon.textContent = type === 'loading' ? '' : ICON[type] || '';
     text.textContent = msg;
     okBtn.hidden = type !== 'warn' && type !== 'error';
     root.hidden = false;
-    requestAnimationFrame(function () { root.classList.add('show'); });
+    showFrame = requestAnimationFrame(function () { root.classList.add('show'); });
     if (!okBtn.hidden) okBtn.focus({ preventScroll: true });
     if (AUTO_HIDE[type]) timer = setTimeout(hide, AUTO_HIDE[type]);
   }

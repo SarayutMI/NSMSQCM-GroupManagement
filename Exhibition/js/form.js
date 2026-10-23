@@ -107,14 +107,24 @@ function updateLoadLabel() {
 }
 
 async function saveToSheet() {
+  const btn = $("saveBtn");
+  if (btn.disabled) return;
+  btn.disabled = true;
   setStatus("กำลังบันทึก...");
   try {
-    await postForm(collectFormData());
+    const result = await postForm(collectFormData());
     dirty = false;
     shownDate = $("visitDate").value;
-    setStatus("บันทึกลง Sheet แล้ว ✓");
+    if (!result.sync || !result.sync.ok) {
+      setStatus("บันทึก Exhibition แล้ว แต่ sync ไป E-MOD ยังไม่สำเร็จ: " +
+        (result.sync && result.sync.error || "กรุณาอัปเดต Code.gs") + " — กดบันทึกอีกครั้งเพื่อลองส่งใหม่", "warn");
+    } else {
+      setStatus("บันทึก Exhibition และอัปเดตยอดใน E-MOD แล้ว ✓", "success");
+    }
   } catch (err) {
     setStatus("บันทึกไม่สำเร็จ: " + err.message, "error");
+  } finally {
+    btn.disabled = false;
   }
 }
 

@@ -5,7 +5,7 @@
    - รายชื่อพนักงาน (ผู้บันทึก/ผู้แก้ไข) ดึงจากชีตอ้างอิงเดียวกับระบบจองห้อง (แท็บ Staff_Name)
    ========================================================= */
 const CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycbzSa6NnyXHZjfdEnDrGdT7fQTnjELbRmnU7cFXEVwjTyQ2XKPwk27jyh_Bil5-yidXqdQ/exec', // <-- ใส่ URL ของ Google Apps Script Web App (จาก E-Mod-CodeGs.gs) ที่นี่
+  API_URL: 'https://script.google.com/macros/s/AKfycbzvszL_VKR80f_yR8wKltgR_FFOmscAT6Rtld_-qufkvbPCdS4MUQUwvwJfV4lAwdS2Ew/exec', // Web App จาก E-Mod-CodeGs.gs
   STAFF_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQNdVGBvaPu_IyingUelluIVLK9w5GAHxy-PSJw6VPf5BZDCAfXvrFcsGm7GOttLJWYq3hX9Bbn8T1v/pub?gid=1537104195&single=true&output=csv',
   // รายชื่ออาสา (แท็บ Volunteer_Name) สำหรับช่อง "รายชื่ออาสา" ของ Evening Briefing
   VOLUNTEER_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQNdVGBvaPu_IyingUelluIVLK9w5GAHxy-PSJw6VPf5BZDCAfXvrFcsGm7GOttLJWYq3hX9Bbn8T1v/pub?gid=1971395649&single=true&output=csv',
@@ -71,6 +71,7 @@ let refVolunteers = [];
 let refSchools = [];
 let refActivities = { inspireLab: [], innovationSpace: [] };
 let state = { id: '', editingId: false };
+let lastPopulatedReport = '';
 
 function todayStr() {
   const d = new Date();
@@ -156,8 +157,15 @@ function refillSelect(sel, html, cur) {
 document.addEventListener('focusout', e => {
   const sel = e.target;
   if (!(sel instanceof HTMLSelectElement) || !sel._pendingOptions) return;
-  const cur = sel.value;
-  setTimeout(() => refillSelect(sel, sel._pendingOptions, cur), 0);
+  setTimeout(() => {
+    if (!sel.isConnected || !sel._pendingOptions) return;
+    const cur = sel.value;
+    refillSelect(sel, sel._pendingOptions, cur);
+    // A refreshed list may omit the name just chosen from the old list.
+    if (sel !== document.activeElement && cur && sel.value !== cur) {
+      sel.add(new Option(cur, cur, true, true));
+    }
+  }, 0);
 });
 // จำค่าที่ผู้ใช้เลือกไว้ใน data-value เสมอ ตัววาดตัวเลือกใหม่จะได้ไม่รีเซ็ตกลับเป็นค่าเก่า
 document.addEventListener('change', e => {
@@ -574,6 +582,19 @@ function serializeReport() {
   return r;
 }
 function populateForm(r) {
+  // Older auto-created reports can have null/partial sections.
+  const defaults = blankReport();
+  r = Object.assign({}, defaults, r);
+  r.evening = r.evening || defaults.evening;
+  r.revenue = r.revenue || defaults.revenue;
+  r.visitorCounts = Object.assign({}, defaults.visitorCounts, r.visitorCounts);
+  ['exWalkin', 'exGroup'].forEach(key => {
+    r.visitorCounts[key] = Object.assign({}, defaults.visitorCounts[key], r.visitorCounts[key]);
+  });
+  r.activityRounds = Object.assign({}, defaults.activityRounds, r.activityRounds);
+  ['inspireLab', 'innovationSpace'].forEach(key => {
+    r.activityRounds[key] = r.activityRounds[key] || defaults.activityRounds[key];
+  });
   document.getElementById('f_date').value = r.date || todayStr();
   ['p_mod:mod', 'p_exhibition:mExhibition', 'p_education:mEducation', 'p_visitorService:mVisitorService'].forEach(pair => {
     const [elId, key] = pair.split(':');
@@ -601,6 +622,16 @@ function populateForm(r) {
 
   document.getElementById('headSub').textContent = r.id ? `แก้ไขรายงาน (${r.date})` : `รายงานฉบับใหม่ (${r.date})`;
   recomputeAll();
+  const synced = !!r.exhibitionSyncedAt;
+  document.getElementById('exhibitionSyncNote').classList.toggle('hidden', !synced);
+  // These sections have one source of truth once Exhibition has synced them.
+  document.querySelectorAll('#sectionCounts [data-path]').forEach(el => {
+    if (/\.senior$/.test(el.dataset.path)) return;
+    if (el instanceof HTMLSelectElement) el.disabled = synced;
+    else el.readOnly = synced || (el.dataset.path.startsWith('visitorCounts.exGroup.') && r.visitorCounts.groupCount > 0);
+  });
+  document.getElementById('groupCount').readOnly = synced;
+  lastPopulatedReport = JSON.stringify(serializeReport());
 }
 
 /* ---------------- add/remove rows ---------------- */
@@ -661,6 +692,7 @@ document.addEventListener('click', e => {
 
 /* ---------------- Numpad กดตัวเลข (แทนคีย์บอร์ดเครื่อง ให้กรอกได้แบบเดียวกันทั้ง Browser/มือถือ) ---------------- */
 let numpadTarget = null;
+let numpadHideTimer = null;
 const numpadBar = document.getElementById('numpadBar');
 function numpadFieldLabel(input) {
   // ป้ายกำกับแบบคร่าวๆ (ชื่อหัวข้อของ section ที่ฟิลด์นี้อยู่) พอให้รู้ว่ากำลังกรอกส่วนไหน
@@ -669,6 +701,7 @@ function numpadFieldLabel(input) {
   return label || heading || 'กรอกตัวเลข';
 }
 function openNumpad(input) {
+  clearTimeout(numpadHideTimer);
   numpadTarget = input;
   document.getElementById('numpadLabel').textContent = numpadFieldLabel(input);
   numpadBar.classList.remove('hidden');
@@ -678,13 +711,17 @@ function openNumpad(input) {
 function closeNumpad() {
   if (!numpadTarget) return;
   numpadBar.classList.add('translate-y-full');
-  setTimeout(() => numpadBar.classList.add('hidden'), 200);
+  numpadHideTimer = setTimeout(() => numpadBar.classList.add('hidden'), 200);
   document.body.classList.remove('numpad-open');
   numpadTarget = null;
 }
 document.addEventListener('focusin', e => {
   if (e.target.matches('input.cnt') && !e.target.readOnly) openNumpad(e.target);
   else if (numpadTarget && !numpadBar.contains(e.target)) closeNumpad();
+});
+// After closing the pad, tapping the same input does not fire focusin again.
+document.addEventListener('click', e => {
+  if (e.target.matches('input.cnt') && !e.target.readOnly) openNumpad(e.target);
 });
 numpadBar.addEventListener('mousedown', e => e.preventDefault()); // กันไม่ให้ input เสีย focus ก่อนกดปุ่มติด
 numpadBar.addEventListener('click', e => {

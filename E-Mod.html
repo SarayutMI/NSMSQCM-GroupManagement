@@ -50,6 +50,7 @@
   <button id="previewBtn" class="rounded border border-slate-500 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-slate-700">พรีวิว</button>
   <button id="printBtn" class="rounded border border-slate-500 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-slate-700">พิมพ์</button>
   <button id="saveBtn" class="rounded bg-blue-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">บันทึก</button>
+  <button id="lineReportBtn" type="button" class="rounded bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700">เตรียมรายงาน LINE</button>
 </div>
 
 <!-- Quick-nav: ข้ามไปกรอกแต่ละส่วนได้ทันที (ไม่ติดไปในเอกสารพิมพ์) -->
@@ -132,6 +133,7 @@
     <!-- ============ Visitor Counts ============ -->
     <section class="emod-card mt-8 scroll-mt-24" id="sectionCounts">
       <h2 class="mb-3 border-l-4 border-blue-600 pl-2.5 text-base font-semibold text-navy">บันทึกจำนวนผู้เข้าชมและเข้าร่วมกิจกรรม</h2>
+      <p id="exhibitionSyncNote" class="print-hide mb-3 hidden rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-800">ยอดคนและกิจกรรมรับจาก Exhibition ให้แก้ไขข้อมูลต้นทางแล้วกด “โหลดตามวันที่” เพื่อดูยอดล่าสุด ส่วนผู้สูงอายุและรายได้กรอกเพิ่มใน E-MOD ได้</p>
 
       <h3 class="mb-2 text-sm font-semibold text-slate-600">Exhibition</h3>
       <div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
@@ -305,8 +307,39 @@
   </div>
 </div>
 
+<dialog id="lineReportDialog" class="print-hide m-auto w-[95vw] max-w-3xl rounded-2xl border-0 bg-white p-5 text-slate-800 shadow-2xl">
+  <div class="mb-3 flex items-center justify-between gap-3">
+    <h2 class="text-base font-semibold">ตรวจรายงานก่อนส่ง LINE</h2>
+    <button id="lineReportClose" type="button" class="rounded border border-slate-300 px-3 py-1 text-sm">ปิด</button>
+  </div>
+  <p class="mb-3 text-xs text-slate-600">ส่งข้อความทั้งสองแบบพร้อมกัน โดยใช้ข้อมูลที่บันทึกแล้ว กรุณาตรวจยอดคน รายได้ และชื่อกิจกรรมก่อนส่ง</p>
+  <form id="lineLoginForm" class="mb-3 hidden rounded-lg bg-slate-50 p-3">
+    <p class="mb-2 text-sm">เข้าสู่ระบบด้วยบัญชี Dashboard เพื่อยืนยันสิทธิ์ส่งรายงาน</p>
+    <label class="mb-2 block text-xs">ชื่อผู้ใช้ <input id="lineLoginUser" autocomplete="username" required class="mt-1 block w-full rounded border border-slate-300 px-2 py-1.5"></label>
+    <label class="mb-2 block text-xs">PIN <input id="lineLoginPin" type="password" autocomplete="current-password" required class="mt-1 block w-full rounded border border-slate-300 px-2 py-1.5"></label>
+    <button id="lineLoginBtn" type="submit" class="rounded bg-navy px-3 py-2 text-xs text-white">เข้าสู่ระบบและเตรียมข้อความ</button>
+  </form>
+  <p id="lineReportStatus" role="status" aria-live="polite" class="mb-3 text-sm"></p>
+  <div id="lineReportPreviews" class="hidden">
+    <label class="mb-3 block text-sm font-semibold">แบบที่ 1: สรุปยอด Exhibition และยอดรวม
+      <textarea id="lineReportSummary" readonly rows="12" class="mt-1 block w-full resize-y rounded border border-slate-300 p-3 text-sm font-normal"></textarea>
+    </label>
+    <label class="mb-3 block text-sm font-semibold">แบบที่ 2: รายงานการดำเนินงาน
+      <textarea id="lineReportNarrative" readonly rows="12" class="mt-1 block w-full resize-y rounded border border-slate-300 p-3 text-sm font-normal"></textarea>
+    </label>
+    <p id="lineReportTarget" class="mb-3 text-xs text-slate-600"></p>
+  </div>
+  <div class="flex flex-wrap justify-end gap-2">
+    <button id="lineReportRefresh" type="button" class="rounded border border-slate-300 px-3 py-2 text-xs">โหลดพรีวิวใหม่</button>
+    <button id="lineReportSend" type="button" disabled class="rounded bg-emerald-600 px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">ส่งรายงาน 2 แบบเข้ากลุ่ม LINE</button>
+  </div>
+</dialog>
+
 <script src="notify-popup.js"></script>
+<script src="Exhibition/js/config.js"></script>
+<script src="Exhibition/js/api.js"></script>
 <script src="E-Mod-Script.js"></script>
+<script src="E-Mod-Line.js"></script>
 <script>window.NSM_NAV_BASE = '';</script>
 <script src="nav-drawer.js"></script>
 </body>

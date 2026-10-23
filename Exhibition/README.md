@@ -23,7 +23,10 @@ Code.gs               Google Apps Script (วางใน Apps Script ของ 
 
 ## ข้อมูลใน Google Sheet
 
-ใช้ Spreadsheet เดียวกับระบบ Group Management (จองห้อง) และรายชื่ออ้างอิงชุดเดียวกัน
+แยกฐานข้อมูลเป็นสองไฟล์ และใช้รายชื่ออ้างอิงชุดเดียวกับ Group Management:
+
+- DBExhibition: `1tHFy0w7ucsWwTqGbAtIICwUgHCnHeCRKv7tZjN0x24c` — แท็บ `Exhibition_Data` และการตั้งค่า/ผู้ใช้ Dashboard
+- DBEMOD: `1FJLd5tucqX1WGTWn9P0NipZwZDSJr73be20_FlIlxz8` — แท็บ `EMod` สำหรับยอดคน รายได้ และข้อมูล MOD
 
 รายชื่ออ้างอิง (ชีตอ้างอิงของ Group Management, Publish to web เป็น CSV — แก้ที่นั่นที่เดียว):
 
@@ -51,11 +54,37 @@ Code.gs               Google Apps Script (วางใน Apps Script ของ 
 ## ติดตั้ง / อัปเดต Code.gs
 
 1. script.google.com > New project (ต้องแยกจากโปรเจกต์ Code.gs ของ Group Management) แล้ววาง `Code.gs` ทั้งไฟล์
-2. ใส่ ID ของ Spreadsheet Group Management ที่ `DATA_SPREADSHEET_ID` (จาก URL `.../spreadsheets/d/<ID>/edit`)
+2. ตรวจ `DATA_SPREADSHEET_ID` (DBExhibition), `EMOD_SPREADSHEET_ID` (DBEMOD) และ `EMOD_API_URL` (Web App ของ E-MOD) ซึ่งตั้งไว้แล้วตามระบบปัจจุบัน
 3. รัน `setupSheets()` หนึ่งครั้ง (อนุญาตสิทธิ์ Spreadsheet + เรียก URL ภายนอก) จะสร้างแท็บ `Exhibition_*` ครบพร้อม dropdown
 4. ย้ายข้อมูลเก่า (ถ้ามี): คัดลอกแท็บ `Data` เดิมมาวางเป็น `Exhibition_Data`, `Rooms` เป็น `Exhibition_Rooms`, และชื่ออาสาจากแท็บ `Staff` เดิมลง `Exhibition_Volunteers`
 5. Deploy > Manage deployments > Edit > **New version** (URL `/exec` เดิม) หรือ New deployment ถ้าเป็นโปรเจกต์ใหม่
 6. ใส่ URL ใน `WEBAPP_URL` ที่ `js/config.js`
+
+## อัปเดตการ sync Exhibition → E-MOD
+
+ลำดับการทำงาน: หน้า Exhibition → Exhibition `Code.gs` บันทึก `Exhibition_Data` → เรียก E-MOD `Code.gs` ด้วยวันที่ → E-MOD อ่านแถวล่าสุดจาก DBExhibition แล้วรวมกับรายงานใน DBEMOD
+
+ผู้เขียน DBEMOD ทั้งการ sync และการบันทึกรายได้ใช้ E-MOD Apps Script โปรเจกต์เดียวกัน จึงใช้ `ScriptLock` เดียวกันได้ การเปิดฟอร์ม E-MOD ค้างไว้แล้วบันทึกรายได้จะดึงยอดล่าสุดจาก DBExhibition ก่อนเขียน ป้องกันยอดคนเก่าจากหน้าเว็บทับข้อมูลใหม่
+
+ขั้นตอนเปิดใช้งาน (ต้องอัปเดตทั้ง Apps Script และไฟล์หน้าเว็บ):
+
+1. บัญชีที่ใช้รัน Web App ทั้งสองตัวต้องมีสิทธิ์อ่านทั้งสอง Spreadsheet และ E-MOD ต้องแก้ไข DBEMOD ได้
+2. วางไฟล์ `../E-Mod-CodeGs.gs` ทั้งไฟล์ในโปรเจกต์ Apps Script ของ E-MOD แล้วรัน `emodGetSheet_` จาก editor หนึ่งครั้งเพื่ออนุญาตสิทธิ์ จากนั้น Deploy → Manage deployments → Edit → **New version** โดยใช้ `/exec` เดิม
+3. วางไฟล์ `Code.gs` ทั้งไฟล์ในโปรเจกต์ Exhibition รัน `setupSheets()` เพื่ออนุญาตสิทธิ์ Spreadsheet/UrlFetch แล้ว Deploy → **New version** โดยใช้ `/exec` เดิม หาก URL E-MOD เปลี่ยน ต้องเปลี่ยน `EMOD_API_URL` ในไฟล์นี้ และ `CONFIG.API_URL` ใน `../E-Mod-Script.js` ให้ตรงกัน
+4. อัปเดตเว็บด้วย `js/api.js`, `js/form.js`, `../E-Mod.html`, `../E-Mod-Script.js`, `../E-Mod-Dashboard.js` และ `../notify-popup.js` แล้วโหลดหน้าใหม่
+5. ทดลองบันทึกวันที่ทดสอบจาก Exhibition: ต้องมีรายงานวันที่เดียวกันใน `Exhibition_Data` ของ DBExhibition และ `EMod` ของ DBEMOD จากนั้นเปิดฟอร์ม E-MOD ด้วยวันนั้น กรอกรายได้และผู้บันทึก แล้วบันทึก ตรวจ Dashboard ด้วยปุ่มรีเฟรช
+
+ยอดคน กรุ๊ป และกิจกรรมมาจาก Exhibition รวมถึงการแก้เป็นศูนย์/ลบรายการ ส่วนรายได้ ทีม MOD ผู้ลงชื่อ Evening Briefing และกิจกรรมพิเศษคงค่าที่กรอกใน E-MOD ผู้สูงอายุไม่มีใน Exhibition จึงกรอกเพิ่มใน E-MOD ได้ หลัง sync ช่องที่รับจาก Exhibition จะแสดงให้อ่าน โดยแก้จากต้นทางและกด “โหลดตามวันที่” ใน E-MOD เพื่อดูยอดใหม่
+
+หน้า Exhibition อ่านผลตอบกลับจริง แยก “บันทึกต้นทางสำเร็จ” จาก “sync สำเร็จ” หาก sync ไม่สำเร็จ ข้อมูลต้นทางยังอยู่ และกดบันทึกอีกครั้งเพื่อลองส่งใหม่ได้ ไม่ได้เป็นธุรกรรมเดียวที่รับประกันว่าทั้งสองฐานสำเร็จพร้อมกัน
+
+นำข้อมูลเก่าหรือวันที่ตกค้างมา sync: ใน Exhibition Apps Script ตั้ง `START_DATE` / `END_DATE` ใน `syncSavedExhibitionToEmod()` ให้ครอบคลุมไม่เกิน 30 วันที่มีข้อมูลต่อครั้ง แล้วรันฟังก์ชันจาก editor ทำซ้ำวันเดิมได้โดยไม่สร้างรายงานซ้ำและไม่ทับรายได้ ต้องใช้ข้อมูลจาก `Exhibition_Data` เท่านั้น ฟังก์ชันนี้ไม่ย้ายรายได้/ข้อมูล MOD จากแท็บ `EMod` เก่าที่อาจอยู่ผิดไฟล์
+
+Dashboard E-MOD และแท็บการเงินของ Exhibition อ่าน DBEMOD ผ่าน Exhibition backend โดยยังใช้ login เดิม มี cache ฝั่ง server 120 วินาที กดรีเฟรชเพื่อข้าม cache ได้ ฟอร์ม E-MOD ที่เปิดอยู่ต้องกดโหลดตามวันที่เพื่อแสดงการ sync ครั้งใหม่
+
+ตรวจโค้ดด้วยข้อมูลจำลองโดยไม่แตะชีทจริง: `node --test tests/emod-sync.test.cjs` จากโฟลเดอร์หลักของ repository
+
+การส่งรายงานประจำวันสองแบบเข้ากลุ่ม LINE จากหน้า E-MOD ดู [LINE-SETUP.md](../LINE-SETUP.md) ต้องเพิ่ม `E-Mod-Line.gs` ในโปรเจกต์ E-MOD และตั้ง LINE token / groupId ฝั่ง Apps Script ก่อนใช้
 
 ## Login ของ Dashboard
 
@@ -76,6 +105,6 @@ Dashboard ต้องเข้าสู่ระบบด้วย **ชื่�
 
 ## แท็บการเงิน
 
-อ่านตาราง "รายได้" ของ E-Mod จากแท็บ `EMod` ใน Spreadsheet เดียวกัน แยกตามส่วนงาน (Inspire Lab, Camp, ...) และช่องทาง
+อ่านตาราง "รายได้" ของ E-Mod จากแท็บ `EMod` ใน DBEMOD (`EMOD_SPREADSHEET_ID`) แยกตามส่วนงาน (Inspire Lab, Camp, ...) และช่องทาง
 (Walk-in / Group × On-site / Online) ถ้า E-Mod เพิ่มส่วนงานใหม่ ให้เพิ่มชื่อใน `FIN_SECTIONS` ของ `js/dashboard-views.js`
 (ถ้าไม่เพิ่ม จะแสดงด้วยชื่อ key แทน)

@@ -1,5 +1,5 @@
 // E-Mod Dashboard: สรุปรายงาน E-Mod ทุกวัน — รายได้, กรุ๊ป/โรงเรียน, ผู้เข้าชมแยกกลุ่ม, กิจกรรม, ทีม MOD
-// ข้อมูลมาจาก Exhibition/Code.gs (action=emod ต้อง login) ซึ่งอ่านแท็บ EMod ของ Spreadsheet เดียวกัน
+// ข้อมูลมาจาก Exhibition/Code.gs (action=emod ต้อง login) ซึ่งอ่านแท็บ EMod ใน DBEMOD
 // ใช้ผู้ใช้/PIN และ token ชุดเดียวกับ Exhibition Dashboard (login หน้าไหนก็ใช้ได้ทั้งสองหน้า)
 // โหลดหลัง Exhibition/js/config.js ($, esc, TH_MONTHS, WEBAPP_URL) และ Exhibition/js/api.js (jsonp, loginDashboard)
 

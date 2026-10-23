@@ -89,12 +89,14 @@ async function loginDashboard(username, pin) {
   return res.json();
 }
 
-/** POST is fire-and-forget (no-cors): the response is opaque, no throw = sent. */
-function postForm(data) {
-  return fetch(WEBAPP_URL, {
+/** Read the acknowledgement: saving the source and syncing E-MOD have separate results. */
+async function postForm(data) {
+  const res = await fetch(WEBAPP_URL, {
     method: "POST",
-    mode: "no-cors",
     headers: { "Content-Type": "text/plain" },
     body: JSON.stringify(data),
   });
+  const result = await res.json();
+  if (!res.ok || !result || result.error || !result.ok) throw new Error(result && result.error || "ไม่สามารถยืนยันการบันทึกได้");
+  return result;
 }

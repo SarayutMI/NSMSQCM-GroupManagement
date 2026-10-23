@@ -1,12 +1,12 @@
 /**
  * Google Apps Script backend for แบบบันทึกจำนวนผู้เข้าชมกิจกรรม.
  *
- * ใช้ Spreadsheet เดียวกับระบบ Group Management (จองห้อง) และดึงรายชื่ออ้างอิงจากชีตอ้างอิงชุดเดียวกัน
+ * บันทึกใน DBExhibition และส่งวันที่ให้ E-MOD backend sync เข้า DBEMOD; ใช้รายชื่ออ้างอิงร่วมกับ Group Management
  * ⚠ ต้องเป็นโปรเจกต์ Apps Script แยกจาก Code.gs ของ Group Management (doGet/doPost ชนกันถ้าอยู่รวม)
  *
  * Setup:
  * 1. script.google.com > New project, paste this whole file in as Code.gs.
- * 2. Set DATA_SPREADSHEET_ID below to the Group Management spreadsheet ID
+ * 2. Set DATA_SPREADSHEET_ID below to the DBExhibition spreadsheet ID
  *    (from its URL: https://docs.google.com/spreadsheets/d/<ID>/edit).
  * 3. Run setupSheets() once from the editor (creates the tabs below, asks for permission,
  *    including UrlFetchApp for the reference CSVs).
@@ -23,7 +23,7 @@
  *   Innovation_activity     TH | ENG            -> activities of room "innovation"
  *   InspireLab_activity     TH | ENG            -> activities of room "inspire"
  *
- * Tabs this script owns in the Group Management spreadsheet:
+ * Tabs this script owns in DBExhibition:
  *   Exhibition_Rooms        รหัส | ชื่อห้อง | จำนวนรอบ | สี | สถานะ
  *   Exhibition_Volunteers   ชื่อ | สถานะ         -> extra อาสา (names already in Staff_Name / Volunteer_Name are skipped)
  *   Exhibition_Activities   ห้อง | ชื่อกิจกรรม | สถานะ  -> only rooms without a reference list
@@ -39,7 +39,7 @@
  * Exhibition_Data keeps one row per visitDate: saving a date that already has a row overwrites
  * that row, so a past day can be loaded back into the form (action=getByDate), fixed and saved.
  *
- * Finance tab of the dashboard reads the "EMod" tab (written by E-Mod-CodeGs.gs) of the same spreadsheet.
+ * Finance tab of the dashboard reads the "EMod" tab (written by E-Mod-CodeGs.gs) in DBEMOD (EMOD_SPREADSHEET_ID).
  *
  * Add a room / volunteer / activity by adding a row. Set สถานะ to "ซ่อน" to remove it from
  * the form dropdowns while keeping it for past dashboard data.
@@ -49,8 +49,15 @@
  * Don't rename a person/activity that already has history: Data stores the name as text.
  */
 
-// Group Management spreadsheet ID. Blank = the spreadsheet this script is bound to.
-const DATA_SPREADSHEET_ID = "";
+// DBExhibition spreadsheet ID. Blank = the spreadsheet this script is bound to.
+const DATA_SPREADSHEET_ID = "1tHFy0w7ucsWwTqGbAtIICwUgHCnHeCRKv7tZjN0x24c";
+const EMOD_SPREADSHEET_ID = "1FJLd5tucqX1WGTWn9P0NipZwZDSJr73be20_FlIlxz8";
+// E-MOD owns all writes to its database, so sync and income saves share one ScriptLock.
+const EMOD_API_URL = "https://script.google.com/macros/s/AKfycbzvszL_VKR80f_yR8wKltgR_FFOmscAT6Rtld_-qufkvbPCdS4MUQUwvwJfV4lAwdS2Ew/exec";
+
+function emodSs_() {
+  return SpreadsheetApp.openById(EMOD_SPREADSHEET_ID);
+}
 
 // ชีตอ้างอิงชุดเดียวกับ CONFIG ใน script.js ของ Group Management (Publish to web เป็น CSV)
 const REF_STAFF_CSV_URL =
@@ -395,6 +402,14 @@ function doPost(e) {
       return json_({ error: err.message });
     }
   }
+  // E-MOD verifies the same dashboard session before allowing LINE sends.
+  if (data && data.action === "validateToken") {
+    try { return json_({ user: verifyToken_(data.token) || null }); }
+    catch (err) { return json_({ error: "unauthorized" }); }
+  }
+  if (!data || typeof data !== "object" || !/^\d{4}-\d{2}-\d{2}$/.test(String(data.visitDate || ""))) {
+    return json_({ error: "วันที่ไม่ถูกต้อง" });
+  }
   const keys = Object.keys(data).filter((k) => k !== "timestamp" && FIELD_KEY_RE.test(k));
 
   const lock = LockService.getScriptLock();
@@ -420,177 +435,68 @@ function doPost(e) {
     });
     if (target === -1) sheet.appendRow(row);
     else sheet.getRange(target, 1, 1, row.length).setValues([row]);
-    cacheBump_(); // ข้อมูลรายวัน/Dashboard ที่ cache ไว้ใช้ไม่ได้แล้ว
-    try {
-      syncToEmod_(data);
-    } catch (err) {
-      console.error("sync to E-Mod failed: " + err.message); // ไม่ให้การบันทึกของ Exhibition ล้มเพราะส่วนนี้
-    }
+    SpreadsheetApp.flush(); // E-MOD must see the committed source row before it reads.
+  } catch (err) {
+    return json_({ error: "บันทึก DBExhibition ไม่สำเร็จ: " + err.message });
   } finally {
     lock.releaseLock();
   }
 
-  return json_({ ok: true });
+  // Release the source lock before waiting for the other backend.
+  // Each receiver request re-reads the latest source row, so retries cannot replay stale counts.
+  let sync;
+  try {
+    syncToEmod_(data.visitDate);
+    sync = { ok: true };
+  } catch (err) {
+    console.error("sync to E-Mod failed: " + err.message);
+    sync = { ok: false, error: err.message };
+  }
+  cacheBump_();
+  return json_({ ok: true, saved: true, sync: sync });
 }
 
-// ---------- ส่งข้อมูลไปรายงาน E-Mod วันเดียวกันอัตโนมัติ (แท็บ EMod ใน Spreadsheet เดียวกัน) ----------
-// Exhibition กรอกละเอียด -> E-Mod เก็บยอดรวม/รายการ: นิทรรศการ Walk-in (ยอดรวม 4 กลุ่ม), กรุ๊ป (ตารางกรุ๊ป),
-// รอบ Inspire Lab / Innovation Space, กิจกรรมอื่นๆ — ส่งเฉพาะส่วนที่กรอกใน Exhibition (ส่วนที่ว่างไม่ลบค่าที่ E-Mod กรอกเอง)
-// ส่วนที่ E-Mod กรอกเอง (ทีม MOD, Evening, รายได้, ผู้สูงอายุ, กิจกรรมพิเศษ ฯลฯ) ไม่แตะ
-const EMOD_TAB = "EMod";
-// ต้องตรงกับ EMOD_HEADERS ใน E-Mod-CodeGs.gs (ใช้ตอนแท็บ EMod ยังไม่มีเท่านั้น)
-const EMOD_HEADERS_FOR_SYNC = ["id", "date", "mod", "mExhibition", "mEducation", "mVisitorService", "specialActivitiesJson", "eveningJson", "visitorCountsJson",
-  "activityRoundsJson", "otherActivitiesJson", "revenueJson", "recorder", "editor", "createdAt", "updatedAt", "signer",
-  "summaryJson", "sumChildTh", "sumChildFor", "sumAdultTh", "sumAdultFor", "sumSenior", "sumTotal"];
-const ROOM_TO_EMOD = { inspire: "inspireLab", innovation: "innovationSpace" };
-const EXT_TO_EMOD = [["walkrally", "Walk Rally"], ["dontmiss", "Don't Miss"], ["iscream", "I-Scream"], ["miniplay", "Mini Make & Play"], ["other1", ""], ["other2", ""]];
-const CAT_TO_EMOD = { child_th: "childTh", adult_th: "adultTh", child_intl: "childFor", adult_intl: "adultFor" };
-
-function syncToEmod_(data) {
-  const date = toDateString_({ visitDate: data.visitDate });
-  if (!date) return;
-  const num = (v) => Number(v) || 0;
-  const txt = (v) => String(v == null ? "" : v).trim();
-  const some = (arr) => arr.some((x) => x);
-
-  // ---- แปลงข้อมูล Exhibition เป็นรูปแบบของ E-Mod ----
-  const walk = {};
-  Object.keys(CAT_TO_EMOD).forEach((c) => {
-    let s = 0;
-    for (let i = 1; i <= 20; i++) s += num(data[`walkin_${c}_${i}`]);
-    walk[CAT_TO_EMOD[c]] = s;
+// Sync by date only: the E-MOD backend reads the saved Exhibition row itself.
+// No arbitrary visitor data is accepted by the receiving endpoint.
+function syncToEmod_(date) {
+  const res = UrlFetchApp.fetch(EMOD_API_URL, {
+    method: "post",
+    contentType: "text/plain;charset=utf-8",
+    payload: JSON.stringify({ action: "syncExhibition", date: date }),
+    muteHttpExceptions: true,
   });
-  const groups = [];
-  for (let i = 1; i <= 60; i++) {
-    const school = txt(data[`group_school_${i}`]), child = num(data[`group_child_${i}`]), adult = num(data[`group_adult_${i}`]);
-    if (school || child || adult) groups.push({ school: school, childTh: child, adultTh: adult, childFor: 0, adultFor: 0, senior: 0 });
+  let result;
+  try { result = JSON.parse(res.getContentText()); }
+  catch (err) { throw new Error("E-MOD ตอบกลับไม่ถูกต้อง ตรวจการ Deploy ของ E-Mod-CodeGs.gs"); }
+  if (res.getResponseCode() !== 200 || !result || !result.ok) {
+    throw new Error(result && result.error || "Sync ไป DBEMOD ไม่สำเร็จ");
   }
-  const rooms = {};
-  Object.keys(ROOM_TO_EMOD).forEach((k) => {
-    const rows = [];
-    for (let i = 1; i <= MAX_ROUNDS; i++) {
-      const r = { activity: txt(data[`${k}_activity_${i}`]), leader: txt(data[`${k}_staff_${i}`]), school: txt(data[`${k}_school_${i}`]) };
-      Object.keys(CAT_TO_EMOD).forEach((c) => (r[CAT_TO_EMOD[c]] = num(data[`${k}_${c}_${i}`])));
-      rows.push(r);
-    }
-    let last = rows.length;
-    while (last > 0 && !rows[last - 1].activity && !rows[last - 1].leader && !rows[last - 1].school && !some(Object.values(CAT_TO_EMOD).map((c) => rows[last - 1][c]))) last--;
-    if (last) rooms[ROOM_TO_EMOD[k]] = rows.slice(0, Math.max(8, last));
-  });
-  const others = EXT_TO_EMOD.map(([k, label]) => {
-    const a = { name: label || txt(data[`activity_${k}_name`]), school: txt(data[`activity_${k}_school`]) };
-    ["w", "g"].forEach((s) => Object.keys(CAT_TO_EMOD).forEach((c) => (a[`${s}_${CAT_TO_EMOD[c]}`] = num(data[`activity_${k}_${s}_${c}`]))));
-    return a;
-  });
-  const othersHaveData = others.some((a) => a.school || (!EXT_TO_EMOD.find((x) => x[1] === a.name) && a.name) || Object.keys(a).some((k) => /^[wg]_/.test(k) && a[k]));
-  const walkHasData = some(Object.values(walk));
-  if (!walkHasData && !groups.length && !Object.keys(rooms).length && !othersHaveData) return; // ไม่มีอะไรจะส่ง
-
-  // ---- หา / สร้างแถวรายงานวันนั้นในแท็บ EMod ----
-  let sheet = ss_().getSheetByName(EMOD_TAB);
-  if (!sheet) {
-    sheet = ss_().insertSheet(EMOD_TAB);
-    sheet.getRange(1, 1, 1, EMOD_HEADERS_FOR_SYNC.length).setValues([EMOD_HEADERS_FOR_SYNC]);
-    sheet.setFrozenRows(1);
-  }
-  let header = sheet.getRange(1, 1, 1, Math.max(1, sheet.getLastColumn())).getValues()[0].map(String);
-  const missing = EMOD_HEADERS_FOR_SYNC.filter((h) => header.indexOf(h) === -1);
-  if (missing.length) {
-    sheet.getRange(1, header.length + 1, 1, missing.length).setValues([missing]);
-    header = header.concat(missing);
-  }
-  const col = (h) => header.indexOf(h);
-  let rowNum = -1, row = header.map(() => "");
-  if (sheet.getLastRow() > 1) {
-    const values = sheet.getRange(2, 1, sheet.getLastRow() - 1, header.length).getValues();
-    const tz = ss_().getSpreadsheetTimeZone();
-    for (let i = 0; i < values.length; i++) {
-      const v = values[i][col("date")];
-      const d = v instanceof Date ? Utilities.formatDate(v, tz, "yyyy-MM-dd") : String(v).trim();
-      if (d === date) {
-        rowNum = i + 2;
-        row = values[i];
-        break;
-      }
-    }
-  }
-  const parse = (h, fallback) => {
-    try {
-      return JSON.parse(row[col(h)] || "null") || fallback;
-    } catch (err) {
-      return fallback;
-    }
-  };
-  const now = new Date().toISOString();
-  const vc = parse("visitorCountsJson", {});
-  if (walkHasData) vc.exWalkin = Object.assign({ senior: 0 }, vc.exWalkin || {}, walk); // ผู้สูงอายุคงค่าที่ E-Mod กรอก
-  if (groups.length) {
-    vc.groups = groups;
-    vc.groupCount = groups.length;
-    const sum = (k) => groups.reduce((a, g) => a + g[k], 0);
-    vc.exGroup = Object.assign({ senior: 0 }, vc.exGroup || {}, { childTh: sum("childTh"), adultTh: sum("adultTh"), childFor: 0, adultFor: 0 });
-  }
-  const ar = parse("activityRoundsJson", {});
-  Object.keys(rooms).forEach((k) => (ar[k] = rooms[k]));
-  let oa = parse("otherActivitiesJson", []);
-  if (othersHaveData) oa = others;
-
-  const report = { visitorCounts: vc, activityRounds: ar, otherActivities: oa };
-  const sum = emodSummaryForSync_(report);
-  const set = (h, v) => {
-    if (col(h) !== -1) row[col(h)] = v;
-  };
-  if (rowNum === -1) {
-    set("id", Utilities.getUuid());
-    set("date", date);
-    set("recorder", "Exhibition (อัตโนมัติ)");
-    set("createdAt", now);
-  }
-  set("visitorCountsJson", JSON.stringify(vc));
-  set("activityRoundsJson", JSON.stringify(ar));
-  set("otherActivitiesJson", JSON.stringify(oa));
-  set("updatedAt", now);
-  set("summaryJson", JSON.stringify(sum));
-  set("sumChildTh", sum.total.childTh);
-  set("sumChildFor", sum.total.childFor);
-  set("sumAdultTh", sum.total.adultTh);
-  set("sumAdultFor", sum.total.adultFor);
-  set("sumSenior", sum.total.senior);
-  set("sumTotal", sum.total.total);
-  const target = rowNum === -1 ? sheet.getLastRow() + 1 : rowNum;
-  sheet.getRange(target, col("date") + 1).setNumberFormat("@"); // วันที่เป็นข้อความเหมือนที่ E-Mod เขียน
-  sheet.getRange(target, 1, 1, header.length).setValues([row.map((v) => (v instanceof Date ? v.toISOString() : v))]);
+  return result;
 }
 
-/** สรุปผู้เข้าชมแยกกลุ่ม — ตรรกะเดียวกับ emodSummary_ ใน E-Mod-CodeGs.gs (ใช้เติมคอลัมน์ sum* ตอนส่งข้อมูลไป E-Mod) */
-function emodSummaryForSync_(d) {
-  const CATS = ["childTh", "childFor", "adultTh", "adultFor", "senior"];
-  const n = (v) => Number(v) || 0;
-  const vc = d.visitorCounts || {}, ar = d.activityRounds || {};
-  const row = (key, label, src) => {
-    const r = { key: key, label: label };
-    CATS.forEach((c) => (r[c] = n(src[c])));
-    r.total = CATS.reduce((a, c) => a + r[c], 0);
-    return r;
-  };
-  const sumRounds = (list) => (list || []).reduce((a, x) => {
-    ["childTh", "childFor", "adultTh", "adultFor"].forEach((c) => (a[c] = (a[c] || 0) + n(x[c])));
-    return a;
-  }, {});
-  const rows = [row("exWalkin", "นิทรรศการ Walk-in", vc.exWalkin || {}), row("exGroup", "นิทรรศการ Group", vc.exGroup || {}),
-    row("inspireLab", "Inspire Lab", sumRounds(ar.inspireLab)), row("innovationSpace", "Innovation Space", sumRounds(ar.innovationSpace))];
-  (d.otherActivities || []).forEach((a, i) => {
-    const src = {};
-    ["childTh", "childFor", "adultTh", "adultFor"].forEach((c) => (src[c] = n(a["w_" + c]) + n(a["g_" + c])));
-    const r = row("other" + i, String(a.name || "").trim() || "กิจกรรมอื่น " + (i + 1), src);
-    if (r.total || String(a.name || "").trim()) rows.push(r);
+/** Run from the Apps Script editor to retry/backfill saved Exhibition dates.
+ * Processes at most 30 dates per run. Set START_DATE / END_DATE to a date range.
+ * Re-running a date updates the same E-MOD report and preserves income/MOD fields.
+ */
+function syncSavedExhibitionToEmod() {
+  const START_DATE = ""; // e.g. "2026-10-01"
+  const END_DATE = "";   // e.g. "2026-10-31"
+  const { header, rows } = readAllRows_();
+  const dateCol = header.indexOf("visitDate");
+  if (dateCol === -1) throw new Error("ไม่พบคอลัมน์ visitDate");
+  const dates = [...new Set(rows.map(row => toDateString_({ visitDate: row[dateCol] })).filter(Boolean))]
+    .filter(date => (!START_DATE || date >= START_DATE) && (!END_DATE || date <= END_DATE)).sort();
+  if (dates.length > 30) throw new Error("กรุณาระบุช่วง START_DATE / END_DATE ให้ไม่เกิน 30 วันต่อครั้ง");
+  const results = dates.map(date => {
+    try { syncToEmod_(date); cacheBump_(); return { date: date, ok: true }; }
+    catch (err) { console.error(date + ": " + err.message); return { date: date, error: err.message }; }
   });
-  const all = {};
-  CATS.forEach((c) => (all[c] = rows.reduce((s, r) => s + r[c], 0)));
-  return { rows: rows, total: row("total", "รวมทั้งหมด", all) };
+  console.log(JSON.stringify(results));
+  return results;
 }
 
-/** Sheet row number of the latest Data row saved for `date` (YYYY-MM-DD), or -1. */
+// ---------- read a saved day ----------
+/** Sheet row number of the latest Data row saved for this date, or -1. */
 function findDayRow_(sheet, header, date) {
   const want = toDateString_({ visitDate: date });
   const col = header.indexOf("visitDate");
@@ -602,9 +508,6 @@ function findDayRow_(sheet, header, date) {
   return -1;
 }
 
-// ---------- GET ----------
-
-/** The saved form of one day, as {field id: text} for the form to fill back in. */
 function readDay_(date) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ""))) return { error: "วันที่ไม่ถูกต้อง" };
   const { header, rows } = readAllRows_();
@@ -774,11 +677,11 @@ function withDerived_(record, rooms) {
 
 /** รายงาน E-Mod ทั้งหมด (แท็บ EMod) สำหรับหน้า E-Mod Dashboard — ตัดแถว/ช่องที่ว่างออกให้ข้อมูลเล็กลง */
 function readEmodReports_() {
-  const sheet = ss_().getSheetByName("EMod");
+  const sheet = emodSs_().getSheetByName("EMod");
   if (!sheet || sheet.getLastRow() < 2) return [];
   const values = sheet.getDataRange().getValues();
   const header = values.shift().map(String);
-  const tz = ss_().getSpreadsheetTimeZone();
+  const tz = emodSs_().getSpreadsheetTimeZone();
   const parse = (v) => {
     try {
       return JSON.parse(v || "null");
@@ -820,14 +723,14 @@ function readEmodReports_() {
 
 /** Revenue of every E-Mod report: [{date, revenue: {channel: {section: amount}}}]. */
 function readFinance_() {
-  const sheet = ss_().getSheetByName("EMod");
+  const sheet = emodSs_().getSheetByName("EMod");
   if (!sheet || sheet.getLastRow() < 2) return [];
   const values = sheet.getDataRange().getValues();
   const header = values.shift();
   const dateCol = header.indexOf("date");
   const revCol = header.indexOf("revenueJson");
   if (dateCol === -1 || revCol === -1) return [];
-  const tz = ss_().getSpreadsheetTimeZone();
+  const tz = emodSs_().getSpreadsheetTimeZone();
   const out = [];
   values.forEach((row) => {
     const v = row[dateCol];
